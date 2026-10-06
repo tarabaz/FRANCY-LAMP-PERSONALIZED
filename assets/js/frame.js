@@ -14,6 +14,8 @@ export const FRAME = {
   bottomSlot: { diameter: 10, centerFromBottom: 12 },          // asola in basso a U: centro foro a 12 mm dal fondo
   textHeight: 0.62,       // altezza testo come frazione della fascia
   textMaxSpanDeg: 80,     // ampiezza massima di un testo sull'arco
+  baseThickness: 0.52,    // base bianca piena, sempre presente
+  artThickness: 0.48,     // motivo colorato sopra la base (totale disco 1 mm)
 };
 
 export function geometry(F = FRAME) {
@@ -127,6 +129,8 @@ export function buildFrame(font, texts, F = FRAME) {
 
   return {
     geometry: g,
+    // sagoma completa del disco (per la base bianca)
+    outline: notchedCircle(F, g.R, true),
     // anello nero = contorno con tacche meno cerchio della fascia (evenodd)
     blackRing: notchedCircle(F, g.R, true) + notchedCircle(F, g.rBandOut, false),
     // fascia = corona circolare meno le lettere (evenodd: i "buchi" delle lettere tornano fascia)

@@ -4,12 +4,14 @@ import { Preview3D } from './preview3d.js';
 const $ = (s) => document.querySelector(s);
 const root = $('#flc-root');
 const BLACK = '#151515';
+const WHITE = '#ffffff';
 const MAX_FILAMENTS = 12;
 
 const state = {
   img: null, zoom: 1, ox: 0, oy: 0,
   mode: 'outline', seed: 1, lit: false, view: '2d',
   result: null, colorOverrides: {}, font: null,
+  bandColor: '#5b9bd5', textColor: BLACK,
 };
 
 const worker = new Worker(new URL('./worker.js', import.meta.url));
@@ -180,24 +182,79 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
   }
 }));
 
-for (const id of ['bandColor', 'textColor']) $('#' + id).addEventListener('input', () => { updateColorLimit(); render(); });
 let textTimer;
 for (const id of ['tTL', 'tTR', 'tBL', 'tBR']) $('#' + id).addEventListener('input', () => { clearTimeout(textTimer); textTimer = setTimeout(render, 150); });
 
-// Il limite dei 12 filamenti comprende fascia e scritte
+// ---------------- regola dei 12 colori ----------------
+// Il limite è "al massimo 12": bianco della base e nero dei contorni contano sempre.
+// Fascia e scritte possono usare un colore già presente nel disegno (gratis) o uno nuovo se c'è posto.
+function drawingColors() {
+  if (!state.result) return [];
+  return state.result.palette.map((_, i) => artColor(i));
+}
+function colorSet(exclude) {
+  const set = new Set([WHITE, BLACK, ...drawingColors()]);
+  if (exclude !== 'band') set.add(state.bandColor.toLowerCase());
+  if (exclude !== 'text') set.add(state.textColor.toLowerCase());
+  return set;
+}
+// Colori che servono oltre a quelli del disegno: bianco base, nero cornice, fascia, scritte
 function frameExtraColors() {
-  let extra = 1; // fascia
-  if ($('#textColor').value.toLowerCase() !== BLACK && !isNearBlack($('#textColor').value)) extra++;
-  if (state.mode === 'keep') extra++; // nero cornice se la grafica non ne ha uno (stima prudente)
+  const drawing = new Set(drawingColors());
+  const need = new Set([WHITE, BLACK, state.bandColor.toLowerCase(), state.textColor.toLowerCase()]);
+  // prima della conversione: con i contorni automatici il nero è già uno dei colori del disegno
+  if (!state.result && state.mode === 'outline') need.delete(BLACK);
+  let extra = 0;
+  for (const c of need) if (!drawing.has(c)) extra++;
   return extra;
 }
 function updateColorLimit() {
-  const max = MAX_FILAMENTS - frameExtraColors() + (state.mode === 'keep' ? 1 : 0);
+  // lo slider "Colori" conta i colori del disegno (nero compreso)
+  const max = MAX_FILAMENTS - frameExtraColors();
   const el = $('#colors');
   el.max = Math.max(2, max);
   if (+el.value > max) { el.value = max; $('#colorsOut').textContent = max; schedule(); }
 }
+
+function renderPickers() {
+  for (const [key, id] of [['band', '#bandPicker'], ['text', '#textPicker']]) {
+    const host = $(id + ' .swatches');
+    host.innerHTML = '';
+    const current = (key === 'band' ? state.bandColor : state.textColor).toLowerCase();
+    const choices = [...new Set([WHITE, BLACK, ...drawingColors(), current])];
+    for (const c of choices) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'swatch' + (c === current ? ' active' : '');
+      b.style.background = c;
+      b.title = c;
+      b.addEventListener('click', () => setFrameColor(key, c));
+      host.append(b);
+    }
+    // colore nuovo: solo se aggiungerlo non supera i 12
+    const free = colorSet(key).size < MAX_FILAMENTS;
+    const add = document.createElement('label');
+    add.className = 'swatch-add' + (free ? '' : ' disabled');
+    add.title = free ? 'Scegli un colore nuovo' : 'Hai già 12 colori: scegli tra quelli del disegno';
+    add.innerHTML = '+<input type="color">';
+    const inp = add.querySelector('input');
+    inp.value = current;
+    inp.disabled = !free;
+    inp.addEventListener('change', () => setFrameColor(key, inp.value));
+    host.append(add);
+  }
+}
+
+function setFrameColor(key, c) {
+  c = c.toLowerCase();
+  if (!colorSet(key).has(c) && colorSet(key).size >= MAX_FILAMENTS) return;
+  if (key === 'band') state.bandColor = c; else state.textColor = c;
+  updateColorLimit();
+  render();
+}
+
 function isNearBlack(hex) { const { r, g, b } = hexToRgb(hex); return r + g + b < 90; }
+function isNearWhite(hex) { const { r, g, b } = hexToRgb(hex); return Math.min(r, g, b) > 232; }
 
 // ---------------- conversione ----------------
 let timer;
@@ -239,6 +296,7 @@ worker.onmessage = (e) => {
   state.result = result;
   state.colorOverrides = {};
   renderPalette();
+  updateColorLimit();
   render();
   setStatus('');
 };
@@ -248,7 +306,11 @@ function setStatus(t) { $('#status').textContent = t || (state.result ? 'Pronto'
 // ---------------- palette ----------------
 function artColor(i) {
   const p = state.result.palette[i];
-  return state.colorOverrides[i] || (p.black ? BLACK : rgbToHex(p));
+  if (state.colorOverrides[i]) return state.colorOverrides[i].toLowerCase();
+  if (p.black) return BLACK;
+  const hex = rgbToHex(p);
+  return isNearWhite(hex) ? WHITE : hex; // i bianchi del disegno usano lo stesso filamento della base
+
 }
 
 function renderPalette() {
@@ -277,20 +339,21 @@ function texts() {
 
 function parts() {
   const frame = buildFrame(state.font, texts());
-  const band = $('#bandColor').value, txt = $('#textColor').value;
-  const list = [];
+  const band = state.bandColor, txt = state.textColor;
+  const zArt = FRAME.baseThickness, hArt = FRAME.artThickness;
+  // Struttura reale: base bianca piena 0,52 mm + motivo colorato 0,48 mm sopra (disco totale 1 mm)
+  const list = [{ id: 'base-bianca', d: frame.outline, color: WHITE, z: 0, depth: FRAME.baseThickness, layer: 'base' }];
+  const art = (o) => list.push({ z: zArt, depth: hArt, layer: 'motivo', ...o });
   if (state.result) {
     const pal = state.result.palette;
     // prima i colori, poi il nero del disegno (in caso di sovrapposizione al bordo vince il nero)
-    pal.forEach((p, i) => { if (!p.black) list.push({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i), z: 0, depth: 0.8 }); });
-    pal.forEach((p, i) => { if (p.black) list.push({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), z: 0, depth: 1.2, black: true }); });
-  } else {
-    list.push({ id: 'disegno-vuoto', d: `M${-geometry().rImg} 0A1 1 0 0 0 ${geometry().rImg} 0A1 1 0 0 0 ${-geometry().rImg} 0Z`, color: '#ffffff', z: 0, depth: 0.8 });
+    pal.forEach((p, i) => { if (!p.black) art({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i) }); });
+    pal.forEach((p, i) => { if (p.black) art({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), black: true }); });
   }
-  list.push({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, z: 0, depth: 1.2, black: true });
-  list.push({ id: 'cornice-fascia', d: frame.band, color: band, z: 0, depth: 0.8 });
-  if (frame.text) list.push({ id: 'cornice-scritte', d: frame.text, color: txt, z: 0, depth: 1.2, black: isNearBlack(txt) });
-  list.push({ id: 'cornice-anello-nero', d: frame.blackRing, color: BLACK, z: 0, depth: 1.4, black: true });
+  art({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, black: true });
+  art({ id: 'cornice-fascia', d: frame.band, color: band });
+  if (frame.text) art({ id: 'cornice-scritte', d: frame.text, color: txt, black: isNearBlack(txt) });
+  art({ id: 'cornice-anello-nero', d: frame.blackRing, color: BLACK, black: true });
   return list;
 }
 
@@ -299,9 +362,9 @@ function buildSvg(forExport) {
   const ps = parts();
   const colors = new Set(ps.map((p) => p.color.toLowerCase()));
   const body = ps.map((p) =>
-    `<g id="${p.id}" data-colore="${p.color}"><path fill="${p.color}" fill-rule="evenodd" d="${p.d}"/></g>`).join('\n');
+    `<g id="${p.id}" data-colore="${p.color}" data-strato="${p.layer}" data-z="${p.z}" data-spessore="${p.depth}"><path fill="${p.color}" fill-rule="evenodd" d="${p.d}"/></g>`).join('\n');
   const head = forExport
-    ? `<?xml version="1.0" encoding="UTF-8"?>\n<!-- FrancyStore3D - disco lampada Ø${FRAME.diameter} mm - unità: mm - ${colors.size} colori -->\n`
+    ? `<?xml version="1.0" encoding="UTF-8"?>\n<!-- FrancyStore3D - disco lampada Ø${FRAME.diameter} mm - unità: mm - ${colors.size} colori.\n     Strati: base bianca piena ${FRAME.baseThickness} mm (gruppo base-bianca) + motivo ${FRAME.artThickness} mm sopra (tutti gli altri gruppi). -->\n`
     : '';
   return { svg: `${head}<svg xmlns="http://www.w3.org/2000/svg" width="${FRAME.diameter}mm" height="${FRAME.diameter}mm" viewBox="${-R} ${-R} ${2 * R} ${2 * R}">\n${body}\n</svg>`, colors, parts: ps };
 }
@@ -310,9 +373,12 @@ function render() {
   const { svg, colors, parts: ps } = buildSvg(false);
   $('#svgHost').innerHTML = svg;
   const n = colors.size;
-  $('#count').textContent = `Filamenti totali: ${n} / ${MAX_FILAMENTS}` + (n > MAX_FILAMENTS ? ' – troppi!' : '');
-  $('#count').style.color = n > MAX_FILAMENTS ? '#c0392b' : '';
-  $('#dlSvg').disabled = $('#dlPng').disabled = !state.result;
+  const over = n > MAX_FILAMENTS;
+  $('#count').textContent = `Colori totali: ${n} / ${MAX_FILAMENTS}` + (over ? ' – troppi, riduci i colori del disegno' : '');
+  $('#count').style.color = over ? '#c0392b' : '';
+  $('#dlSvg').disabled = !state.result || over;
+  $('#dlPng').disabled = !state.result;
+  renderPickers();
   dirty3d = true;
   if (state.view === '3d' && preview3d) update3d(ps);
 }

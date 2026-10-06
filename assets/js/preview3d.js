@@ -11,7 +11,30 @@ const LAMP_MODEL = {
   frontZ: 1056.74,                // faccia frontale della scocca
   discRecess: 2,                  // il disco sta 2 mm dietro il frontale (il tappo lo copre in alcuni punti)
   floorY: 1027.28 - 1173.26,      // fondo della base, rispetto al centro disco
+  baseSize: [204.4, 60],          // ingombro a terra della base (larghezza, profondità)
+  baseCenterZ: 1041.74 - 1056.74, // centro della base in profondità
 };
+
+// Ombra di contatto: impronta della base sfocata, più scura al centro
+function contactShadowTexture([w, d]) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = Math.round(512 * (d * 2.2) / (w * 1.35));
+  const ctx = c.getContext('2d');
+  const fw = c.width / 1.35, fh = c.height / 2.2;
+  ctx.filter = `blur(${Math.round(c.height * 0.08)}px)`;
+  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  ctx.beginPath();
+  ctx.roundRect((c.width - fw) / 2, (c.height - fh) / 2, fw, fh, fh * 0.35);
+  ctx.fill();
+  ctx.filter = `blur(${Math.round(c.height * 0.03)}px)`;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.roundRect((c.width - fw * 0.96) / 2, (c.height - fh * 0.85) / 2, fw * 0.96, fh * 0.85, fh * 0.3);
+  ctx.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 export class Preview3D {
   constructor(container) {
@@ -28,7 +51,7 @@ export class Preview3D {
     this.controls.target.set(0, -25, 0);
     this.controls.enableDamping = true;
 
-    this.ambient = new THREE.AmbientLight(0xffffff, 0.9);
+    this.ambient = new THREE.HemisphereLight(0xffffff, 0xd8d8d8, 1.1);
     this.key = new THREE.DirectionalLight(0xffffff, 1.6);
     this.key.position.set(200, 300, 400);
     this.scene.add(this.ambient, this.key);
@@ -66,11 +89,15 @@ export class Preview3D {
       this.lamp.add(mesh);
     }, undefined, (err) => console.error('Modello lampada non caricato', err));
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({ color: 0x6b4a32, roughness: 0.8 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = LAMP_MODEL.floorY - 0.2;
-    this.scene.add(floor);
-    this.floor = floor;
+    // Niente pavimento: sfondo bianco e solo un'ombra morbida dove la base tocca terra
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(LAMP_MODEL.baseSize[0] * 1.35, LAMP_MODEL.baseSize[1] * 2.2),
+      new THREE.MeshBasicMaterial({ map: contactShadowTexture(LAMP_MODEL.baseSize), transparent: true, depthWrite: false }),
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.set(0, LAMP_MODEL.floorY + 0.05, LAMP_MODEL.baseCenterZ);
+    this.scene.add(shadow);
+    this.shadow = shadow;
   }
 
   // parts: [{ d, color, z, depth, black }]
@@ -78,7 +105,7 @@ export class Preview3D {
     this.disc.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
     this.disc.clear();
     this.colorMats = [];
-    this.discDepth = Math.max(0, ...parts.map((p) => p.depth || 0));
+    this.discDepth = Math.max(0, ...parts.map((p) => (p.z || 0) + (p.depth || 0))); // spessore totale (1 mm)
     const loader = new SVGLoader();
     for (const p of parts) {
       if (!p.d) continue;
@@ -88,6 +115,10 @@ export class Preview3D {
       if (!shapes.length) continue;
       const geo = new THREE.ExtrudeGeometry(shapes, { depth: p.depth, bevelEnabled: false, curveSegments: 6 });
       const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.55, side: THREE.DoubleSide });
+      // le parti dopo vincono dove si sovrappongono sullo stesso piano (es. disegno sotto la linea nera)
+      mat.polygonOffset = true;
+      mat.polygonOffsetFactor = -this.disc.children.length * 0.2;
+      mat.polygonOffsetUnits = -this.disc.children.length * 2;
       mat.userData.base = new THREE.Color(p.color);
       mat.userData.black = !!p.black;
       if (!p.black) this.colorMats.push(mat);
@@ -103,7 +134,8 @@ export class Preview3D {
 
   setLit(lit) {
     this.lit = lit;
-    this.scene.background = new THREE.Color(lit ? 0x1c1f26 : 0xdfe3ea);
+    this.scene.background = new THREE.Color(lit ? 0x1c1f26 : 0xffffff);
+    if (this.shadow) this.shadow.material.opacity = lit ? 0.6 : 1;
     this.ambient.intensity = lit ? 0.25 : 0.9;
     this.key.intensity = lit ? 0.35 : 1.6;
     for (const m of this.colorMats) {

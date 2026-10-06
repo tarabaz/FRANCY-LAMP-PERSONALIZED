@@ -65,8 +65,9 @@
 
       <section>
         <h2><span>3</span> Cornice e scritte</h2>
-        <label class="row">Colore fascia <input type="color" id="bandColor" value="#5b9bd5"></label>
-        <label class="row">Colore scritte <input type="color" id="textColor" value="#151515"></label>
+        <div class="picker" id="bandPicker"><span class="picker-label">Colore fascia</span><div class="swatches"></div></div>
+        <div class="picker" id="textPicker"><span class="picker-label">Colore scritte</span><div class="swatches"></div></div>
+        <p class="hint" id="pickerHint">Puoi scegliere tra i colori già usati nel disegno. Un colore nuovo si può aggiungere solo se resti entro i 12 colori totali.</p>
         <div class="texts">
           <input id="tTL" placeholder="In alto a sinistra" value="カラカラ" maxlength="14">
           <input id="tTR" placeholder="In alto a destra" value="CUBONE" maxlength="14">
@@ -89,7 +90,7 @@
     <aside class="panel right">
       <section>
         <h2>Colori del disco</h2>
-        <p class="hint">Clicca un colore per cambiarlo. Massimo 12 colori, nero dei contorni compreso.</p>
+        <p class="hint">Clicca un colore per cambiarlo. Massimo 12 colori in tutto, compresi il bianco della base e il nero dei contorni.</p>
         <ul id="palette" class="palette"></ul>
         <p class="count" id="count"></p>
       </section>

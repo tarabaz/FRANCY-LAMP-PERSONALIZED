@@ -7,7 +7,7 @@
   --line: #e4e0d9;
   --accent: #f2b705;
   --accent-ink: #1d1b19;
-  --stage: #e9e6e0;
+  --stage: #ffffff;
   --stage-lit: #15171c;
   --radius: 12px;
 }
@@ -125,3 +125,17 @@ html.flc-page .flc { height: 100%; }
 .flc .ai-box button.ghost { margin-top: 6px; background: transparent; color: var(--ink); border: 1.5px solid var(--line); font-weight: 600; }
 .flc .ai-box .hint { margin: 6px 0 0; }
 .flc .ai-box.busy button#aiBtn { opacity: .6; cursor: progress; }
+
+/* Scelta colore fascia/scritte tra i colori del disco */
+.flc .picker { margin: 10px 0; }
+.flc .picker-label { display: block; margin-bottom: 6px; }
+.flc .swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.flc .swatch {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); cursor: pointer; padding: 0;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.0);
+}
+.flc .swatch.active { outline: 2.5px solid var(--ink); outline-offset: 2px; }
+.flc .swatch-add { position: relative; width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--muted); display: grid; place-items: center; cursor: pointer; color: var(--muted); font-weight: 700; overflow: hidden; }
+.flc .swatch-add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.flc .swatch-add.disabled { opacity: .35; cursor: not-allowed; }
+.flc .swatch-add.disabled input { pointer-events: none; }
