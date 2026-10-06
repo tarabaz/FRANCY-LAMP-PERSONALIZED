@@ -40,9 +40,11 @@ strette del "dettaglio minimo" (diventano nere), contorni neri con spessore mini
 
 In `js/frame.js` → `FRAME`.
 
-- Reali: Ø200, fori laterali Ø10 con centro sul bordo a 2/3 dell'altezza, asola in basso Ø10 con
-  centro a 12 mm dal fondo (taglio passante su anello, fascia e linea interna).
-- Stimate dalla grafica, da confermare: anello nero 11 mm, fascia 11,5 mm, linea interna 1,6 mm.
+Tutte reali (disegno quotato in [`docs/quote-disco.png`](../docs/quote-disco.png)):
+- Ø200, bordo nero esterno 9,25, banda colorata 12, bordino nero interno 3 → artwork Ø151,5.
+- Fori laterali Ø10 con centro sul bordo a 2/3 dell'altezza.
+- Asola in basso Ø10 con centro a 12 mm dal fondo, con contorno nero di 4 mm che attraversa la banda e si
+  unisce al bordino interno. Banda e contorno sono forme esatte, senza sovrapposizioni.
 
 ## Struttura
 

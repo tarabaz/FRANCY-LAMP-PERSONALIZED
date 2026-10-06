@@ -398,6 +398,7 @@ function parts() {
   }
   art({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, black: true });
   art({ id: 'cornice-fascia', d: frame.band, color: band });
+  if (frame.slotBorder) art({ id: 'cornice-contorno-asola', d: frame.slotBorder, color: BLACK, black: true });
   if (frame.text) art({ id: 'cornice-scritte', d: frame.text, color: txt, black: isNearBlack(txt) });
   art({ id: 'cornice-anello-nero', d: frame.blackRing, color: BLACK, black: true });
   return list;

@@ -1,14 +1,15 @@
 // Cornice fissa del disco (anello nero con tacche + fascia colorata con scritte).
 // Tutte le misure sono in mm, centro del disco in (0,0), asse Y verso il basso (come SVG).
-// Tacche e asola: quote reali fornite da Valerio. Spessori anello/fascia: stimati dalla grafica "Cubone".
+// Quote reali fornite da Valerio: bordo nero 9,25, banda 12, bordino interno 3, contorno asola 4, fori e asola Ø10.
 
 import { parse as parseFont } from '../vendor/opentype.mjs';
 
 export const FRAME = {
   diameter: 200,          // diametro totale disco
-  blackRing: 11,          // spessore anello nero esterno
-  band: 11.5,             // spessore fascia colorata
-  innerLine: 1.6,         // spessore linea nera tra fascia e disegno
+  blackRing: 9.25,        // spessore anello nero esterno
+  band: 12,               // spessore fascia colorata
+  innerLine: 3,           // spessore bordino nero che delimita l'artwork
+  slotBorder: 4,          // contorno nero attorno all'asola, attraversa la banda fino al bordino interno
   overlap: 0.8,           // quanto il disegno va sotto la linea nera interna
   sideNotch: { diameter: 10, heightFromBottom: 200 * 2 / 3 }, // fori laterali: centro sul bordo a 2/3 dell'altezza
   bottomSlot: { diameter: 10, centerFromBottom: 12 },          // asola in basso a U: centro foro a 12 mm dal fondo
@@ -116,6 +117,33 @@ function arcText(font, text, centerDeg, rBaseline, size, top, maxSpanDeg) {
 }
 
 // Ritorna gli elementi della cornice come path separati per colore/parte
+// Banda colorata interrotta in basso dal contorno nero dell'asola (forma a "C") e contorno stesso.
+// Forme esatte e non sovrapposte: banda, contorno, anello e bordino si toccano solo sui bordi.
+function slotBorderShapes(F, g) {
+  const W = F.bottomSlot.diameter / 2 + F.slotBorder;        // semi-larghezza del contorno (9)
+  const hw = F.bottomSlot.diameter / 2;                       // semi-larghezza asola (5)
+  const yC = g.R - F.bottomSlot.centerFromBottom;             // centro asola (88)
+  // L'arco del contorno sale fino a fondersi col bordino interno (niente striscia sottile di banda in mezzo)
+  const yCc = Math.min(yC, g.rBandIn - 0.5 + W);
+  const rI = g.rBandIn, rO = g.rBandOut;
+  const yi = (rI * rI - W * W + yCc * yCc) / (2 * yCc);       // intersezione arco contorno / cerchio interno
+  if (yi >= rI || yi * yi > rI * rI) return null;
+  const xi = Math.sqrt(rI * rI - yi * yi);
+  const yA = Math.sqrt(rO * rO - W * W), yB = Math.sqrt(rO * rO - hw * hw);
+  const a = (r) => `${n(r)} ${n(r)} 0 0`;
+  const band =
+    `M${n(-W)} ${n(yA)}A${a(rO)} 1 0 ${n(-rO)}A${a(rO)} 1 ${n(W)} ${n(yA)}` +     // giro esterno passando dall'alto
+    `L${n(W)} ${n(yCc)}A${a(W)} 0 ${n(xi)} ${n(yi)}` +                              // lato destro del contorno
+    `A${a(rI)} 0 0 ${n(-rI)}A${a(rI)} 0 ${n(-xi)} ${n(yi)}` +                     // giro interno passando dall'alto
+    `A${a(W)} 0 ${n(-W)} ${n(yCc)}Z`;                                              // lato sinistro del contorno
+  const border =
+    `M${n(-xi)} ${n(yi)}A${a(W)} 0 ${n(-W)} ${n(yCc)}L${n(-W)} ${n(yA)}` +
+    `A${a(rO)} 0 ${n(-hw)} ${n(yB)}L${n(-hw)} ${n(yC)}A${a(hw)} 1 ${n(hw)} ${n(yC)}L${n(hw)} ${n(yB)}` +
+    `A${a(rO)} 0 ${n(W)} ${n(yA)}L${n(W)} ${n(yCc)}A${a(W)} 0 ${n(xi)} ${n(yi)}` +
+    `A${a(rI)} 1 ${n(-xi)} ${n(yi)}Z`;
+  return { band, border };
+}
+
 export function buildFrame(font, texts, F = FRAME) {
   const g = geometry(F);
   const rMid = (g.rBandOut + g.rBandIn) / 2;
@@ -127,14 +155,17 @@ export function buildFrame(font, texts, F = FRAME) {
     arcText(font, texts.bottomLeft, 125, rMid + capOffset, size, false, F.textMaxSpanDeg * 0.5) +
     arcText(font, texts.bottomRight, 55, rMid + capOffset, size, false, F.textMaxSpanDeg * 0.5);
 
+  const sb = F.slotBorder > 0 ? slotBorderShapes(F, g) : null;
   return {
     geometry: g,
     // sagoma completa del disco (per la base bianca)
     outline: notchedCircle(F, g.R, true),
     // anello nero = contorno con tacche meno cerchio della fascia (evenodd)
     blackRing: notchedCircle(F, g.R, true) + notchedCircle(F, g.rBandOut, false),
-    // fascia = corona circolare meno le lettere (evenodd: i "buchi" delle lettere tornano fascia)
-    band: notchedCircle(F, g.rBandOut, false) + notchedCircle(F, g.rBandIn, false) + textD,
+    // fascia = corona circolare (interrotta dal contorno dell'asola) meno le lettere
+    // (evenodd: i "buchi" delle lettere tornano fascia)
+    band: (sb ? sb.band : notchedCircle(F, g.rBandOut, false) + notchedCircle(F, g.rBandIn, false)) + textD,
+    slotBorder: sb ? sb.border : '',
     text: textD,
     innerLine: notchedCircle(F, g.rBandIn, false) + circlePath(g.rImg),
   };
