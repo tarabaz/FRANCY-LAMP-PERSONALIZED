@@ -44,7 +44,19 @@ function convert(rgba, size, ppmm, opts, progress) {
   const outlines = opts.mode === 'outline';
   // In modalità "contorni automatici" il nero è un colore in più, quindi k = N-1
   let k = Math.max(1, outlines ? opts.colors - 1 : opts.colors);
-  let centers = kmeans(lab, inside, n, k, opts.seed || 1);
+  let centers;
+  // Modalità ritratto: la pelle ha una palette tutta sua (3 toni garantiti), il resto si divide gli altri colori
+  let skinSet = new Set();
+  const skin = opts.portrait ? skinMask(lab, inside, n, opts.seed || 1) : null;
+  if (skin && k >= 4) {
+    const other = new Uint8Array(n);
+    for (let i = 0; i < n; i++) other[i] = inside[i] && !skin[i] ? 1 : 0;
+    centers = kmeans(lab, other, n, k - 3, opts.seed || 1);
+    const sc = kmeans(lab, skin, n, 3, (opts.seed || 1) + 7);
+    for (const c of sc) { skinSet.add(centers.length); centers.push(c); }
+  } else {
+    centers = kmeans(lab, inside, n, k, opts.seed || 1);
+  }
 
   // Bianco e nero sono le bobine fisse: si usano volentieri anche come colori del disegno.
   // Bianco: soglia larga (grigi chiarissimi, bianchi sporcati dai bordi o un po' rosati, denti, occhi).
@@ -55,6 +67,7 @@ function convert(rgba, size, ppmm, opts, progress) {
   let whiteIdx = -1;
   const darkSet = new Set();
   centers.forEach((c, i) => {
+    if (skinSet.has(i)) return; // i toni della pelle restano pelle anche se chiarissimi
     if (isWhiteC(c)) { if (whiteIdx < 0) whiteIdx = i; centers[i] = [98, 0, 0]; }
     else if (isBlackC(c)) { darkSet.add(i); centers[i] = [8, 0, 0]; }
   });
@@ -88,9 +101,9 @@ function convert(rgba, size, ppmm, opts, progress) {
     palette.push({ r: 20, g: 20, b: 20 });
     // le zone quasi nere del disegno usano lo stesso nero delle linee
     if (darkSet.size) for (let i = 0; i < n; i++) if (darkSet.has(labels[i])) labels[i] = blackIdx;
-    mergeSmallRegions(labels, size, minAreaPx, k, whiteIdx);
+    mergeSmallRegions(labels, size, minAreaPx, k, whiteIdx, skinSet);
     progress('Contorni neri');
-    drawOutlines(labels, inside, size, blackIdx, (opts.lineMm * ppmm) / 2);
+    drawOutlines(labels, inside, size, blackIdx, (opts.lineMm * ppmm) / 2, false, skinSet);
   } else {
     // Grafica con contorni già presenti: il cluster più scuro diventa il "nero"
     let darkest = 0;
@@ -102,13 +115,13 @@ function convert(rgba, size, ppmm, opts, progress) {
       for (let i = 0; i < labels.length; i++) if (labels[i] !== NONE && (centers[labels[i]][0] < 22 || darkSet.has(labels[i]))) labels[i] = blackIdx;
       if (opts.thickenMm > 0) dilateLabel(labels, inside, size, blackIdx, opts.thickenMm * ppmm);
     }
-    mergeSmallRegions(labels, size, minAreaPx, palette.length, whiteIdx);
+    mergeSmallRegions(labels, size, minAreaPx, palette.length, whiteIdx, skinSet);
     // Immagini senza contorni (o con contorni solo su una parte): aggiungo il nero tra le zone colorate
     // che non ne hanno già, senza toccare quelli esistenti
     if (opts.addOutlines) {
       if (blackIdx < 0) { blackIdx = palette.length; palette.push({ r: 20, g: 20, b: 20 }); }
       progress('Contorni mancanti');
-      drawOutlines(labels, inside, size, blackIdx, (opts.lineMm * ppmm) / 2, true);
+      drawOutlines(labels, inside, size, blackIdx, (opts.lineMm * ppmm) / 2, true, skinSet);
     }
   }
 
@@ -116,7 +129,7 @@ function convert(rgba, size, ppmm, opts, progress) {
   if (blackIdx >= 0) {
     progress('Spessori minimi');
     openColored(labels, inside, size, blackIdx, (opts.minFeatureMm * ppmm) / 2);
-    killSmallColored(labels, size, minAreaPx, blackIdx, whiteIdx);
+    killSmallColored(labels, size, minAreaPx, blackIdx, whiteIdx, skinSet);
   }
 
   // Compatta la palette togliendo colori spariti
@@ -324,12 +337,72 @@ function components(labels, size) {
   return { comp, comps };
 }
 
+// Soglia di area minima per ogni regione:
+// - bianco (denti, occhi): un quarto
+// - ritratto: macchie di pelle più grandi del normale vengono assorbite (niente chiazze sul viso),
+//   mentre i dettagli circondati dalla pelle (occhi, sopracciglia, narici, bocca) restano anche se piccoli
+function regionThresholds(labels, size, comp, comps, minArea, whiteIdx, skinSet) {
+  const th = comps.map((c) => (c.label === whiteIdx ? minArea / 4 : minArea));
+  if (!skinSet || !skinSet.size) return th;
+  const border = new Float32Array(comps.length), touchSkin = new Float32Array(comps.length);
+  const n = labels.length;
+  for (let i = 0; i < n; i++) {
+    const c = comp[i];
+    if (c < 0) continue;
+    const x = i % size;
+    for (const j of [x > 0 ? i - 1 : -1, x < size - 1 ? i + 1 : -1, i - size, i + size]) {
+      if (j < 0 || j >= n || comp[j] === c || labels[j] === NONE) continue;
+      border[c]++;
+      if (skinSet.has(labels[j])) touchSkin[c]++;
+    }
+  }
+  comps.forEach((c, i) => {
+    if (skinSet.has(c.label)) th[i] = minArea * 2.5;
+    else if (border[i] && touchSkin[i] / border[i] > 0.6) th[i] = Math.min(th[i], minArea / 3);
+  });
+  return th;
+}
+
+// Pelle: pixel color pelle vicini al tono di pelle principale (che deve occupare almeno il 6% del disco).
+// Ritorna la maschera oppure null se nell'immagine non c'è abbastanza pelle.
+function skinMask(lab, inside, n, seed) {
+  const like = new Uint8Array(n);
+  let tot = 0, cnt = 0;
+  for (let i = 0; i < n; i++) {
+    if (!inside[i]) continue;
+    tot++;
+    const L = lab[i * 3], a = lab[i * 3 + 1], b = lab[i * 3 + 2];
+    const ch = Math.hypot(a, b), h = Math.atan2(b, a) * 180 / Math.PI;
+    if (L > 25 && L < 96 && ch > 7 && ch < 60 && h > 15 && h < 85) { like[i] = 1; cnt++; }
+  }
+  if (cnt < tot * 0.06) return null;
+  // il tono principale: il gruppo più numeroso tra quelli abbastanza chiari (i capelli castani sono più scuri)
+  const cs = kmeans(lab, like, n, 3, seed);
+  const sizes = cs.map(() => 0);
+  for (let i = 0; i < n; i++) {
+    if (!like[i]) continue;
+    let best = 0, bd = Infinity;
+    cs.forEach((c, j) => { const d = dist2(lab, i, c); if (d < bd) { bd = d; best = j; } });
+    sizes[best]++;
+  }
+  let main = -1;
+  cs.forEach((c, j) => { if (c[0] > 40 && (main < 0 || sizes[j] > sizes[main])) main = j; });
+  if (main < 0) return null;
+  const m = cs[main], mask = new Uint8Array(n);
+  let sk = 0;
+  for (let i = 0; i < n; i++) {
+    if (like[i] && dist2(lab, i, m) < 30 * 30 && lab[i * 3] > m[0] - 32) { mask[i] = 1; sk++; }
+  }
+  return sk >= tot * 0.06 ? mask : null;
+}
+
 // Le regioni sotto soglia prendono il colore del vicino con cui confinano di più
 // (le zone bianche – denti, occhi – restano anche se piccole: soglia a un quarto)
-function mergeSmallRegions(labels, size, minArea, k, whiteIdx = -1) {
+function mergeSmallRegions(labels, size, minArea, k, whiteIdx = -1, skinSet = null) {
   for (let pass = 0; pass < 3; pass++) {
     const { comp, comps } = components(labels, size);
-    const small = comps.map((c) => c.area < (c.label === whiteIdx ? minArea / 4 : minArea));
+    const th = regionThresholds(labels, size, comp, comps, minArea, whiteIdx, skinSet);
+    const small = comps.map((c, i) => c.area < th[i]);
     if (!small.some(Boolean)) return;
     const votes = new Map();
     const n = labels.length;
@@ -383,13 +456,15 @@ function distanceFrom(isSeed, size) {
   return d;
 }
 
-function drawOutlines(labels, inside, size, blackIdx, halfWidthPx, skipBlack) {
+// (in modalità ritratto niente linee tra due toni della pelle: sembrerebbero cicatrici)
+function drawOutlines(labels, inside, size, blackIdx, halfWidthPx, skipBlack, skinSet = null) {
   const n = labels.length;
   const edge = new Uint8Array(n);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const i = y * size + x, l = labels[i];
     if (l === NONE || (skipBlack && l === blackIdx)) continue;
-    const diff = (j) => labels[j] !== l && labels[j] !== NONE && !(skipBlack && labels[j] === blackIdx);
+    const inSkin = skinSet && skinSet.has(l);
+    const diff = (j) => labels[j] !== l && labels[j] !== NONE && !(skipBlack && labels[j] === blackIdx) && !(inSkin && skinSet.has(labels[j]));
     if ((x < size - 1 && diff(i + 1)) || (y < size - 1 && diff(i + size))) edge[i] = 1;
   }
   const d = distanceFrom(edge, size);
@@ -417,11 +492,12 @@ function openColored(labels, inside, size, blackIdx, r) {
   for (let i = 0; i < n; i++) if (!isBlack[i] && d2[i] > r + 0.5 && inside[i]) labels[i] = blackIdx;
 }
 
-function killSmallColored(labels, size, minArea, blackIdx, whiteIdx = -1) {
+function killSmallColored(labels, size, minArea, blackIdx, whiteIdx = -1, skinSet = null) {
   const { comp, comps } = components(labels, size);
+  const th = regionThresholds(labels, size, comp, comps, minArea, whiteIdx, skinSet);
   for (let i = 0; i < labels.length; i++) {
     const c = comp[i];
-    if (c >= 0 && labels[i] !== blackIdx && comps[c].area < (labels[i] === whiteIdx ? minArea / 4 : minArea)) labels[i] = blackIdx;
+    if (c >= 0 && labels[i] !== blackIdx && comps[c].area < th[c]) labels[i] = blackIdx;
   }
 }
 

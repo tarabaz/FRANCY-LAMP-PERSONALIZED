@@ -88,7 +88,7 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	// Il tentativo conta anche se poi fallisce (evita raffiche di richieste)
 	set_transient($key, $used + 1, DAY_IN_SECONDS);
 
-	// Stile scelto dal cliente: fedele (predefinito), vetrata o anime; sfondo: -1 = lascia quello dell'immagine
+	// Stile scelto dal cliente: fedele (predefinito), ritratto o anime; sfondo: -1 = lascia quello dell'immagine
 	$bg  = $req->get_param('bg');
 	$gen = flc_generate($bin, $mime, (string) $req->get_param('style'), $s, is_numeric($bg) ? (int) $bg : -1);
 	if (!is_wp_error($gen)) {
@@ -118,8 +118,8 @@ function flc_prompt_for_style($style, $s) {
 	if ($style === 'anime' && !empty($s['style_anime'])) {
 		return $s['prompt_anime'];
 	}
-	if ($style === 'vetrata') {
-		return $s['prompt_vetrata'];
+	if ($style === 'ritratto') {
+		return $s['prompt_ritratto'];
 	}
 	return $style === 'stilizzato' ? $s['prompt_stylized'] : $s['prompt']; // "stilizzato": vecchie pagine ancora in cache
 }

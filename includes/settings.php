@@ -29,23 +29,24 @@ function flc_default_prompt_stylized() {
 		. 'The main subject must stay centered and the artwork must fill the whole square canvas because it will be cropped to a circle.';
 }
 
-// Stile vetrata da cattedrale: perfetto per una lampada retroilluminata (tessere di colore + piombature nere)
-function flc_default_prompt_vetrata() {
-	return 'Turn the attached image into a stained glass window artwork, like a cathedral window. '
-		. 'Keep the same subject, pose and composition, and keep the subject clearly recognisable with its own colors and markings. '
-		. 'Build the whole picture from pieces of colored glass separated by thick black lines of uniform width, like the lead lines of a real stained glass window. '
-		. 'The subject is made of large glass pieces that follow its shapes. The background is made of clean geometric glass pieces: straight-edged polygons, triangles and long shards radiating outward from the subject. '
-		. 'No flowers, no leaves, no petals, no vines, no floral or plant ornaments. '
-		. 'Teeth and the whites of the eyes must be pure white, never pink or skin colored. '
-		. 'Every glass piece is one flat solid color with no shading and no texture. Rich jewel colors matching the original, at most 10 colors. '
-		. 'Pieces must be large, no tiny fragments. No text, no frame. Fill the whole square canvas; it will be cropped to a circle.';
+// Stile ritratto: poster pop-art posterizzato, già a colori piatti (la conversione diventa quasi 1:1).
+// Pelle in 3 toni netti SENZA linee nere tra i toni: è quello che rende bene i volti sul disco.
+function flc_default_prompt_ritratto() {
+	return 'Turn the attached photo into a posterized pop-art vector portrait, like a clean stencil poster illustration in natural colors. '
+		. 'Keep the exact likeness: same face shape, eyes, eyebrows, nose, mouth, smile, hairstyle, hair color, skin tone, expression and head pose. '
+		. 'A person who knows them must recognise them immediately. Do not beautify, do not change age or features. '
+		. 'Rendering: flat solid colors only, posterized into clean smooth shapes. The skin uses exactly 3 flat tones (light, mid, shadow) in large simple shapes, no blotches and no freckles. '
+		. 'Hair uses 2 flat tones, clothes 1 or 2 flat tones. '
+		. 'Clean black outlines around the face, hair, eyes, eyebrows, nose and lips, but no black lines inside the skin between the skin tones. '
+		. 'Eyes clearly drawn with iris and pupil. Teeth and the whites of the eyes must be pure white, never pink or skin colored. '
+		. 'Simple plain background in one or two flat colors. The face is large, centered and fills most of the square canvas because it will be cropped to a circle. '
+		. 'No gradients, no textures, no text, no letters, no frame or border.';
 }
 
 // Sfondi proposti al cliente quando sceglie "Rimuovi lo sfondo": una riga per sfondo, "Etichetta | descrizione in inglese"
 function flc_default_backgrounds() {
 	return implode("\n", array(
 		'Bianco (luce piena) | a plain pure white empty background, nothing else: no shadow, no ground, no objects',
-		'Vetrata da cattedrale | a geometric stained glass mosaic made only of straight-edged angular pieces (triangles, trapezoids, long shards) radiating outward from the subject like sun rays, in jewel tones (deep blue, ruby red, amber, emerald green) separated by thick black lines, each piece one flat color, with no flowers, leaves, petals or floral shapes',
 		'Cielo stile anime | a stylised anime sky: deep blue sky with a few large bold white cumulus clouds, flat solid colors with black outlines',
 		'Raggi di luce | a sunburst of wide straight rays radiating from behind the subject, alternating two flat warm colors, separated by black lines',
 		'Onde giapponesi | a traditional Japanese seigaiha wave pattern (overlapping concentric arcs) in two or three flat blue tones with black outlines',
@@ -106,7 +107,7 @@ function flc_defaults() {
 		'prompt'       => '',
 		'prompt_stylized' => '',
 		'prompt_anime' => '',
-		'prompt_vetrata' => '',
+		'prompt_ritratto' => '',
 		'backgrounds'  => '',
 		'bg_enabled'   => 1,
 		'style_anime' => 1,
@@ -153,15 +154,12 @@ function flc_settings() {
 	if (trim((string) $s['prompt_anime']) === '') {
 		$s['prompt_anime'] = flc_default_prompt_anime();
 	}
-	// prima versione del prompt Vetrata (faceva rosoni a fiori e veniva rifiutato spesso da Gemini)
-	if (trim((string) $s['prompt_vetrata']) === '' || md5(trim((string) $s['prompt_vetrata'])) === 'f8f8d0135758c19deefd4e49764a9b7c') {
-		$s['prompt_vetrata'] = flc_default_prompt_vetrata();
+	if (trim((string) $s['prompt_ritratto']) === '') {
+		$s['prompt_ritratto'] = flc_default_prompt_ritratto();
 	}
 	if (trim((string) $s['backgrounds']) === '') {
 		$s['backgrounds'] = flc_default_backgrounds();
 	}
-	// vecchio sfondo "Vetrata da cattedrale" a rosone: sostituito con quello geometrico
-	$s['backgrounds'] = preg_replace('/^Vetrata da cattedrale \\| a Gothic cathedral stained glass mosaic.*$/m', explode("\n", flc_default_backgrounds())[1], $s['backgrounds']);
 	return $s;
 }
 
@@ -191,7 +189,7 @@ function flc_sanitize_settings($in) {
 		'prompt'       => sanitize_textarea_field($in['prompt'] ?? ''),
 		'prompt_stylized' => sanitize_textarea_field($in['prompt_stylized'] ?? ''),
 		'prompt_anime' => sanitize_textarea_field($in['prompt_anime'] ?? ''),
-		'prompt_vetrata' => sanitize_textarea_field($in['prompt_vetrata'] ?? ''),
+		'prompt_ritratto' => sanitize_textarea_field($in['prompt_ritratto'] ?? ''),
 		'backgrounds'  => sanitize_textarea_field($in['backgrounds'] ?? ''),
 		'bg_enabled'   => empty($in['bg_enabled']) ? 0 : 1,
 		'style_anime' => empty($in['style_anime']) ? 0 : 1,
@@ -235,8 +233,8 @@ function flc_sanitize_settings($in) {
 	if ($out['prompt_anime'] === flc_default_prompt_anime()) {
 		$out['prompt_anime'] = '';
 	}
-	if ($out['prompt_vetrata'] === flc_default_prompt_vetrata()) {
-		$out['prompt_vetrata'] = '';
+	if ($out['prompt_ritratto'] === flc_default_prompt_ritratto()) {
+		$out['prompt_ritratto'] = '';
 	}
 	if (str_replace("\r", '', $out['backgrounds']) === flc_default_backgrounds()) {
 		$out['backgrounds'] = '';
@@ -341,8 +339,8 @@ function flc_settings_page() {
 			<h2>Prompt</h2>
 			<p><strong>Fedele</strong> (predefinito per il cliente): conversione di stile che blocca posa, espressione e composizione.</p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
-			<p><strong>Vetrata</strong>: vetrata da cattedrale, tessere di colore pieno divise da piombature nere (rende benissimo retroilluminata).</p>
-			<textarea name="<?php echo esc_attr($opt); ?>[prompt_vetrata]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_vetrata']); ?></textarea>
+			<p><strong>Ritratto</strong>: per i volti, poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso.</p>
+			<textarea name="<?php echo esc_attr($opt); ?>[prompt_ritratto]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_ritratto']); ?></textarea>
 			<p><strong>Anime</strong> (atmosfera da film d'animazione giapponese classico, resa a colori piatti stampabili)
 				<label style="margin-left:12px"><input type="checkbox" name="<?php echo esc_attr($opt); ?>[style_anime]" value="1" <?php checked($s['style_anime'], 1); ?>> mostra questa scelta ai clienti</label></p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt_anime]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_anime']); ?></textarea>

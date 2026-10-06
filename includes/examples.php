@@ -1,5 +1,5 @@
 <?php
-// Esempi dei 3 stili di ridisegno (Fedele, Vetrata, Anime) generati UNA volta dall'admin su una foto
+// Esempi dei 3 stili di ridisegno (Fedele, Ritratto, Anime) generati UNA volta dall'admin su una foto
 // d'esempio: il cliente vede "originale → risultato" e capisce cosa cambia senza spendere ridisegni.
 // File pubblici in wp-content/uploads/francy-lamp-esempi/.
 
@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) {
 }
 
 const FLC_EX_OPTION = 'flc_examples';
-const FLC_EX_STYLES = array('fedele' => 'Fedele', 'vetrata' => 'Vetrata', 'anime' => 'Anime');
+const FLC_EX_STYLES = array('fedele' => 'Fedele', 'ritratto' => 'Ritratto', 'anime' => 'Anime');
 
 function flc_examples_dir() {
 	$up  = wp_upload_dir(null, false);
@@ -168,7 +168,7 @@ function flc_examples_page() {
 	<div class="wrap">
 		<h1>Esempi stili</h1>
 		<p>Carica una foto d'esempio e genera una volta i 3 stili di ridisegno, oppure carica tu le immagini di ogni stile ("Carica il tuo"). Nel configuratore, sotto i pulsanti
-			Fedele / Vetrata / Anime, il cliente vede "originale → risultato" e capisce la differenza senza spendere ridisegni.</p>
+			Fedele / Ritratto / Anime, il cliente vede "originale → risultato" e capisce la differenza senza spendere ridisegni.</p>
 		<?php if ($msg === 'upload_ok') : ?><div class="notice notice-success"><p>Foto d'esempio caricata. Ora genera gli stili.</p></div><?php endif; ?>
 		<?php if ($msg === 'style_ok') : ?><div class="notice notice-success"><p>Esempio caricato.</p></div><?php endif; ?>
 		<?php if ($msg === 'upload_err') : ?><div class="notice notice-error"><p>Immagine non valida o non caricata.</p></div><?php endif; ?>
@@ -239,7 +239,7 @@ function flc_examples_page() {
 		}
 		document.querySelectorAll('.flc-gen').forEach((b) => b.addEventListener('click', () => gen(b.dataset.style).catch(() => {})));
 		document.getElementById('flcGenAll').addEventListener('click', async () => {
-			for (const st of ['fedele', 'vetrata', 'anime']) {
+			for (const st of ['fedele', 'ritratto', 'anime']) {
 				try { await gen(st); } catch (e) { return; }
 			}
 			msg.textContent = 'Tutti e 3 gli esempi sono pronti.';

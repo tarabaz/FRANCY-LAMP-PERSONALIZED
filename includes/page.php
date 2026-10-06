@@ -22,7 +22,7 @@ function flc_frontend_config() {
 		'templates' => flc_templates_for_frontend(),
 		'homeUrl'   => home_url('/'),
 		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,
-		'aiStyles'  => array_values(array_filter(array('fedele', 'vetrata', !empty($s['style_anime']) ? 'anime' : ''))),
+		'aiStyles'  => array_values(array_filter(array('fedele', 'ritratto', !empty($s['style_anime']) ? 'anime' : ''))),
 		'aiBackgrounds' => !empty($s['bg_enabled']) ? array_column(flc_backgrounds($s), 'label') : array(),
 		'privacyUrl' => esc_url_raw($s['privacy_url']),
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),

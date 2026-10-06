@@ -222,7 +222,7 @@ function showExample() {
   box.hidden = false;
   $('#exOrig').src = ex.original;
   $('#exStyle').src = ex[aiStyle];
-  $('#exLabel').textContent = { fedele: 'Fedele', vetrata: 'Vetrata', anime: 'Anime' }[aiStyle] || aiStyle;
+  $('#exLabel').textContent = { fedele: 'Fedele', ritratto: 'Ritratto', anime: 'Anime' }[aiStyle] || aiStyle;
 }
 // stili disponibili decisi dall'admin (l'anime si può spegnere)
 if (Array.isArray(CFG.aiStyles)) document.querySelectorAll('#aiStyle button').forEach((b) => { b.hidden = !CFG.aiStyles.includes(b.dataset.style); });
@@ -242,6 +242,13 @@ if (aiBackgrounds.length) {
 function aiBackground() {
   return aiBackgrounds.length && $('#aiBgRemove').checked ? +$('#aiBg').value : -1;
 }
+
+// Modalità ritratto (convertitore): pelle a parte, niente linee dentro il viso
+function setPortrait(on) {
+  $('#portrait').checked = on;
+  $('#portraitHint').hidden = !on;
+}
+$('#portrait').addEventListener('change', () => { setPortrait($('#portrait').checked); schedule(); });
 
 function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).click(); }
 
@@ -282,6 +289,7 @@ $('#aiBtn').addEventListener('click', async () => {
     state.aiBackground = aiBackground() >= 0 ? aiBackgrounds[aiBackground()] : null;
     $('#aiUndo').hidden = false;
     selectMode('keep');
+    if (aiStyle === 'ritratto') setPortrait(true); // il ritratto IA ha già la pelle in 3 toni
     setImage(img, 1, 0, 0);
     aiMessage(`Ridisegno fatto${j.provider ? ' con ' + j.provider : ''}: ora il disco parte dall'immagine dell'IA.`, 'ok');
   } catch (err) {
@@ -530,6 +538,7 @@ function run() {
     colors: +$('#colors').value,
     lineMm: +$('#line').value,
     addOutlines: state.mode === 'keep' && $('#addOutlines').checked,
+    portrait: $('#portrait').checked,
     thickenMm: +$('#thick').value,
     smooth: +$('#smooth').value,
     minFeatureMm: +$('#feat').value,
@@ -840,7 +849,7 @@ async function buildPackage(customer) {
     stl: stl.list.map((l) => ({ file: l.file, colore: l.color, filamento: l.filament })),
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
-    impostazioni: { modalita: state.mode, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
+    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
     'FrancyStore3D - disco lampada personalizzato', '',
