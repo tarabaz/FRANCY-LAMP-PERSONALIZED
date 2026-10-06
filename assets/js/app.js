@@ -175,11 +175,22 @@ function aiMessage(text, kind) {
 }
 
 let aiStyle = 'fedele';
+// esempi dei 3 stili generati dall'admin: il cliente vede la differenza senza spendere ridisegni
+function showExample() {
+  const ex = state.examples;
+  const box = $('#aiExample');
+  if (!ex || !ex.original || !ex[aiStyle]) { box.hidden = true; return; }
+  box.hidden = false;
+  $('#exOrig').src = ex.original;
+  $('#exStyle').src = ex[aiStyle];
+  $('#exLabel').textContent = { fedele: 'Fedele', stilizzato: 'Stilizzato', anime: 'Anime' }[aiStyle] || aiStyle;
+}
 // stili disponibili decisi dall'admin (l'anime si può spegnere)
 if (Array.isArray(CFG.aiStyles)) document.querySelectorAll('#aiStyle button').forEach((b) => { b.hidden = !CFG.aiStyles.includes(b.dataset.style); });
 document.querySelectorAll('#aiStyle button').forEach((b) => b.addEventListener('click', () => {
   aiStyle = b.dataset.style;
   document.querySelectorAll('#aiStyle button').forEach((x) => x.classList.toggle('active', x === b));
+  showExample();
 }));
 
 function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).click(); }
@@ -835,6 +846,14 @@ if (CFG.defaults) {
   const d = CFG.defaults;
   if (/^#[0-9a-f]{6}$/i.test(d.band || '')) state.bandColor = d.band.toLowerCase();
   if (/^#[0-9a-f]{6}$/i.test(d.textColor || '')) state.textColor = d.textColor.toLowerCase();
+  const sl = d.sliders || {};
+  for (const k of ['colors', 'line', 'thick', 'smooth', 'feat', 'area', 'ppmm']) {
+    if (sl[k] === undefined || sl[k] === null) continue;
+    $('#' + k).value = sl[k];
+    $('#' + sliders[k]).textContent = $('#' + k).value;
+  }
+  if (typeof sl.addOutlines === 'boolean') $('#addOutlines').checked = sl.addOutlines;
+  if (sl.mode === 'keep') selectMode('keep');
   const t = d.texts || {};
   for (const [id, k] of [['tTL', 'tl'], ['tTR', 'tr'], ['tBL', 'bl'], ['tBR', 'br']]) if (typeof t[k] === 'string') $('#' + id).value = t[k];
 }
@@ -851,6 +870,9 @@ if (CFG.logoUrl) {
 }
 setFilaments(CFG.filaments);
 setTemplates(CFG.templates);
+state.examples = CFG.examples || null;
+showExample();
+if (qp.get('esempi')) fetch(qp.get('esempi')).then((r) => r.json()).then((ex) => { state.examples = ex; showExample(); }).catch(console.error); // solo per le prove
 if (qp.get('tpl')) fetch(qp.get('tpl')).then((r) => r.json()).then(setTemplates).catch(console.error); // solo per le prove
 if (qp.get('cat')) fetch(qp.get('cat')).then((r) => r.json()).then(setFilaments).catch(console.error); // solo per le prove
 updateColorLimit();

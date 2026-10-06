@@ -21,6 +21,7 @@ function flc_frontend_config() {
 		'filaments' => flc_filaments(),
 		'templates' => flc_templates_for_frontend(),
 		'homeUrl'   => home_url('/'),
+		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,
 		'aiStyles'  => array_values(array_filter(array('fedele', 'stilizzato', !empty($s['style_anime']) ? 'anime' : ''))),
 		'privacyUrl' => esc_url_raw($s['privacy_url']),
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),
@@ -29,6 +30,10 @@ function flc_frontend_config() {
 			'band'      => $s['def_band'],
 			'textColor' => $s['def_text_color'],
 			'texts'     => array('tl' => $s['def_tl'], 'tr' => $s['def_tr'], 'bl' => $s['def_bl'], 'br' => $s['def_br']),
+			'sliders'   => array(
+				'mode' => $s['sl_mode'], 'colors' => $s['sl_colors'], 'line' => $s['sl_line'], 'addOutlines' => (bool) $s['sl_add'],
+				'thick' => $s['sl_thick'], 'smooth' => $s['sl_smooth'], 'feat' => $s['sl_feat'], 'area' => $s['sl_area'], 'ppmm' => $s['sl_ppmm'],
+			),
 		),
 		'siteName'  => get_bloginfo('name'),
 		// logo del sito impostato in Aspetto → Personalizza (se c'è)

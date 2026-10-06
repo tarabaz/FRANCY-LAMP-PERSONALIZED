@@ -88,21 +88,44 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	// Il tentativo conta anche se poi fallisce (evita raffiche di richieste)
 	set_transient($key, $used + 1, DAY_IN_SECONDS);
 
-	// Modalità scelta dal cliente: fedele al soggetto (predefinita) o più stilizzata
-	$style     = (string) $req->get_param('style');
-	if ($style === 'anime' && !empty($s['style_anime'])) {
-		$prompt = $s['prompt_anime'];
-	} elseif ($style === 'stilizzato') {
-		$prompt = $s['prompt_stylized'];
-	} else {
-		$prompt = $s['prompt'];
+	// Stile scelto dal cliente: fedele (predefinito), stilizzato o anime
+	$gen = flc_generate($bin, $mime, (string) $req->get_param('style'), $s);
+	if (!is_wp_error($gen)) {
+		$quota = flc_quota_status();
+		return array(
+			'image'     => 'data:' . $gen['mime'] . ';base64,' . base64_encode($gen['data']),
+			'provider'  => $gen['provider'],
+			'remaining' => $quota['user']['remaining'],
+			'quota'     => $quota,
+		);
 	}
+	$errors = $gen->get_error_data()['errors'] ?? array($gen->get_error_message());
+
+	flc_log_usage(false);
+	error_log('[francy-lamp] ridisegno fallito: ' . implode(' | ', $errors));
+	$msg = 'Il ridisegno non è riuscito, riprova tra poco.';
+	if (current_user_can('manage_options')) {
+		$msg .= ' Dettagli (visibili solo agli admin): ' . implode(' | ', $errors);
+	}
+	return new WP_Error('flc_fail', $msg, array('status' => 502, 'quota' => flc_quota_status()));
+}
+
+function flc_prompt_for_style($style, $s) {
+	if ($style === 'anime' && !empty($s['style_anime'])) {
+		return $s['prompt_anime'];
+	}
+	return $style === 'stilizzato' ? $s['prompt_stylized'] : $s['prompt'];
+}
+
+// Ridisegno con il fornitore principale e, se fallisce, con quello di riserva.
+// Ritorna array(mime, data, provider) oppure WP_Error con la lista degli errori in data['errors'].
+function flc_generate($bin, $mime, $style, $s) {
+	$prompt    = flc_prompt_for_style($style, $s);
 	$providers = flc_providers();
 	$order     = array($s['primary']);
 	if ($s['fallback'] !== 'none' && $s['fallback'] !== $s['primary']) {
 		$order[] = $s['fallback'];
 	}
-
 	$errors = array();
 	foreach ($order as $p) {
 		if (empty($providers[$p])) {
@@ -118,20 +141,7 @@ function flc_rest_redraw(WP_REST_Request $req) {
 			continue;
 		}
 		flc_log_usage(true, $p);
-		$quota = flc_quota_status();
-		return array(
-			'image'     => 'data:' . $out['mime'] . ';base64,' . base64_encode($out['data']),
-			'provider'  => $p,
-			'remaining' => $quota['user']['remaining'],
-			'quota'     => $quota,
-		);
+		return array('mime' => $out['mime'], 'data' => $out['data'], 'provider' => $p);
 	}
-
-	flc_log_usage(false);
-	error_log('[francy-lamp] ridisegno fallito: ' . implode(' | ', $errors));
-	$msg = 'Il ridisegno non è riuscito, riprova tra poco.';
-	if (current_user_can('manage_options')) {
-		$msg .= ' Dettagli (visibili solo agli admin): ' . implode(' | ', $errors);
-	}
-	return new WP_Error('flc_fail', $msg, array('status' => 502, 'quota' => flc_quota_status()));
+	return new WP_Error('flc_fail', implode(' | ', $errors), array('errors' => $errors));
 }

@@ -30,6 +30,19 @@ In Impostazioni → **Disco predefinito** scegli come si apre il disco: colore d
 i 4 testi (1 alto sinistra, 2 alto destra, 3 basso sinistra, 4 basso destra; vuoto = non mostrato).
 Di default: "Testo 2" e "Testo 3". Il cliente poi può cambiare tutto.
 
+## Regolazioni predefinite
+
+In Impostazioni → **Regolazioni predefinite** scegli i valori di partenza degli slider: modalità iniziale
+(Foto / disegno o Grafica pronta), colori, spessore contorni, contorni mancanti, ingrossa nero,
+semplificazione, dettaglio minimo, area minima, risoluzione. Il cliente può sempre cambiarli.
+
+## Esempi degli stili IA
+
+**Francy Lamp Factory → Esempi stili**: carichi una foto d'esempio e per ognuno dei 3 stili (Fedele,
+Stilizzato, Anime) premi **Genera** (un ridisegno a pagamento, una volta sola) oppure **Carica il tuo**.
+Nel configuratore, sotto i pulsanti degli stili, il cliente vede "Foto → risultato" dello stile selezionato,
+senza spendere ridisegni. Si nasconde da Impostazioni → Prompt. File pubblici in `uploads/francy-lamp-esempi/`.
+
 ## Il flusso
 
 1. Il cliente personalizza il disco e preme **"Convalida il mio disco"** (nome, email, telefono, note, consenso).

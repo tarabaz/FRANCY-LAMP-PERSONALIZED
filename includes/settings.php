@@ -30,13 +30,14 @@ function flc_default_prompt_stylized() {
 
 // Stile anime: atmosfera da film d'animazione giapponese classico, ma resa stampabile (colori piatti + contorni)
 function flc_default_prompt_anime() {
-	return 'Redraw the attached image as a still from a classic hand-drawn Japanese animated feature film with a warm, whimsical fairy-tale mood: '
-		. 'gentle rounded character design, soft friendly expressive faces, cozy storybook atmosphere, nostalgic and magical, nature simplified into charming shapes. '
+	return 'Redraw the attached image in the visual style of the Japanese anime film "Your Name" (Kimi no Na wa, 2016, directed by Makoto Shinkai): '
+		. 'clean modern anime character design with large expressive eyes with highlights and finely drawn hair, luminous dreamy atmosphere, '
+		. 'vivid saturated colors (deep blue sky, warm sunset orange and pink, bright highlights), cinematic and emotional mood. '
 		. 'Keep the same subject, pose, composition and recognisable features (for a person: face shape, eyes, eyebrows, smile, hairstyle, hair and skin color, expression; '
 		. 'for an animal or character: its markings, colors and expression). '
-		. 'IMPORTANT, this will be 3D printed in flat colors: render ONLY with flat solid cel-shaded colors (at most 10 colors, at most two tones per area), '
-		. 'clean thick uniform black outlines around every shape, no gradients, no watercolor texture, no glow, no blur, no film grain. '
-		. 'Simplify the background into a few large flat shapes. No text, no letters, no frame or border. '
+		. 'IMPORTANT, this will be 3D printed in flat colors: translate that look into flat solid cel-shaded colors ONLY (at most 10 colors, at most two tones per area), '
+		. 'clean thick uniform black outlines around every shape, no gradients, no lens flare, no glow, no light rays, no blur, no film grain. '
+		. 'Simplify the background into a few large flat shapes (for example a stylised sky with a few bold clouds). No text, no letters, no frame or border. '
 		. 'The artwork must fill the whole square canvas because it will be cropped to a circle.';
 }
 
@@ -61,6 +62,7 @@ function flc_defaults() {
 		'prompt_stylized' => '',
 		'prompt_anime' => '',
 		'style_anime' => 1,
+		'examples_enabled' => 1,
 		'per_ip_day'   => 10,
 		'daily_cap'    => 300,
 		'submit_per_ip' => 5,
@@ -80,6 +82,15 @@ function flc_defaults() {
 		'def_tr'       => 'Testo 2',
 		'def_bl'       => 'Testo 3',
 		'def_br'       => '',
+		'sl_mode'      => 'outline',
+		'sl_colors'    => 10,
+		'sl_line'      => 1.2,
+		'sl_add'       => 1,
+		'sl_thick'     => 0.15,
+		'sl_smooth'    => 2,
+		'sl_feat'      => 0.8,
+		'sl_area'      => 4,
+		'sl_ppmm'      => 5,
 	);
 }
 
@@ -124,6 +135,7 @@ function flc_sanitize_settings($in) {
 		'prompt_stylized' => sanitize_textarea_field($in['prompt_stylized'] ?? ''),
 		'prompt_anime' => sanitize_textarea_field($in['prompt_anime'] ?? ''),
 		'style_anime' => empty($in['style_anime']) ? 0 : 1,
+		'examples_enabled' => empty($in['examples_enabled']) ? 0 : 1,
 		'per_ip_day'   => max(0, (int) ($in['per_ip_day'] ?? $d['per_ip_day'])),
 		'daily_cap'    => max(0, (int) ($in['daily_cap'] ?? $d['daily_cap'])),
 		'submit_per_ip' => max(0, (int) ($in['submit_per_ip'] ?? $d['submit_per_ip'])),
@@ -143,6 +155,15 @@ function flc_sanitize_settings($in) {
 		'def_tr'       => mb_substr(sanitize_text_field($in['def_tr'] ?? ''), 0, 14),
 		'def_bl'       => mb_substr(sanitize_text_field($in['def_bl'] ?? ''), 0, 10),
 		'def_br'       => mb_substr(sanitize_text_field($in['def_br'] ?? ''), 0, 10),
+		'sl_mode'      => ($in['sl_mode'] ?? '') === 'keep' ? 'keep' : 'outline',
+		'sl_colors'    => min(12, max(2, (int) ($in['sl_colors'] ?? $d['sl_colors']))),
+		'sl_line'      => min(2.5, max(0.6, round((float) ($in['sl_line'] ?? $d['sl_line']), 1))),
+		'sl_add'       => empty($in['sl_add']) ? 0 : 1,
+		'sl_thick'     => min(1, max(0, round((float) ($in['sl_thick'] ?? $d['sl_thick']), 2))),
+		'sl_smooth'    => min(4, max(0, (int) ($in['sl_smooth'] ?? $d['sl_smooth']))),
+		'sl_feat'      => min(2.5, max(0.4, round((float) ($in['sl_feat'] ?? $d['sl_feat']), 1))),
+		'sl_area'      => min(20, max(0.5, round((float) ($in['sl_area'] ?? $d['sl_area']) * 2) / 2)),
+		'sl_ppmm'      => min(8, max(3, (int) ($in['sl_ppmm'] ?? $d['sl_ppmm']))),
 	);
 	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
 	if ($out['prompt'] === flc_default_prompt()) {
@@ -259,7 +280,9 @@ function flc_settings_page() {
 			<p><strong>Anime</strong> (atmosfera da film d'animazione giapponese classico, resa a colori piatti stampabili)
 				<label style="margin-left:12px"><input type="checkbox" name="<?php echo esc_attr($opt); ?>[style_anime]" value="1" <?php checked($s['style_anime'], 1); ?>> mostra questa scelta ai clienti</label></p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt_anime]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_anime']); ?></textarea>
-			<p class="description">Il prompt descrive lo stile senza nominare artisti o studi: alcuni modelli rifiutano i nomi, e non usarli evita problemi di marchio.</p>
+			<p><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[examples_enabled]" value="1" <?php checked($s['examples_enabled'], 1); ?>> Mostra ai clienti gli esempi dei 3 stili</label>
+				– si generano in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-esempi')); ?>">Francy Lamp Factory → Esempi stili</a></p>
+						<p class="description">Il nome del film resta solo nel prompt (il cliente vede "Anime"). Il prompt descrive anche le caratteristiche dello stile, così funziona anche se il modello ignora il nome.</p>
 			<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nel prompt chiedi "no text". Per tornare al testo predefinito svuota il campo e salva.</p>
 
 			<h2>Limiti anti-abuso</h2>
@@ -283,7 +306,24 @@ function flc_settings_page() {
 					<p class="description">Lascia vuoto un testo per non mostrarlo.</p></td></tr>
 			</table>
 
-			<h2>Disegni pronti</h2>
+			<h2>Regolazioni predefinite</h2>
+			<p class="description">I valori di partenza degli slider nel configuratore (il cliente può sempre cambiarli).</p>
+			<table class="form-table" role="presentation">
+				<tr><th>Modalità iniziale</th><td><select name="<?php echo esc_attr($opt); ?>[sl_mode]">
+					<option value="outline" <?php selected($s['sl_mode'], 'outline'); ?>>Foto / disegno (creo io i contorni neri)</option>
+					<option value="keep" <?php selected($s['sl_mode'], 'keep'); ?>>Grafica pronta (contorni neri già presenti)</option>
+				</select><p class="description">Dopo un ridisegno con l'IA si passa comunque a "Grafica pronta".</p></td></tr>
+				<tr><th>Colori</th><td><input type="number" min="2" max="12" step="1" name="<?php echo esc_attr($opt); ?>[sl_colors]" value="<?php echo esc_attr($s['sl_colors']); ?>" style="width:90px"> <span class="description">2–12, nero compreso (il limite totale di 12 resta comunque)</span></td></tr>
+				<tr><th>Spessore contorni (mm)</th><td><input type="number" min="0.6" max="2.5" step="0.1" name="<?php echo esc_attr($opt); ?>[sl_line]" value="<?php echo esc_attr($s['sl_line']); ?>" style="width:90px"> <span class="description">contorni neri creati dal configuratore</span></td></tr>
+				<tr><th>Contorni mancanti</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[sl_add]" value="1" <?php checked($s['sl_add'], 1); ?>> In "Grafica pronta" aggiungi i contorni neri dove mancano</label></td></tr>
+				<tr><th>Ingrossa il nero (mm)</th><td><input type="number" min="0" max="1" step="0.05" name="<?php echo esc_attr($opt); ?>[sl_thick]" value="<?php echo esc_attr($s['sl_thick']); ?>" style="width:90px"> <span class="description">solo "Grafica pronta"</span></td></tr>
+				<tr><th>Semplificazione</th><td><input type="number" min="0" max="4" step="1" name="<?php echo esc_attr($opt); ?>[sl_smooth]" value="<?php echo esc_attr($s['sl_smooth']); ?>" style="width:90px"> <span class="description">0 = nessuna, 4 = molto forte</span></td></tr>
+				<tr><th>Dettaglio minimo (mm)</th><td><input type="number" min="0.4" max="2.5" step="0.1" name="<?php echo esc_attr($opt); ?>[sl_feat]" value="<?php echo esc_attr($s['sl_feat']); ?>" style="width:90px"> <span class="description">zone più strette diventano nere</span></td></tr>
+				<tr><th>Area minima zona (mm²)</th><td><input type="number" min="0.5" max="20" step="0.5" name="<?php echo esc_attr($opt); ?>[sl_area]" value="<?php echo esc_attr($s['sl_area']); ?>" style="width:90px"> <span class="description">zone più piccole vengono assorbite</span></td></tr>
+				<tr><th>Risoluzione (px/mm)</th><td><input type="number" min="3" max="8" step="1" name="<?php echo esc_attr($opt); ?>[sl_ppmm]" value="<?php echo esc_attr($s['sl_ppmm']); ?>" style="width:90px"> <span class="description">più alta = più dettaglio, più lenta</span></td></tr>
+			</table>
+
+						<h2>Disegni pronti</h2>
 			<table class="form-table" role="presentation">
 				<tr><th>Galleria nel configuratore</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[templates_enabled]" value="1" <?php checked($s['templates_enabled'], 1); ?>> Mostra il pulsante "Scegli un disegno pronto"</label>
 					<p class="description">I disegni si gestiscono in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_template')); ?>">Francy Lamp Factory → Disegni pronti</a>. Se togli la spunta, i clienti non li vedono.</p></td></tr>
