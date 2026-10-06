@@ -89,16 +89,36 @@ function loadImage(src, zoom = 1) {
 function setImage(img, zoom, ox, oy) {
   state.img = img; state.zoom = zoom; state.ox = ox; state.oy = oy;
   $('#zoom').value = zoom;
-  $('#aiBtn').disabled = false;
+  $('#aiBtn').disabled = !!state.aiExhausted;
   drawCrop(); run();
 }
 
 // ---------------- ridisegno con IA (passa dal plugin WordPress) ----------------
 // window.FRANCY_LAMP = { restUrl, nonce } viene stampato dallo shortcode del plugin.
 const qpAi = new URLSearchParams(location.search).get('ai'); // solo per test in locale
-const AI = window.FRANCY_LAMP || (qpAi ? { restUrl: qpAi, nonce: '' } : null);
+const AI = window.FRANCY_LAMP || (qpAi ? { restUrl: qpAi, statusUrl: new URLSearchParams(location.search).get('aistato') || '', nonce: '' } : null);
 let originalImg = null;
-if (AI && AI.restUrl) $('#aiBox').hidden = false;
+if (AI && AI.restUrl) { $('#aiBox').hidden = false; loadQuota(); }
+
+// Contatori del giorno: quanti ridisegni restano a te e a tutto il sito
+function showQuota(q) {
+  if (!q || !q.user || !q.global) return;
+  const fmt = (x) => (x.remaining === null ? 'illimitati' : String(x.remaining));
+  const el = $('#aiQuota');
+  el.hidden = false;
+  el.textContent = `Ridisegni disponibili oggi: per te ${fmt(q.user)} · sul sito ${fmt(q.global)}`;
+  const none = q.user.remaining === 0 || q.global.remaining === 0;
+  el.classList.toggle('empty', none);
+  state.aiExhausted = none;
+  $('#aiBtn').disabled = none || !state.img;
+}
+async function loadQuota() {
+  if (!AI.statusUrl) return;
+  try {
+    const r = await fetch(AI.statusUrl, { credentials: 'same-origin', headers: AI.nonce ? { 'X-WP-Nonce': AI.nonce } : {} });
+    if (r.ok) showQuota(await r.json());
+  } catch (e) { /* il contatore è solo informativo */ }
+}
 
 function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).click(); }
 
@@ -122,12 +142,12 @@ $('#aiBtn').addEventListener('click', async () => {
       body: JSON.stringify({ image }),
     });
     const j = await r.json().catch(() => ({}));
+    showQuota(j.quota || (j.data && j.data.quota));
     if (!r.ok || !j.image) throw new Error(j.message || 'Il ridisegno non è riuscito, riprova tra poco.');
     const img = new Image();
     await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = j.image; });
     if (!originalImg) originalImg = { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy, mode: state.mode };
     $('#aiUndo').hidden = false;
-    if (typeof j.remaining === 'number') $('#aiHint').textContent = `Ridisegni rimasti oggi: ${j.remaining}`;
     selectMode('keep');
     setImage(img, 1, 0, 0);
   } catch (err) {

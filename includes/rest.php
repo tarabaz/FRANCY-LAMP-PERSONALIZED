@@ -15,7 +15,28 @@ add_action('rest_api_init', function () {
 		'callback'            => 'flc_rest_redraw',
 		'permission_callback' => 'flc_rest_permission',
 	));
+	// Contatori del giorno: quanti ridisegni restano al visitatore e al sito
+	register_rest_route('francy-lamp/v1', '/stato', array(
+		'methods'             => 'GET',
+		'callback'            => function () { return flc_quota_status(); },
+		'permission_callback' => 'flc_rest_permission',
+	));
 });
+
+// used/limit/remaining per il visitatore e per tutto il sito (limit 0 = illimitato, remaining null)
+function flc_quota_status() {
+	$s      = flc_settings();
+	$ipUsed = (int) get_transient(flc_client_key());
+	$glUsed = flc_today_count();
+	$q      = function ($used, $limit) {
+		return array(
+			'used'      => $used,
+			'limit'     => (int) $limit,
+			'remaining' => $limit > 0 ? max(0, $limit - $used) : null,
+		);
+	};
+	return array('user' => $q($ipUsed, $s['per_ip_day']), 'global' => $q($glUsed, $s['daily_cap']));
+}
 
 function flc_rest_permission(WP_REST_Request $req) {
 	// Il nonce viene stampato dallo shortcode: blocca le chiamate dirette da fuori dal sito
@@ -40,12 +61,12 @@ function flc_rest_redraw(WP_REST_Request $req) {
 
 	// Limiti
 	if ($s['daily_cap'] > 0 && flc_today_count() >= $s['daily_cap']) {
-		return new WP_Error('flc_cap', 'Servizio di ridisegno momentaneamente esaurito per oggi, riprova domani.', array('status' => 429));
+		return new WP_Error('flc_cap', 'Servizio di ridisegno momentaneamente esaurito per oggi, riprova domani.', array('status' => 429, 'quota' => flc_quota_status()));
 	}
 	$key  = flc_client_key();
 	$used = (int) get_transient($key);
 	if ($s['per_ip_day'] > 0 && $used >= $s['per_ip_day']) {
-		return new WP_Error('flc_limit', 'Hai usato tutti i ridisegni di oggi. Puoi comunque continuare a personalizzare la lampada.', array('status' => 429));
+		return new WP_Error('flc_limit', 'Hai usato tutti i ridisegni di oggi. Puoi comunque continuare a personalizzare la lampada.', array('status' => 429, 'quota' => flc_quota_status()));
 	}
 
 	// Immagine
@@ -83,10 +104,12 @@ function flc_rest_redraw(WP_REST_Request $req) {
 			continue;
 		}
 		flc_log_usage(true, $p);
+		$quota = flc_quota_status();
 		return array(
 			'image'     => 'data:' . $out['mime'] . ';base64,' . base64_encode($out['data']),
 			'provider'  => $p,
-			'remaining' => $s['per_ip_day'] > 0 ? max(0, $s['per_ip_day'] - $used - 1) : null,
+			'remaining' => $quota['user']['remaining'],
+			'quota'     => $quota,
 		);
 	}
 
@@ -96,5 +119,5 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	if (current_user_can('manage_options')) {
 		$msg .= ' Dettagli (visibili solo agli admin): ' . implode(' | ', $errors);
 	}
-	return new WP_Error('flc_fail', $msg, array('status' => 502));
+	return new WP_Error('flc_fail', $msg, array('status' => 502, 'quota' => flc_quota_status()));
 }

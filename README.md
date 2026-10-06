@@ -45,8 +45,12 @@ una funzione in `includes/providers.php` più una voce in `flc_providers()`.
 
 ## Limiti anti-abuso
 
-- Ridisegni per visitatore al giorno (IP anonimizzato con hash, default 3).
-- Tetto giornaliero totale (default 100): oltre la soglia il ridisegno si blocca.
+- Ridisegni per visitatore al giorno (IP anonimizzato con hash, default 10).
+- Tetto giornaliero totale (default 300): oltre la soglia il ridisegno si blocca.
+- 0 = illimitato. Il contatore conta comunque, utile in fase di test.
+- Contatori visibili: in cima alla pagina impostazioni (usati/rimanenti oggi, con barra) e nel
+  configuratore sotto il pulsante ("per te X · sul sito Y"). Quando arrivano a zero il pulsante si disattiva.
+  Endpoint: `GET /wp-json/francy-lamp/v1/stato`.
 - Ogni tentativo conta, anche se fallisce.
 - Nella pagina impostazioni c'è il riepilogo degli ultimi 30 giorni.
 

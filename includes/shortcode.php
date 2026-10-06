@@ -25,6 +25,7 @@ function flc_shortcode() {
 	$config = array(
 		'restUrl' => (!empty($s['enabled']) && (!empty($s['gemini_key']) || !empty($s['fal_key'])))
 			? esc_url_raw(rest_url('francy-lamp/v1/ridisegna')) : '',
+		'statusUrl' => esc_url_raw(rest_url('francy-lamp/v1/stato')),
 		'nonce'   => wp_create_nonce('wp_rest'),
 	);
 

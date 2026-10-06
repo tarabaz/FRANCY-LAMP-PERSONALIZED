@@ -25,8 +25,8 @@ function flc_defaults() {
 		'fal_key'      => '',
 		'fal_model'    => 'fal-ai/flux-pro/kontext',
 		'prompt'       => flc_default_prompt(),
-		'per_ip_day'   => 3,
-		'daily_cap'    => 100,
+		'per_ip_day'   => 10,
+		'daily_cap'    => 300,
 	);
 }
 
@@ -89,6 +89,22 @@ function flc_settings_page() {
 		<p>Inserisci il configuratore in una pagina con lo shortcode <code>[francy_lamp]</code>.
 			Endpoint del ridisegno IA: <code><?php echo esc_html(rest_url('francy-lamp/v1/ridisegna')); ?></code></p>
 
+		<?php
+		$today  = flc_today_count();
+		$cap    = (int) $s['daily_cap'];
+		$left   = $cap > 0 ? max(0, $cap - $today) : null;
+		$pct    = $cap > 0 ? min(100, round($today / $cap * 100)) : 0;
+		$color  = $cap > 0 && $left === 0 ? '#d63638' : ($pct >= 80 ? '#dba617' : '#00a32a');
+		?>
+		<div style="max-width:640px;background:#fff;border:1px solid #c3c4c7;border-left:4px solid <?php echo esc_attr($color); ?>;padding:12px 16px;margin:16px 0">
+			<strong style="font-size:15px">Ridisegni di oggi: <?php echo (int) $today; ?><?php echo $cap > 0 ? ' / ' . $cap : ''; ?></strong>
+			&nbsp;–&nbsp;<?php echo $cap > 0 ? 'ne restano <strong>' . (int) $left . '</strong>' : '<strong>senza limite</strong> (tetto giornaliero a 0)'; ?>
+			<?php if ($cap > 0) : ?>
+				<div style="height:8px;background:#f0f0f1;border-radius:4px;margin-top:8px;overflow:hidden"><div style="height:100%;width:<?php echo (int) $pct; ?>%;background:<?php echo esc_attr($color); ?>"></div></div>
+			<?php endif; ?>
+			<p class="description" style="margin:8px 0 0">Limite per visitatore: <?php echo $s['per_ip_day'] > 0 ? (int) $s['per_ip_day'] . ' al giorno' : 'nessuno'; ?>. Il conteggio riparte a mezzanotte (ora del sito). Contano anche i tentativi falliti.</p>
+		</div>
+
 		<form method="post" action="options.php">
 			<?php settings_fields('flc'); ?>
 			<h2>Ridisegno con IA</h2>
@@ -126,7 +142,7 @@ function flc_settings_page() {
 			<h2>Limiti anti-abuso</h2>
 			<table class="form-table" role="presentation">
 				<tr><th>Ridisegni per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[per_ip_day]" value="<?php echo (int) $s['per_ip_day']; ?>"> <span class="description">(per indirizzo IP; 0 = nessun limite)</span></td></tr>
-				<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[daily_cap]" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">(blocca tutto oltre questa soglia: protegge il budget; 0 = nessun limite)</span></td></tr>
+				<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[daily_cap]" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">(blocca tutto oltre questa soglia: protegge il budget; 0 = nessun limite, il contatore conta comunque)</span></td></tr>
 			</table>
 			<?php submit_button(); ?>
 		</form>
