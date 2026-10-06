@@ -694,7 +694,7 @@ function autoColors() {
 // Bobine "da pelle": tinte calde tra il pesca e il marrone (niente grigi, rosa, gialli o colori freddi)
 function isSkinFilament(f) {
   const [L, A, B] = f.lab, h = (Math.atan2(B, A) * 180) / Math.PI;
-  return L > 25 && L < 92 && Math.hypot(A, B) > 8 && Math.hypot(A, B) < 55 && h > 28 && h < 78;
+  return L > 25 && L < 92 && Math.hypot(A, B) > 8 && Math.hypot(A, B) < 55 && h > 28 && h < 86;
 }
 function nearestIn(list, hex) {
   const lab = hexToLab(hex);
