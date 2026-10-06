@@ -828,6 +828,11 @@ if (CFG.homeUrl) {
   a.append(...brand.childNodes);
   brand.replaceWith(a);
 }
+// footer: anno sempre aggiornato e link alle policy dalle impostazioni
+$('#footYear').textContent = new Date().getFullYear();
+if (CFG.copyrightName) $('#footName').textContent = CFG.copyrightName;
+if (CFG.privacyUrl) { $('#footPrivacy').href = CFG.privacyUrl; $('#consentPrivacy').href = CFG.privacyUrl; }
+if (CFG.cookieUrl) $('#footCookie').href = CFG.cookieUrl;
 if (CFG.logoUrl) {
   const logo = $('#brandLogo');
   logo.src = CFG.logoUrl; logo.alt = CFG.siteName || 'FrancyStore3D'; logo.hidden = false;

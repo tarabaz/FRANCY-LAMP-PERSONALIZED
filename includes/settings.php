@@ -57,6 +57,9 @@ function flc_defaults() {
 		'page_title'   => 'Crea la tua lampada – FrancyStore3D',
 		'page_description' => '',
 		'page_wp_head' => 1,
+		'privacy_url'  => 'https://www.francystore3d.it/privacy-policy/',
+		'cookie_url'   => '',
+		'copyright_name' => 'FrancyStore3D',
 	);
 }
 
@@ -106,6 +109,9 @@ function flc_sanitize_settings($in) {
 		'page_title'   => sanitize_text_field($in['page_title'] ?? '') ?: $d['page_title'],
 		'page_description' => sanitize_text_field($in['page_description'] ?? ''),
 		'page_wp_head' => empty($in['page_wp_head']) ? 0 : 1,
+		'privacy_url'  => esc_url_raw($in['privacy_url'] ?? '') ?: $d['privacy_url'],
+		'cookie_url'   => esc_url_raw($in['cookie_url'] ?? ''),
+		'copyright_name' => sanitize_text_field($in['copyright_name'] ?? '') ?: $d['copyright_name'],
 	);
 	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
 	if ($out['prompt'] === flc_default_prompt()) {
@@ -175,6 +181,12 @@ function flc_settings_page() {
 				<tr><th>Descrizione</th><td><input type="text" class="large-text" name="<?php echo esc_attr($opt); ?>[page_description]" value="<?php echo esc_attr($s['page_description']); ?>" placeholder="Es. Crea la tua lampada tombino personalizzata con la tua foto: anteprima 3D accesa e spenta."><p class="description">Facoltativa, per Google e le anteprime dei link.</p></td></tr>
 				<tr><th>Script del sito</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[page_wp_head]" value="1" <?php checked($s['page_wp_head'], 1); ?>> Carica gli script degli altri plugin (Pixel di Meta, analytics, banner cookie)</label>
 					<p class="description">Lascialo attivo se usi Pixel/analytics o un banner cookie. Se il tema "sporca" la pagina, toglilo: la pagina diventa più leggera.</p></td></tr>
+				<tr><th>Footer</th><td>
+					<p><label>Privacy Policy<br><input type="url" class="regular-text" name="<?php echo esc_attr($opt); ?>[privacy_url]" value="<?php echo esc_attr($s['privacy_url']); ?>"></label></p>
+					<p><label>Cookie Policy<br><input type="url" class="regular-text" name="<?php echo esc_attr($opt); ?>[cookie_url]" value="<?php echo esc_attr($s['cookie_url']); ?>" placeholder="vuoto = stessa pagina della Privacy Policy"></label></p>
+					<p><label>Nome nel copyright<br><input type="text" class="regular-text" name="<?php echo esc_attr($opt); ?>[copyright_name]" value="<?php echo esc_attr($s['copyright_name']); ?>"></label></p>
+					<p class="description">Il footer mostra: Privacy Policy · Cookie Policy · © <?php echo esc_html(current_time('Y')); ?> nome · Tutti i diritti riservati (l'anno si aggiorna da solo).</p>
+				</td></tr>
 			</table>
 
 			<h2>Ridisegno con IA</h2>

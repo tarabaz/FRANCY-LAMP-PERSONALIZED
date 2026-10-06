@@ -122,7 +122,7 @@
           <input name="phone" type="tel" placeholder="Telefono (facoltativo)" autocomplete="tel">
           <textarea name="note" rows="2" placeholder="Note (facoltative)"></textarea>
           <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-          <label class="check small"><input type="checkbox" name="privacy"> Acconsento all'uso dell'immagine caricata solo per realizzare questo prodotto</label>
+          <label class="check small"><input type="checkbox" name="privacy"> <span>Acconsento all'uso dell'immagine caricata solo per realizzare questo prodotto (<a id="consentPrivacy" href="https://www.francystore3d.it/privacy-policy/" target="_blank" rel="noopener">privacy policy</a>)</span></label>
           <button id="submitBtn" type="submit" disabled>Convalida il mio disco</button>
         </form>
         <p class="ai-msg" id="submitMsg" hidden></p>
@@ -137,6 +137,13 @@
     </aside>
   </main>
 
+  <footer class="flc-footer" id="flcFooter">
+    <a id="footPrivacy" href="https://www.francystore3d.it/privacy-policy/" target="_blank" rel="noopener">Privacy Policy</a>
+    <span aria-hidden="true">·</span>
+    <a id="footCookie" href="https://www.francystore3d.it/privacy-policy/" target="_blank" rel="noopener">Cookie Policy</a>
+    <span aria-hidden="true">·</span>
+    <span>© <span id="footYear">2026</span> <span id="footName">FrancyStore3D</span> · Tutti i diritti riservati</span>
+  </footer>
   <div class="tpl-modal" id="tplModal" hidden>
     <div class="tpl-dialog" role="dialog" aria-modal="true" aria-labelledby="tplTitle">
       <div class="tpl-head"><h2 id="tplTitle">Disegni pronti</h2><button type="button" id="tplClose" aria-label="Chiudi">✕</button></div>

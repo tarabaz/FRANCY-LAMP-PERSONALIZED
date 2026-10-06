@@ -14,6 +14,7 @@
 /* Pagina autonoma (index.html) */
 html.flc-page, html.flc-page body { margin: 0; height: 100%; }
 html.flc-page .flc { height: 100%; }
+@media (max-width: 980px) { html.flc-page .flc { height: auto; min-height: 100%; } }
 /* Dentro WordPress */
 .flc.flc-embedded { height: min(920px, 94vh); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 
@@ -223,3 +224,14 @@ html.flc-page .flc { height: 100%; }
   .flc .brand .brand-sub { display: none; }
   .flc a.back-site { padding: 5px 10px; font-size: 13px; }
 }
+
+/* Footer */
+.flc .flc-footer {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 8px;
+  padding: 8px 16px; border-top: 1px solid var(--line); background: var(--panel);
+  font-size: 12px; color: var(--muted); text-align: center;
+}
+.flc .flc-footer a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.flc .flc-footer a:hover { color: var(--ink); }
+.flc.flc-embedded .flc-footer { display: none; } /* dentro una pagina del tema c'è già il footer del sito */
+.flc .check.small a { color: inherit; }

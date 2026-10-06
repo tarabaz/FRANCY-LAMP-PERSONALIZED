@@ -8,7 +8,8 @@ if (!defined('ABSPATH')) {
 
 add_shortcode('francy_lamp', 'flc_shortcode');
 
-function flc_markup() {
+// $embedded: dentro una pagina del tema (shortcode) oppure pagina dedicata a schermo intero
+function flc_markup($embedded = true) {
 	$html = file_get_contents(FLC_DIR . 'assets/index.html');
 	$a    = strpos($html, '<!-- FLC:START -->');
 	$b    = strpos($html, '<!-- FLC:END -->');
@@ -16,7 +17,7 @@ function flc_markup() {
 		return '';
 	}
 	$html = substr($html, $a, $b - $a);
-	return str_replace('class="flc"', 'class="flc flc-embedded"', $html);
+	return $embedded ? str_replace('class="flc"', 'class="flc flc-embedded"', $html) : $html;
 }
 
 function flc_shortcode() {

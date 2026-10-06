@@ -21,6 +21,9 @@ function flc_frontend_config() {
 		'filaments' => flc_filaments(),
 		'templates' => flc_templates_for_frontend(),
 		'homeUrl'   => home_url('/'),
+		'privacyUrl' => esc_url_raw($s['privacy_url']),
+		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),
+		'copyrightName' => $s['copyright_name'],
 		'siteName'  => get_bloginfo('name'),
 		// logo del sito impostato in Aspetto → Personalizza (se c'è)
 		'logoUrl'   => ($logo = get_theme_mod('custom_logo')) ? (string) wp_get_attachment_image_url($logo, 'medium') : '',
@@ -87,7 +90,7 @@ add_action('template_redirect', function () {
 	nocache_headers(); // contiene il nonce per le richieste: niente cache della pagina
 	status_header(200);
 	$title  = $s['page_title'] ?: 'Lampade personalizzate';
-	$markup = flc_markup();
+	$markup = flc_markup(false);
 	$css    = FLC_URL . 'assets/css/style.css?ver=' . flc_asset_ver('assets/css/style.css');
 	$app    = FLC_URL . 'assets/js/app.js';
 	?>
@@ -105,6 +108,8 @@ add_action('template_redirect', function () {
 	<style>
 		html.flc-page, html.flc-page body { margin: 0 !important; padding: 0 !important; height: 100%; background: #f4f2ee; }
 		html.flc-page body > .flc { height: 100vh; height: 100dvh; }
+		/* telefono e tablet: la pagina scorre normalmente, il footer resta in fondo */
+		@media (max-width: 980px) { html.flc-page body > .flc { height: auto; min-height: 100dvh; } }
 	</style>
 </head>
 <body class="flc-standalone">
