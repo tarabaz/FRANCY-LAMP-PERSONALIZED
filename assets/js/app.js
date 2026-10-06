@@ -522,6 +522,7 @@ function setStatus(t) { $('#status').textContent = t || (state.result ? 'Pronto'
 
 // ---------------- palette ----------------
 function artColor(i) {
+  if (state.result.palette[i].black) return BLACK; // il nero delle linee non si cambia
   if (state.colorOverrides[i]) return state.colorOverrides[i].toLowerCase();
   return autoColors()[i];
 }
@@ -536,7 +537,7 @@ function autoColors() {
   const pal = r.palette, out = new Array(pal.length).fill(null);
   const used = new Set([BLACK, WHITE]);
   for (const k in state.colorOverrides) used.add(state.colorOverrides[k].toLowerCase());
-  pal.forEach((p, i) => { if (p.black) out[i] = BLACK; });
+  pal.forEach((p, i) => { if (p.black) out[i] = BLACK; }); // linee sempre nere, nessun adattamento
   // il bianco protetto (denti, occhi) usa sempre la bobina della base
   let wi = pal.findIndex((p, i) => p.white && !state.colorOverrides[i]), wl = wi >= 0 ? Infinity : -1;
   pal.forEach((p, i) => {
@@ -593,9 +594,10 @@ function renderPalette() {
       ctrl.type = 'color'; ctrl.value = artColor(i);
       ctrl.addEventListener('input', () => { state.colorOverrides[i] = ctrl.value; render(); });
     }
+    if (p.black) { ctrl.disabled = true; ctrl.title = 'Le linee sono sempre nere'; }
     const name = document.createElement('span');
     const fil = CFG.isAdmin ? filamentName(artColor(i)) : ''; // il nome delle bobine lo vede solo l'admin
-    name.textContent = (p.black ? 'Nero contorni' : `Colore ${i + 1}`) + (fil ? ` · ${fil}` : '');
+    name.textContent = (p.black ? 'Nero contorni' : p.white && artColor(i) === WHITE ? 'Bianco' : `Colore ${i + 1}`) + (fil ? ` · ${fil}` : '');
     const area = document.createElement('span');
     area.className = 'area';
     area.textContent = `${Math.round(p.area)} mm²`;

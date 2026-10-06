@@ -46,21 +46,25 @@ function convert(rgba, size, ppmm, opts, progress) {
   let k = Math.max(1, outlines ? opts.colors - 1 : opts.colors);
   let centers = kmeans(lab, inside, n, k, opts.seed || 1);
 
-  // Bianchi protetti: denti e bianco degli occhi sono zone piccole e il k-means li unisce alla pelle
-  // chiara (diventano rosa). Se nell'immagine c'è del bianco, aggiungo un bianco puro: non costa un
-  // filamento in più perché è la stessa bobina della base.
-  // un cluster biancastro (bianco sporcato dai bordi o un po' rosato) diventa bianco puro
+  // Bianco e nero sono le bobine fisse: si usano volentieri anche come colori del disegno.
+  // Bianco: soglia larga (grigi chiarissimi, bianchi sporcati dai bordi o un po' rosati, denti, occhi).
+  // Nero: tutti i colori quasi neri diventano IL nero delle linee, senza varianti.
+  const chroma = (c) => Math.hypot(c[1], c[2]);
+  const isWhiteC = (c) => c[0] > 74 && chroma(c) < 15;
+  const isBlackC = (c) => c[0] < 18 || (c[0] < 27 && chroma(c) < 22);
   let whiteIdx = -1;
+  const darkSet = new Set();
   centers.forEach((c, i) => {
-    if (c[0] > 80 && Math.hypot(c[1], c[2]) < 14 && (whiteIdx < 0 || c[0] > centers[whiteIdx][0])) whiteIdx = i;
+    if (isWhiteC(c)) { if (whiteIdx < 0) whiteIdx = i; centers[i] = [98, 0, 0]; }
+    else if (isBlackC(c)) { darkSet.add(i); centers[i] = [8, 0, 0]; }
   });
-  if (whiteIdx >= 0) centers[whiteIdx] = [98, 0, 0];
-  else {
+  if (whiteIdx < 0) {
+    // nessun cluster bianco ma c'è del bianco (denti, occhi): aggiungo un bianco puro, è la bobina della base
     let tot = 0, wcount = 0;
     for (let i = 0; i < n; i++) {
       if (!inside[i]) continue;
       tot++;
-      if (lab[i * 3] > 80 && Math.hypot(lab[i * 3 + 1], lab[i * 3 + 2]) < 16) wcount++;
+      if (lab[i * 3] > 74 && Math.hypot(lab[i * 3 + 1], lab[i * 3 + 2]) < 15) wcount++;
     }
     if (wcount > tot * 0.0004) { centers.push([98, 0, 0]); whiteIdx = centers.length - 1; k = centers.length; }
   }
@@ -80,9 +84,11 @@ function convert(rgba, size, ppmm, opts, progress) {
 
   if (outlines) {
     // Aree piccole -> assorbite dal vicino, poi linee nere tra le zone
-    mergeSmallRegions(labels, size, minAreaPx, k, whiteIdx);
     blackIdx = k;
     palette.push({ r: 20, g: 20, b: 20 });
+    // le zone quasi nere del disegno usano lo stesso nero delle linee
+    if (darkSet.size) for (let i = 0; i < n; i++) if (darkSet.has(labels[i])) labels[i] = blackIdx;
+    mergeSmallRegions(labels, size, minAreaPx, k, whiteIdx);
     progress('Contorni neri');
     drawOutlines(labels, inside, size, blackIdx, (opts.lineMm * ppmm) / 2);
   } else {
@@ -93,7 +99,7 @@ function convert(rgba, size, ppmm, opts, progress) {
       blackIdx = darkest;
       palette[darkest] = { r: 20, g: 20, b: 20 };
       // tutti i cluster quasi neri diventano lo stesso nero (niente filamenti sprecati)
-      for (let i = 0; i < labels.length; i++) if (labels[i] !== NONE && centers[labels[i]][0] < 22) labels[i] = blackIdx;
+      for (let i = 0; i < labels.length; i++) if (labels[i] !== NONE && (centers[labels[i]][0] < 22 || darkSet.has(labels[i]))) labels[i] = blackIdx;
       if (opts.thickenMm > 0) dilateLabel(labels, inside, size, blackIdx, opts.thickenMm * ppmm);
     }
     mergeSmallRegions(labels, size, minAreaPx, palette.length, whiteIdx);
