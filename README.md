@@ -39,7 +39,7 @@ semplificazione, dettaglio minimo, area minima, risoluzione. Il cliente può sem
 ## Esempi degli stili IA
 
 **Francy Lamp Factory → Esempi stili**: carichi una foto d'esempio e per ognuno dei 3 stili (Fedele,
-Stilizzato, Anime) premi **Genera** (un ridisegno a pagamento, una volta sola) oppure **Carica il tuo**.
+Vetrata, Anime) premi **Genera** (un ridisegno a pagamento, una volta sola) oppure **Carica il tuo**.
 Nel configuratore, sotto i pulsanti degli stili, il cliente vede "Foto → risultato" dello stile selezionato,
 senza spendere ridisegni. Si nasconde da Impostazioni → Prompt. File pubblici in `uploads/francy-lamp-esempi/`.
 
@@ -107,10 +107,15 @@ Le chiavi API restano sul server e non arrivano mai al browser. Le immagini non 
 | fal.ai | `fal-ai/flux-pro/kontext`, `fal-ai/qwen-image-edit`, `fal-ai/bytedance/seedream/v4/edit` … | Un'unica chiave per tanti modelli |
 
 Il cliente sceglie tra tre stili: **Fedele** (predefinito: conversione di stile che blocca posa, espressione e
-composizione), **Stilizzato** (forme più semplici, utile per sfondi e oggetti) e **Anime** (atmosfera da film
+composizione), **Vetrata** (vetrata da cattedrale: tessere di colore pieno divise da piombature nere, perfetta retroilluminata) e **Anime** (atmosfera da film
 d'animazione giapponese classico, sempre a colori piatti stampabili; si spegne da Impostazioni). I tre prompt
 si modificano in Impostazioni → Francy Lamp; se il testo è quello predefinito non viene salvato, così gli
 aggiornamenti del plugin migliorano anche il tuo prompt.
+
+Sotto gli stili c'è l'interruttore **Rimuovi lo sfondo**: se acceso compare il menu **Nuovo sfondo** (Bianco,
+Vetrata da cattedrale, Cielo stile anime, Raggi di luce, Onde giapponesi, Tinta unita) e all'IA viene chiesto di
+togliere lo sfondo della foto e metterci quello scelto. L'elenco si modifica in Impostazioni → Sfondo, una riga per
+sfondo nel formato `Nome | descrizione in inglese`; lo sfondo scelto finisce nel riepilogo del progetto.
 
 Se il principale dà errore si passa da soli al fornitore di riserva. Per aggiungere un fornitore:
 una funzione in `includes/providers.php` più una voce in `flc_providers()`.

@@ -28,6 +28,51 @@ function flc_default_prompt_stylized() {
 		. 'The main subject must stay centered and the artwork must fill the whole square canvas because it will be cropped to a circle.';
 }
 
+// Stile vetrata da cattedrale: perfetto per una lampada retroilluminata (tessere di colore + piombature nere)
+function flc_default_prompt_vetrata() {
+	return 'Convert the attached image into a Gothic cathedral stained glass window design. '
+		. 'Keep the same subject, pose, composition and recognisable features (for a person: face shape, eyes, eyebrows, smile, hairstyle, hair and skin color, expression; '
+		. 'for an animal or character: its markings, colors and expression). '
+		. 'Divide every area into separate pieces of glass outlined by thick, continuous, uniform black lead lines (lead came), exactly like a real stained glass window: '
+		. 'the subject is built from fairly large glass pieces that follow its shapes, folds and features, and every piece is completely enclosed by black lead lines. '
+		. 'Each glass piece is ONE flat solid color: no gradients, no painted shading inside the pieces, no glass texture, no reflections, no glow, no light rays. '
+		. 'Use rich luminous jewel-tone colors (ruby red, cobalt blue, emerald green, amber gold, violet) adapted to the original colors, at most 10 colors in total. '
+		. 'Avoid tiny shards: every piece must be large enough to be printed. No text, no letters, no frame or border. '
+		. 'The artwork must fill the whole square canvas because it will be cropped to a circle.';
+}
+
+// Sfondi proposti al cliente quando sceglie "Rimuovi lo sfondo": una riga per sfondo, "Etichetta | descrizione in inglese"
+function flc_default_backgrounds() {
+	return implode("\n", array(
+		'Bianco (luce piena) | a plain pure white empty background, nothing else: no shadow, no ground, no objects',
+		'Vetrata da cattedrale | a Gothic cathedral stained glass mosaic: irregular geometric glass pieces in jewel tones (deep blue, ruby red, amber gold, emerald green) separated by thick black lead lines, radiating around the subject like a rose window, each piece one flat solid color',
+		'Cielo stile anime | a stylised anime sky: deep blue sky with a few large bold white cumulus clouds, flat solid colors with black outlines',
+		'Raggi di luce | a sunburst of wide straight rays radiating from behind the subject, alternating two flat warm colors, separated by black lines',
+		'Onde giapponesi | a traditional Japanese seigaiha wave pattern (overlapping concentric arcs) in two or three flat blue tones with black outlines',
+		'Tinta unita | a single flat solid color that complements the subject, nothing else',
+	));
+}
+
+// Elenco sfondi: array di array('label' => ..., 'prompt' => ...)
+function flc_backgrounds($s = null) {
+	$s   = $s ?: flc_settings();
+	$out = array();
+	foreach (preg_split('/\r?\n/', (string) $s['backgrounds']) as $line) {
+		$parts = array_map('trim', explode('|', $line, 2));
+		if (count($parts) === 2 && $parts[0] !== '' && $parts[1] !== '') {
+			$out[] = array('label' => $parts[0], 'prompt' => $parts[1]);
+		}
+	}
+	return $out;
+}
+
+// Istruzione aggiunta al prompt quando il cliente rimuove lo sfondo
+function flc_background_instruction($bg) {
+	return "\n\nBACKGROUND (this overrides any earlier instruction about the background): completely remove the original background, "
+		. 'meaning everything that is not the main subject, and replace it with ' . $bg['prompt'] . '. '
+		. 'Keep the main subject exactly as described above, unchanged, large and centered, with a clean black outline separating it from the new background.';
+}
+
 // Stile anime: atmosfera da film d'animazione giapponese classico, ma resa stampabile (colori piatti + contorni)
 function flc_default_prompt_anime() {
 	return 'Redraw the attached image in the visual style of the Japanese anime film "Your Name" (Kimi no Na wa, 2016, directed by Makoto Shinkai): '
@@ -61,6 +106,9 @@ function flc_defaults() {
 		'prompt'       => '',
 		'prompt_stylized' => '',
 		'prompt_anime' => '',
+		'prompt_vetrata' => '',
+		'backgrounds'  => '',
+		'bg_enabled'   => 1,
 		'style_anime' => 1,
 		'examples_enabled' => 1,
 		'per_ip_day'   => 10,
@@ -105,6 +153,12 @@ function flc_settings() {
 	if (trim((string) $s['prompt_anime']) === '') {
 		$s['prompt_anime'] = flc_default_prompt_anime();
 	}
+	if (trim((string) $s['prompt_vetrata']) === '') {
+		$s['prompt_vetrata'] = flc_default_prompt_vetrata();
+	}
+	if (trim((string) $s['backgrounds']) === '') {
+		$s['backgrounds'] = flc_default_backgrounds();
+	}
 	return $s;
 }
 
@@ -134,6 +188,9 @@ function flc_sanitize_settings($in) {
 		'prompt'       => sanitize_textarea_field($in['prompt'] ?? ''),
 		'prompt_stylized' => sanitize_textarea_field($in['prompt_stylized'] ?? ''),
 		'prompt_anime' => sanitize_textarea_field($in['prompt_anime'] ?? ''),
+		'prompt_vetrata' => sanitize_textarea_field($in['prompt_vetrata'] ?? ''),
+		'backgrounds'  => sanitize_textarea_field($in['backgrounds'] ?? ''),
+		'bg_enabled'   => empty($in['bg_enabled']) ? 0 : 1,
 		'style_anime' => empty($in['style_anime']) ? 0 : 1,
 		'examples_enabled' => empty($in['examples_enabled']) ? 0 : 1,
 		'per_ip_day'   => max(0, (int) ($in['per_ip_day'] ?? $d['per_ip_day'])),
@@ -156,7 +213,7 @@ function flc_sanitize_settings($in) {
 		'def_bl'       => mb_substr(sanitize_text_field($in['def_bl'] ?? ''), 0, 10),
 		'def_br'       => mb_substr(sanitize_text_field($in['def_br'] ?? ''), 0, 10),
 		'sl_mode'      => ($in['sl_mode'] ?? '') === 'keep' ? 'keep' : 'outline',
-		'sl_colors'    => min(12, max(2, (int) ($in['sl_colors'] ?? $d['sl_colors']))),
+		'sl_colors'    => min(13, max(2, (int) ($in['sl_colors'] ?? $d['sl_colors']))),
 		'sl_line'      => min(2.5, max(0.6, round((float) ($in['sl_line'] ?? $d['sl_line']), 1))),
 		'sl_add'       => empty($in['sl_add']) ? 0 : 1,
 		'sl_thick'     => min(1, max(0, round((float) ($in['sl_thick'] ?? $d['sl_thick']), 2))),
@@ -174,6 +231,12 @@ function flc_sanitize_settings($in) {
 	}
 	if ($out['prompt_anime'] === flc_default_prompt_anime()) {
 		$out['prompt_anime'] = '';
+	}
+	if ($out['prompt_vetrata'] === flc_default_prompt_vetrata()) {
+		$out['prompt_vetrata'] = '';
+	}
+	if (str_replace("\r", '', $out['backgrounds']) === flc_default_backgrounds()) {
+		$out['backgrounds'] = '';
 	}
 	// Le chiavi non vengono mai rimandate al browser: campo vuoto = mantieni quella salvata
 	foreach (array('gemini_key', 'fal_key') as $k) {
@@ -275,14 +338,18 @@ function flc_settings_page() {
 			<h2>Prompt</h2>
 			<p><strong>Fedele</strong> (predefinito per il cliente): conversione di stile che blocca posa, espressione e composizione.</p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
-			<p><strong>Stilizzato</strong>: semplifica di più, utile per sfondi, paesaggi e oggetti.</p>
-			<textarea name="<?php echo esc_attr($opt); ?>[prompt_stylized]" rows="5" class="large-text code"><?php echo esc_textarea($s['prompt_stylized']); ?></textarea>
+			<p><strong>Vetrata</strong>: vetrata da cattedrale, tessere di colore pieno divise da piombature nere (rende benissimo retroilluminata).</p>
+			<textarea name="<?php echo esc_attr($opt); ?>[prompt_vetrata]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_vetrata']); ?></textarea>
 			<p><strong>Anime</strong> (atmosfera da film d'animazione giapponese classico, resa a colori piatti stampabili)
 				<label style="margin-left:12px"><input type="checkbox" name="<?php echo esc_attr($opt); ?>[style_anime]" value="1" <?php checked($s['style_anime'], 1); ?>> mostra questa scelta ai clienti</label></p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt_anime]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_anime']); ?></textarea>
 			<p><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[examples_enabled]" value="1" <?php checked($s['examples_enabled'], 1); ?>> Mostra ai clienti gli esempi dei 3 stili</label>
 				– si generano in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-esempi')); ?>">Francy Lamp Factory → Esempi stili</a></p>
 						<p class="description">Il nome del film resta solo nel prompt (il cliente vede "Anime"). Il prompt descrive anche le caratteristiche dello stile, così funziona anche se il modello ignora il nome.</p>
+			<h2>Sfondo</h2>
+			<p><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[bg_enabled]" value="1" <?php checked($s['bg_enabled'], 1); ?>> Mostra ai clienti l'interruttore <strong>Rimuovi lo sfondo</strong> con la scelta del nuovo sfondo</label></p>
+			<p>Sfondi proposti, uno per riga: <code>Nome che vede il cliente | descrizione in inglese per l'IA</code>. Il primo è quello scelto in partenza.</p>
+			<textarea name="<?php echo esc_attr($opt); ?>[backgrounds]" rows="7" class="large-text code"><?php echo esc_textarea($s['backgrounds']); ?></textarea>
 			<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nel prompt chiedi "no text". Per tornare al testo predefinito svuota il campo e salva.</p>
 
 			<h2>Limiti anti-abuso</h2>
@@ -313,7 +380,7 @@ function flc_settings_page() {
 					<option value="outline" <?php selected($s['sl_mode'], 'outline'); ?>>Foto / disegno (creo io i contorni neri)</option>
 					<option value="keep" <?php selected($s['sl_mode'], 'keep'); ?>>Grafica pronta (contorni neri già presenti)</option>
 				</select><p class="description">Dopo un ridisegno con l'IA si passa comunque a "Grafica pronta".</p></td></tr>
-				<tr><th>Colori</th><td><input type="number" min="2" max="12" step="1" name="<?php echo esc_attr($opt); ?>[sl_colors]" value="<?php echo esc_attr($s['sl_colors']); ?>" style="width:90px"> <span class="description">2–12, nero compreso (il limite totale di 13 con bianco, banda e scritte resta comunque)</span></td></tr>
+				<tr><th>Colori</th><td><input type="number" min="2" max="13" step="1" name="<?php echo esc_attr($opt); ?>[sl_colors]" value="<?php echo esc_attr($s['sl_colors']); ?>" style="width:90px"> <span class="description">2–13, nero compreso (il limite totale di 13 con bianco, banda e scritte resta comunque)</span></td></tr>
 				<tr><th>Spessore contorni (mm)</th><td><input type="number" min="0.6" max="2.5" step="0.1" name="<?php echo esc_attr($opt); ?>[sl_line]" value="<?php echo esc_attr($s['sl_line']); ?>" style="width:90px"> <span class="description">contorni neri creati dal configuratore</span></td></tr>
 				<tr><th>Contorni mancanti</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[sl_add]" value="1" <?php checked($s['sl_add'], 1); ?>> In "Grafica pronta" aggiungi i contorni neri dove mancano</label></td></tr>
 				<tr><th>Ingrossa il nero (mm)</th><td><input type="number" min="0" max="1" step="0.05" name="<?php echo esc_attr($opt); ?>[sl_thick]" value="<?php echo esc_attr($s['sl_thick']); ?>" style="width:90px"> <span class="description">solo "Grafica pronta"</span></td></tr>

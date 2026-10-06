@@ -184,7 +184,7 @@ function showExample() {
   box.hidden = false;
   $('#exOrig').src = ex.original;
   $('#exStyle').src = ex[aiStyle];
-  $('#exLabel').textContent = { fedele: 'Fedele', stilizzato: 'Stilizzato', anime: 'Anime' }[aiStyle] || aiStyle;
+  $('#exLabel').textContent = { fedele: 'Fedele', vetrata: 'Vetrata', anime: 'Anime' }[aiStyle] || aiStyle;
 }
 // stili disponibili decisi dall'admin (l'anime si può spegnere)
 if (Array.isArray(CFG.aiStyles)) document.querySelectorAll('#aiStyle button').forEach((b) => { b.hidden = !CFG.aiStyles.includes(b.dataset.style); });
@@ -193,6 +193,17 @@ document.querySelectorAll('#aiStyle button').forEach((b) => b.addEventListener('
   document.querySelectorAll('#aiStyle button').forEach((x) => x.classList.toggle('active', x === b));
   showExample();
 }));
+
+// Rimuovi lo sfondo: l'IA toglie lo sfondo della foto e lo sostituisce con quello scelto nel menu
+const aiBackgrounds = Array.isArray(CFG.aiBackgrounds) ? CFG.aiBackgrounds : [];
+if (aiBackgrounds.length) {
+  $('#aiBgRow').hidden = false;
+  aiBackgrounds.forEach((label, i) => $('#aiBg').append(new Option(label, String(i))));
+  $('#aiBgRemove').addEventListener('change', () => { $('#aiBgPick').hidden = !$('#aiBgRemove').checked; });
+}
+function aiBackground() {
+  return aiBackgrounds.length && $('#aiBgRemove').checked ? +$('#aiBg').value : -1;
+}
 
 function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).click(); }
 
@@ -216,7 +227,7 @@ $('#aiBtn').addEventListener('click', async () => {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', ...(CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}) },
-      body: JSON.stringify({ image, style: aiStyle }),
+      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground() }),
     });
     const raw = await r.text();
     let j = {};
@@ -230,6 +241,7 @@ $('#aiBtn').addEventListener('click', async () => {
     if (!originalImg) originalImg = { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy, mode: state.mode };
     state.aiImageSrc = j.image;
     state.aiProvider = j.provider || '';
+    state.aiBackground = aiBackground() >= 0 ? aiBackgrounds[aiBackground()] : null;
     $('#aiUndo').hidden = false;
     selectMode('keep');
     setImage(img, 1, 0, 0);
@@ -788,7 +800,7 @@ async function buildPackage(customer) {
     stl: stl.list.map((l) => ({ file: l.file, colore: l.color, filamento: l.filament })),
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
-    impostazioni: { modalita: state.mode, colori: +$('#colors').value, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, fornitore_ia: state.aiProvider || null },
+    impostazioni: { modalita: state.mode, colori: +$('#colors').value, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
     'FrancyStore3D - disco lampada personalizzato', '',

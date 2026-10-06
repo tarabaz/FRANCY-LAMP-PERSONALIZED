@@ -45,8 +45,12 @@
         <div class="ai-box lockable" id="aiBox" hidden>
           <div class="ai-style" id="aiStyle" role="group" aria-label="Tipo di ridisegno">
             <button type="button" data-style="fedele" class="active">Fedele<small>stessa posa ed espressione</small></button>
-            <button type="button" data-style="stilizzato">Stilizzato<small>forme più semplici</small></button>
+            <button type="button" data-style="vetrata">Vetrata<small>da cattedrale, tessere e piombo</small></button>
             <button type="button" data-style="anime">Anime<small>cartone animato giapponese</small></button>
+          </div>
+          <div class="ai-bg" id="aiBgRow" hidden>
+            <label class="switch"><input type="checkbox" id="aiBgRemove"><span class="switch-ui" aria-hidden="true"></span> Rimuovi lo sfondo</label>
+            <label class="ai-bg-pick" id="aiBgPick" hidden>Nuovo sfondo <select id="aiBg"></select></label>
           </div>
           <div class="ai-example" id="aiExample" hidden>
             <figure><img id="exOrig" alt="Foto d'esempio"><figcaption>Foto</figcaption></figure>

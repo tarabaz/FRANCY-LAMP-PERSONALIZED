@@ -88,8 +88,9 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	// Il tentativo conta anche se poi fallisce (evita raffiche di richieste)
 	set_transient($key, $used + 1, DAY_IN_SECONDS);
 
-	// Stile scelto dal cliente: fedele (predefinito), stilizzato o anime
-	$gen = flc_generate($bin, $mime, (string) $req->get_param('style'), $s);
+	// Stile scelto dal cliente: fedele (predefinito), vetrata o anime; sfondo: -1 = lascia quello dell'immagine
+	$bg  = $req->get_param('bg');
+	$gen = flc_generate($bin, $mime, (string) $req->get_param('style'), $s, is_numeric($bg) ? (int) $bg : -1);
 	if (!is_wp_error($gen)) {
 		$quota = flc_quota_status();
 		return array(
@@ -114,13 +115,20 @@ function flc_prompt_for_style($style, $s) {
 	if ($style === 'anime' && !empty($s['style_anime'])) {
 		return $s['prompt_anime'];
 	}
-	return $style === 'stilizzato' ? $s['prompt_stylized'] : $s['prompt'];
+	if ($style === 'vetrata') {
+		return $s['prompt_vetrata'];
+	}
+	return $style === 'stilizzato' ? $s['prompt_stylized'] : $s['prompt']; // "stilizzato": vecchie pagine ancora in cache
 }
 
 // Ridisegno con il fornitore principale e, se fallisce, con quello di riserva.
 // Ritorna array(mime, data, provider) oppure WP_Error con la lista degli errori in data['errors'].
-function flc_generate($bin, $mime, $style, $s) {
+function flc_generate($bin, $mime, $style, $s, $bg = -1) {
 	$prompt    = flc_prompt_for_style($style, $s);
+	$bgs       = flc_backgrounds($s);
+	if (!empty($s['bg_enabled']) && $bg >= 0 && isset($bgs[$bg])) {
+		$prompt .= flc_background_instruction($bgs[$bg]);
+	}
 	$providers = flc_providers();
 	$order     = array($s['primary']);
 	if ($s['fallback'] !== 'none' && $s['fallback'] !== $s['primary']) {
