@@ -64,10 +64,21 @@ add_action('init', function () {
 	if (!empty($s['page_enabled'])) {
 		add_rewrite_rule('^' . preg_quote(flc_page_slug(), '#') . '/?$', 'index.php?flc_page=1', 'top');
 	}
-	// dopo un cambio di indirizzo le regole vanno rigenerate una volta
-	if (get_option('flc_flush_rules')) {
+	// regole da rigenerare: dopo un cambio di indirizzo, oppure se plugin/indirizzo sono cambiati da
+	// quando le abbiamo generate l'ultima volta (es. aggiornamento con "sostituisci la versione corrente")
+	$sig = FLC_VERSION . '|' . flc_page_slug() . '|' . (int) !empty($s['page_enabled']);
+	if (get_option('flc_flush_rules') || get_option('flc_rules_sig') !== $sig) {
 		delete_option('flc_flush_rules');
+		update_option('flc_rules_sig', $sig, false);
 		flush_rewrite_rules(false);
+	}
+});
+
+// Riconosce l'indirizzo anche se le regole di WordPress non sono aggiornate (niente 404)
+add_action('parse_request', function ($wp) {
+	$s = flc_settings();
+	if (!empty($s['page_enabled']) && trim((string) $wp->request, '/') === flc_page_slug()) {
+		$wp->query_vars = array('flc_page' => 1);
 	}
 });
 add_filter('query_vars', function ($vars) {

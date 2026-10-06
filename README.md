@@ -19,7 +19,7 @@ Il pulsante "Ridisegna in stile tombino" compare solo se il ridisegno è attivo 
 
 - Indirizzo impostabile (`lampade-personalizzate` di default), creato dal plugin con una regola di riscrittura:
   dopo averlo cambiato basta salvare le impostazioni. Se la pagina dà 404, vai in Impostazioni → Permalink e
-  premi "Salva" (rigenera gli indirizzi).
+  premi "Salva" (rigenera gli indirizzi). Dalla 0.5.1 il plugin riconosce l'indirizzo anche senza regole aggiornate e le rigenera da solo dopo ogni aggiornamento.
 - "Script del sito" attivo = carica Pixel/analytics/banner cookie degli altri plugin (`wp_head`/`wp_footer`).
 - Ogni file JS ha la sua versione (importmap con `?ver=versione-data`): dopo un aggiornamento del plugin il
   browser carica sempre i file nuovi. `assets/.htaccess` chiede anche di ricontrollare JS e CSS (Apache).
