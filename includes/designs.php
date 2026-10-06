@@ -213,6 +213,12 @@ function flc_rest_convalida(WP_REST_Request $req) {
 		);
 	}
 	$texts = array_map('sanitize_text_field', array_slice((array) ($meta['scritte'] ?? array()), 0, 4));
+	// disegno pronto scelto dalla galleria (niente personalizzazione)
+	$template = null;
+	if (is_array($meta['template'] ?? null) && !empty($meta['template']['id'])) {
+		$tid      = absint($meta['template']['id']);
+		$template = array('id' => $tid, 'name' => get_post_type($tid) === 'flc_template' ? get_the_title($tid) : sanitize_text_field($meta['template']['name'] ?? ''));
+	}
 
 	// codice progressivo FL-anno-numero
 	$n    = (int) get_option('flc_design_counter', 0) + 1;
@@ -222,7 +228,7 @@ function flc_rest_convalida(WP_REST_Request $req) {
 	$post_id = wp_insert_post(array(
 		'post_type'   => 'flc_design',
 		'post_status' => 'publish',
-		'post_title'  => $code . ' – ' . $customer['name'],
+		'post_title'  => $code . ' – ' . $customer['name'] . ($template ? ' (disegno pronto: ' . $template['name'] . ')' : ''),
 	), true);
 	if (is_wp_error($post_id)) {
 		return new WP_Error('flc_db', 'Impossibile registrare il progetto.', array('status' => 500));
@@ -232,6 +238,9 @@ function flc_rest_convalida(WP_REST_Request $req) {
 	update_post_meta($post_id, '_flc_customer', $customer);
 	update_post_meta($post_id, '_flc_colors', $colors);
 	update_post_meta($post_id, '_flc_texts', $texts);
+	if ($template) {
+		update_post_meta($post_id, '_flc_template', $template);
+	}
 	update_post_meta($post_id, '_flc_stato', 'nuovo');
 	update_post_meta($post_id, '_flc_ai', !empty($meta['impostazioni']['ia']) ? 1 : 0);
 	update_post_meta($post_id, '_flc_zip_size', (int) filesize($dir . '/progetto.zip'));
@@ -241,7 +250,8 @@ function flc_rest_convalida(WP_REST_Request $req) {
 	$body = "Nuovo disco convalidato: {$code}\n\n"
 		. "Cliente: {$customer['name']} <{$customer['email']}>" . ($customer['phone'] ? " – tel. {$customer['phone']}" : '') . "\n"
 		. ($customer['note'] ? "Note: {$customer['note']}\n" : '')
-		. "\nFilamenti:\n";
+		. ($template ? "Disegno pronto: {$template['name']} (ID {$template['id']})\n" : '')
+		. ($colors ? "\nFilamenti:\n" : '');
 	foreach ($colors as $col) {
 		$body .= "- {$col['hex']}  " . ($col['filament'] ?: '(nessun catalogo)') . '  → ' . implode(', ', $col['roles']) . "\n";
 	}
@@ -293,6 +303,11 @@ add_action('manage_flc_design_posts_custom_column', function ($col, $post_id) {
 			}
 			break;
 		case 'flc_colors':
+			$tpl = get_post_meta($post_id, '_flc_template', true);
+			if ($tpl) {
+				echo '<strong>Disegno pronto</strong><br>' . esc_html($tpl['name'] ?? '');
+				break;
+			}
 			$colors = (array) get_post_meta($post_id, '_flc_colors', true);
 			echo flc_swatches($colors) . '<span class="description">' . count($colors) . (count($colors) === 1 ? ' colore' : ' colori') . '</span>';
 			break;
@@ -358,7 +373,14 @@ function flc_design_box($post) {
 	<p><strong><?php echo esc_html($c['name'] ?? ''); ?></strong> – <a href="mailto:<?php echo esc_attr($c['email'] ?? ''); ?>"><?php echo esc_html($c['email'] ?? ''); ?></a>
 		<?php echo !empty($c['phone']) ? ' – ' . esc_html($c['phone']) : ''; ?></p>
 	<?php if (!empty($c['note'])) : ?><p><em><?php echo nl2br(esc_html($c['note'])); ?></em></p><?php endif; ?>
-	<?php if ($texts) : ?><p>Scritte sulla banda: <?php echo esc_html(implode(' · ', $texts)); ?></p><?php endif; ?>
+	<?php $tpl = get_post_meta($post->ID, '_flc_template', true); ?>
+	<?php if ($tpl) : ?>
+		<p style="font-size:14px"><strong>Disegno pronto:</strong> <?php echo esc_html($tpl['name'] ?? ''); ?>
+			<?php if (!empty($tpl['id']) && get_post_type($tpl['id']) === 'flc_template') : ?> – <a href="<?php echo esc_url(get_edit_post_link($tpl['id'])); ?>">apri il disegno</a><?php endif; ?></p>
+		<p class="description">Il cliente ha scelto un disegno della galleria senza modificarlo: usa i tuoi file di quel disegno.</p>
+	<?php endif; ?>
+	<?php if ($texts && !$tpl) : ?><p>Scritte sulla banda: <?php echo esc_html(implode(' · ', $texts)); ?></p><?php endif; ?>
+	<?php if (!$colors) { return; } ?>
 	<h3>Filamenti da usare (<?php echo count($colors); ?>)</h3>
 	<table class="widefat striped" style="max-width:760px">
 		<thead><tr><th style="width:40px"></th><th>Colore</th><th>Bobina</th><th>Usato per</th><th>Area nel disegno</th></tr></thead>

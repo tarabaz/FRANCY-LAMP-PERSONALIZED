@@ -133,6 +133,32 @@ export class Preview3D {
     this.setLit(this.lit);
   }
 
+  // Disegno pronto: PNG applicato come texture sulla faccia del disco (stesso spessore e posizione del disco generato)
+  setTemplate(url, outlineD) {
+    this.disc.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+    this.disc.clear();
+    this.colorMats = [];
+    const data = new SVGLoader().parse(`<svg xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="${outlineD}"/></svg>`);
+    const shapes = [];
+    for (const path of data.paths) shapes.push(...cleanShapes(SVGLoader.createShapes(path), 24));
+    const depth = 1;
+    const geo = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false });
+    const tex = new THREE.TextureLoader().load(url, () => this.setLit(this.lit));
+    tex.colorSpace = THREE.SRGBColorSpace;
+    // le UV delle facce sono le coordinate in mm (centro 0,0, y in basso): le porto in 0..1 sull'immagine
+    tex.repeat.set(1 / 200, -1 / 200);
+    tex.offset.set(0.5, 0.5);
+    tex.anisotropy = 8;
+    const face = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, roughness: 0.55 });
+    face.userData.base = new THREE.Color(0xffffff);
+    const side = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 });
+    this.colorMats.push(face);
+    this.disc.add(new THREE.Mesh(geo, [face, side]));
+    this.disc.scale.set(1, -1, 1);
+    this.disc.position.z = -LAMP_MODEL.discRecess - depth;
+    this.setLit(this.lit);
+  }
+
   setLit(lit) {
     this.lit = lit;
     this.scene.background = new THREE.Color(lit ? 0x1c1f26 : 0xffffff);

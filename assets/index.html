@@ -21,16 +21,25 @@
     <aside class="panel">
       <section>
         <h2><span>1</span> La tua immagine</h2>
-        <label class="upload">
+        <div class="tpl-box" id="tplBox" hidden>
+          <button type="button" id="tplOpen" class="tpl-open">🎨 Scegli un disegno pronto</button>
+          <div class="tpl-active" id="tplActive" hidden>
+            <img id="tplActiveImg" alt="">
+            <div class="tpl-active-txt"><strong id="tplActiveName"></strong><small>Disegno pronto, non modificabile</small></div>
+          </div>
+          <button type="button" id="tplExit" class="ghost" hidden>Torna a personalizzare</button>
+          <p class="hint tpl-or" id="tplOr">oppure crea il tuo disco:</p>
+        </div>
+        <label class="upload lockable">
           <input type="file" id="file" accept="image/*">
           <span>Carica un'immagine</span>
         </label>
-        <div class="crop-wrap">
+        <div class="crop-wrap lockable">
           <canvas id="crop" width="300" height="300"></canvas>
           <p class="hint" id="cropHint">Trascina per spostare, rotellina o cursore per lo zoom</p>
         </div>
-        <label class="row">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
-        <div class="ai-box" id="aiBox" hidden>
+        <label class="row lockable">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+        <div class="ai-box lockable" id="aiBox" hidden>
           <div class="ai-style" id="aiStyle" role="group" aria-label="Tipo di ridisegno">
             <button type="button" data-style="fedele" class="active">Fedele al soggetto<small>stessa posa ed espressione</small></button>
             <button type="button" data-style="stilizzato">Più stilizzato<small>forme più semplici</small></button>
@@ -43,7 +52,7 @@
         </div>
       </section>
 
-      <section>
+      <section class="lockable">
         <h2><span>2</span> Stile</h2>
         <div class="seg" id="mode">
           <button data-mode="outline" class="active">Foto / disegno<small>creo io i contorni neri</small></button>
@@ -70,7 +79,7 @@
         </details>
       </section>
 
-      <section>
+      <section class="lockable">
         <h2><span>3</span> Cornice e scritte</h2>
         <div class="picker" id="bandPicker"><span class="picker-label">Colore fascia</span><div class="swatches"></div></div>
         <div class="picker" id="textPicker"><span class="picker-label">Colore scritte</span><div class="swatches"></div></div>
@@ -95,7 +104,7 @@
     </section>
 
     <aside class="panel right">
-      <section>
+      <section class="lockable" id="paletteSection">
         <h2>Colori del disco</h2>
         <p class="hint">Clicca un colore per cambiarlo. Massimo 12 colori in tutto, compresi il bianco della base e il nero dei contorni.</p>
         <ul id="palette" class="palette"></ul>
@@ -125,6 +134,13 @@
     </aside>
   </main>
 
+  <div class="tpl-modal" id="tplModal" hidden>
+    <div class="tpl-dialog" role="dialog" aria-modal="true" aria-labelledby="tplTitle">
+      <div class="tpl-head"><h2 id="tplTitle">Disegni pronti</h2><button type="button" id="tplClose" aria-label="Chiudi">✕</button></div>
+      <p class="hint">Scegli un disegno: lo vedi subito sulla lampada, spenta e accesa. I disegni pronti non si modificano.</p>
+      <div class="tpl-grid" id="tplGrid"></div>
+    </div>
+  </div>
 </div>
 <!-- FLC:END -->
   <script type="module" src="js/app.js"></script>

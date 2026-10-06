@@ -51,6 +51,7 @@ function flc_defaults() {
 		'daily_cap'    => 300,
 		'submit_per_ip' => 5,
 		'notify_email' => '',
+		'templates_enabled' => 1,
 	);
 }
 
@@ -94,6 +95,7 @@ function flc_sanitize_settings($in) {
 		'daily_cap'    => max(0, (int) ($in['daily_cap'] ?? $d['daily_cap'])),
 		'submit_per_ip' => max(0, (int) ($in['submit_per_ip'] ?? $d['submit_per_ip'])),
 		'notify_email' => sanitize_email($in['notify_email'] ?? ''),
+		'templates_enabled' => empty($in['templates_enabled']) ? 0 : 1,
 	);
 	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
 	if ($out['prompt'] === flc_default_prompt()) {
@@ -193,6 +195,12 @@ function flc_settings_page() {
 				<tr><th>Ridisegni per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[per_ip_day]" value="<?php echo (int) $s['per_ip_day']; ?>"> <span class="description">(per indirizzo IP; 0 = nessun limite)</span></td></tr>
 				<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[daily_cap]" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">(blocca tutto oltre questa soglia: protegge il budget; 0 = nessun limite, il contatore conta comunque)</span></td></tr>
 			</table>
+			<h2>Disegni pronti</h2>
+			<table class="form-table" role="presentation">
+				<tr><th>Galleria nel configuratore</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[templates_enabled]" value="1" <?php checked($s['templates_enabled'], 1); ?>> Mostra il pulsante "Scegli un disegno pronto"</label>
+					<p class="description">I disegni si gestiscono in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_template')); ?>">Francy Lamp Factory → Disegni pronti</a>. Se togli la spunta, i clienti non li vedono.</p></td></tr>
+			</table>
+
 			<h2>Convalida dei dischi</h2>
 			<table class="form-table" role="presentation">
 				<tr><th>Invii per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[submit_per_ip]" value="<?php echo (int) $s['submit_per_ip']; ?>"> <span class="description">(anti-spam; 0 = nessun limite)</span></td></tr>

@@ -31,6 +31,7 @@ function flc_shortcode() {
 		// i download diretti dei file restano solo agli amministratori
 		'isAdmin' => current_user_can('manage_options'),
 		'filaments' => flc_filaments(),
+		'templates' => flc_templates_for_frontend(),
 	);
 
 	$out  = '<script>window.FRANCY_LAMP = ' . wp_json_encode($config) . ';</script>';

@@ -9,7 +9,7 @@ const qp = new URLSearchParams(location.search);
 // Configurazione stampata dallo shortcode del plugin. Senza plugin (pagina di prova) i parametri arrivano dall'URL.
 const CFG = window.FRANCY_LAMP || {
   restUrl: qp.get('ai') || '', statusUrl: qp.get('aistato') || '', submitUrl: qp.get('convalida') || '',
-  nonce: '', isAdmin: true, filaments: [], standalone: true,
+  nonce: '', isAdmin: true, filaments: [], templates: [], standalone: true,
 };
 const MAX_FILAMENTS = 12;
 // Nero e bianco "di riferimento": con il catalogo diventano le bobine più vicine
@@ -22,6 +22,7 @@ const state = {
   result: null, colorOverrides: {}, font: null,
   bandColor: '#5b9bd5', textColor: BLACK,
   filaments: [], originalFile: null, originalSrc: null, aiImageSrc: null, aiProvider: '',
+  templates: [], template: null, // disegno pronto scelto: { id, name, url, dataUrl }
 };
 
 const worker = new Worker(new URL('./worker.js', import.meta.url));
@@ -278,6 +279,67 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
 let textTimer;
 for (const id of ['tTL', 'tTR', 'tBL', 'tBR']) $('#' + id).addEventListener('input', () => { clearTimeout(textTimer); textTimer = setTimeout(render, 150); });
 
+// ---------------- disegni pronti ----------------
+// PNG del disco completo caricati dall'admin: si applicano al modello solo per l'anteprima, niente modifiche.
+function setTemplates(list) {
+  state.templates = (list || []).filter((t) => t && t.url);
+  $('#tplBox').hidden = !state.templates.length;
+  const grid = $('#tplGrid');
+  grid.innerHTML = '';
+  for (const t of state.templates) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tpl-card';
+    const img = document.createElement('img');
+    img.src = t.thumb || t.url; img.alt = ''; img.loading = 'lazy';
+    b.append(img, document.createTextNode(t.name));
+    b.addEventListener('click', () => selectTemplate(t));
+    grid.append(b);
+  }
+}
+$('#tplOpen').addEventListener('click', () => { $('#tplModal').hidden = false; });
+$('#tplClose').addEventListener('click', () => { $('#tplModal').hidden = true; });
+$('#tplModal').addEventListener('click', (e) => { if (e.target.id === 'tplModal') $('#tplModal').hidden = true; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#tplModal').hidden = true; });
+
+async function selectTemplate(t) {
+  $('#tplModal').hidden = true;
+  setStatus('Carico il disegno…');
+  try {
+    // data URL: serve per l'anteprima PNG e per lo zip (un SVG-immagine non carica file esterni)
+    const blob = await (await fetch(t.url, { credentials: 'same-origin' })).blob();
+    const dataUrl = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
+    state.template = { ...t, dataUrl, blob };
+  } catch (err) {
+    console.error(err);
+    return setStatus('Disegno non disponibile');
+  }
+  root.classList.add('template-mode');
+  document.querySelectorAll('.lockable').forEach((el) => { el.inert = true; });
+  $('#tplActive').hidden = false; $('#tplExit').hidden = false;
+  $('#tplActiveImg').src = t.thumb || t.url;
+  $('#tplActiveName').textContent = t.name;
+  setStatus('');
+  render();
+}
+$('#tplExit').addEventListener('click', () => {
+  state.template = null;
+  root.classList.remove('template-mode');
+  document.querySelectorAll('.lockable').forEach((el) => { el.inert = false; });
+  $('#tplActive').hidden = true; $('#tplExit').hidden = true;
+  render();
+  setStatus('');
+});
+
+function templateSvg() {
+  const R = FRAME.diameter / 2;
+  const outline = buildFrame(null, {}).outline;
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${FRAME.diameter}mm" height="${FRAME.diameter}mm" viewBox="${-R} ${-R} ${2 * R} ${2 * R}">` +
+    `<defs><clipPath id="flcTplClip"><path d="${outline}" clip-rule="evenodd"/></clipPath></defs>` +
+    `<path d="${outline}" fill="#ffffff" fill-rule="evenodd"/>` +
+    `<image href="${state.template.dataUrl}" xlink:href="${state.template.dataUrl}" x="${-R}" y="${-R}" width="${2 * R}" height="${2 * R}" preserveAspectRatio="xMidYMid slice" clip-path="url(#flcTplClip)"/></svg>`;
+}
+
 // ---------------- regola dei 12 colori ----------------
 // Il limite è "al massimo 12": bianco della base e nero dei contorni contano sempre.
 // Fascia e scritte possono usare un colore già presente nel disegno (gratis) o uno nuovo se c'è posto.
@@ -508,6 +570,17 @@ function buildSvg(forExport) {
 }
 
 function render() {
+  if (state.template) {
+    $('#svgHost').innerHTML = templateSvg();
+    $('#count').textContent = `Disegno pronto: ${state.template.name}`;
+    $('#count').style.color = '';
+    $('#dlSvg').disabled = $('#dlStl').disabled = true;
+    $('#dlPng').disabled = false;
+    $('#submitBtn').disabled = !CFG.submitUrl;
+    dirty3d = true;
+    if (state.view === '3d' && preview3d) update3d();
+    return;
+  }
   const { svg, colors, parts: ps } = buildSvg(false);
   $('#svgHost').innerHTML = svg;
   const n = colors.size;
@@ -525,12 +598,16 @@ function render() {
 let t3d;
 function update3d(ps) {
   clearTimeout(t3d);
-  t3d = setTimeout(() => { preview3d.setParts(ps || parts()); dirty3d = false; }, 120);
+  t3d = setTimeout(() => {
+    if (state.template) preview3d.setTemplate(state.template.dataUrl, buildFrame(null, {}).outline);
+    else preview3d.setParts(ps || parts());
+    dirty3d = false;
+  }, 120);
 }
 
 // ---------------- file (anteprime, pacchetto completo) ----------------
 function svgToPng(lit, size = 1200) {
-  const { svg } = buildSvg(false);
+  const svg = state.template ? templateSvg() : buildSvg(false).svg;
   return new Promise((ok, ko) => {
     const img = new Image();
     img.onload = () => {
@@ -562,7 +639,31 @@ function colorSummary(ps) {
   return [...byHex.values()].map((e) => ({ ...e, roles: [...e.roles], area: Math.round(e.area) }));
 }
 
+// Disegno pronto: anteprime, PNG del disegno e riepilogo (gli STL di quel disegno li ha già l'admin)
+async function buildTemplatePackage(customer) {
+  const t = state.template;
+  const previewOff = await svgToPng(false), previewLit = await svgToPng(true);
+  const slugName = t.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'disegno';
+  const summary = { creato: new Date().toISOString(), cliente: customer, template: { id: t.id, name: t.name }, colori: [] };
+  const lines = [
+    'FrancyStore3D - disco lampada (disegno pronto dalla galleria)', '',
+    `Cliente: ${customer.name} <${customer.email}>${customer.phone ? ' tel. ' + customer.phone : ''}`,
+    customer.note ? `Note: ${customer.note}` : '',
+    `Disegno pronto: ${t.name} (ID ${t.id})`, '',
+    'Il cliente non ha modificato il disegno: usa i tuoi file di stampa di questo disegno.',
+  ];
+  const files = [
+    { name: '01_anteprime/anteprima-spenta.png', data: await bytes(previewOff) },
+    { name: '01_anteprime/anteprima-accesa.png', data: await bytes(previewLit) },
+    { name: `02_disegno/${slugName}.png`, data: await bytes(t.blob) },
+    { name: 'LEGGIMI.txt', data: enc(lines.join('\r\n') + '\r\n') },
+    { name: 'riepilogo.json', data: enc(JSON.stringify(summary, null, 2)) },
+  ];
+  return { zip: await zipAsync(files), previewOff, previewLit, summary };
+}
+
 async function buildPackage(customer) {
+  if (state.template) return buildTemplatePackage(customer);
   const ps = parts();
   const svgText = buildSvg(true).svg;
   const files = [];
@@ -627,7 +728,7 @@ function submitMessage(text, kind) {
 
 $('#submitForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!state.result || !CFG.submitUrl) return;
+  if ((!state.result && !state.template) || !CFG.submitUrl) return;
   const f = e.target;
   const customer = { name: f.name.value.trim(), email: f.email.value.trim(), phone: f.phone.value.trim(), note: f.note.value.trim() };
   if (!customer.name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customer.email)) return submitMessage('Inserisci nome ed email validi.', 'error');
@@ -712,6 +813,8 @@ setStatus('Caricamento font…');
 loadFont().then((f) => { state.font = f; render(); setStatus("Carica un'immagine per iniziare"); })
   .catch((err) => { console.error(err); render(); setStatus('Font non caricato: scritte disattivate'); });
 setFilaments(CFG.filaments);
+setTemplates(CFG.templates);
+if (qp.get('tpl')) fetch(qp.get('tpl')).then((r) => r.json()).then(setTemplates).catch(console.error); // solo per le prove
 if (qp.get('cat')) fetch(qp.get('cat')).then((r) => r.json()).then(setFilaments).catch(console.error); // solo per le prove
 updateColorLimit();
 render();

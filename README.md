@@ -31,6 +31,13 @@ I file stanno in `wp-content/uploads/francy-lamp/<cartella casuale>/`, protetti 
 (su Nginx la cartella casuale li rende comunque non indovinabili). Si scaricano solo da admin.
 Cancellando definitivamente un progetto si cancellano anche i suoi file.
 
+**Disegni pronti:** in **Francy Lamp Factory → Disegni pronti** aggiungi un disegno con nome e "Immagine del disco
+(PNG)": PNG quadrato del disco frontale completo, cornice compresa, sfondo trasparente fuori dal disco
+(consigliato 1200×1200 px o più). Pubblicato = visibile ai clienti, bozza = nascosto, "Ordine" = posizione.
+Nel configuratore compare "Scegli un disegno pronto" (si spegne da Impostazioni → Disegni pronti): il cliente
+vede il disegno applicato al disco in 2D/3D, spento e acceso, tutto il resto si blocca. Può convalidarlo:
+in tabella risulta "Disegno pronto: nome" e lo zip contiene anteprime, PNG del disegno e riepilogo.
+
 **Catalogo filamenti:** se c'è, il configuratore riduce ogni colore alla bobina più vicina (anteprima con i
 colori reali) e i nomi delle bobine finiscono nello zip, nella tabella e nei nomi degli STL. Il cliente non
 vede i nomi delle bobine.
