@@ -52,6 +52,11 @@ function flc_defaults() {
 		'submit_per_ip' => 5,
 		'notify_email' => '',
 		'templates_enabled' => 1,
+		'page_enabled' => 1,
+		'page_slug'    => 'lampade-personalizzate',
+		'page_title'   => 'Crea la tua lampada – FrancyStore3D',
+		'page_description' => '',
+		'page_wp_head' => 1,
 	);
 }
 
@@ -96,6 +101,11 @@ function flc_sanitize_settings($in) {
 		'submit_per_ip' => max(0, (int) ($in['submit_per_ip'] ?? $d['submit_per_ip'])),
 		'notify_email' => sanitize_email($in['notify_email'] ?? ''),
 		'templates_enabled' => empty($in['templates_enabled']) ? 0 : 1,
+		'page_enabled' => empty($in['page_enabled']) ? 0 : 1,
+		'page_slug'    => sanitize_title($in['page_slug'] ?? '') ?: $d['page_slug'],
+		'page_title'   => sanitize_text_field($in['page_title'] ?? '') ?: $d['page_title'],
+		'page_description' => sanitize_text_field($in['page_description'] ?? ''),
+		'page_wp_head' => empty($in['page_wp_head']) ? 0 : 1,
 	);
 	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
 	if ($out['prompt'] === flc_default_prompt()) {
@@ -155,6 +165,18 @@ function flc_settings_page() {
 
 		<form method="post" action="options.php">
 			<?php settings_fields('flc'); ?>
+			<h2>Pagina del configuratore</h2>
+			<table class="form-table" role="presentation">
+				<tr><th>Pagina dedicata</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[page_enabled]" value="1" <?php checked($s['page_enabled'], 1); ?>> Attiva la pagina a schermo intero (senza header e footer del tema)</label>
+					<?php if (!empty($s['page_enabled']) && function_exists('flc_page_url')) : ?><p><a href="<?php echo esc_url(flc_page_url()); ?>" target="_blank" rel="noopener"><strong><?php echo esc_html(flc_page_url()); ?></strong></a></p><?php endif; ?></td></tr>
+				<tr><th>Indirizzo</th><td><code><?php echo esc_html(home_url('/')); ?></code><input type="text" name="<?php echo esc_attr($opt); ?>[page_slug]" value="<?php echo esc_attr($s['page_slug']); ?>" class="regular-text" style="width:240px"><code>/</code>
+					<p class="description">Solo lettere minuscole, numeri e trattini (es. <code>lampade-personalizzate</code>). Non deve coincidere con una pagina esistente.</p></td></tr>
+				<tr><th>Titolo della pagina</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($opt); ?>[page_title]" value="<?php echo esc_attr($s['page_title']); ?>"><p class="description">Quello che si vede nella scheda del browser e su Google.</p></td></tr>
+				<tr><th>Descrizione</th><td><input type="text" class="large-text" name="<?php echo esc_attr($opt); ?>[page_description]" value="<?php echo esc_attr($s['page_description']); ?>" placeholder="Es. Crea la tua lampada tombino personalizzata con la tua foto: anteprima 3D accesa e spenta."><p class="description">Facoltativa, per Google e le anteprime dei link.</p></td></tr>
+				<tr><th>Script del sito</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[page_wp_head]" value="1" <?php checked($s['page_wp_head'], 1); ?>> Carica gli script degli altri plugin (Pixel di Meta, analytics, banner cookie)</label>
+					<p class="description">Lascialo attivo se usi Pixel/analytics o un banner cookie. Se il tema "sporca" la pagina, toglilo: la pagina diventa più leggera.</p></td></tr>
+			</table>
+
 			<h2>Ridisegno con IA</h2>
 			<table class="form-table" role="presentation">
 				<tr><th>Attivo</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[enabled]" value="1" <?php checked($s['enabled'], 1); ?>> Mostra il pulsante "Ridisegna in stile tombino"</label></td></tr>

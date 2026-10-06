@@ -7,11 +7,22 @@ Il repository è direttamente il plugin: `francy-lamp.php` sta nella root.
 
 1. Su GitHub: **Code → Download ZIP** (lo zip contiene una sola cartella con il plugin dentro, come vuole WordPress).
 2. WordPress → Plugin → Aggiungi nuovo → Carica plugin → scegli lo zip → Attiva.
-3. Crea una pagina e inserisci lo shortcode `[francy_lamp]`.
+3. Il configuratore è già online alla **pagina dedicata** `tuosito.it/lampade-personalizzate/` (a schermo intero,
+   senza tema). Indirizzo, titolo e descrizione si cambiano in Impostazioni → Pagina del configuratore.
+   In alternativa c'è lo shortcode `[francy_lamp]` da mettere in una pagina normale.
 4. Menu **Francy Lamp Factory → Impostazioni**: inserisci la chiave API e scegli il fornitore.
 5. Menu **Francy Lamp Factory → Filamenti**: incolla il catalogo delle tue bobine (`Nome | #rrggbb`, una per riga).
 
 Il pulsante "Ridisegna in stile tombino" compare solo se il ridisegno è attivo e c'è almeno una chiave.
+
+## Pagina dedicata
+
+- Indirizzo impostabile (`lampade-personalizzate` di default), creato dal plugin con una regola di riscrittura:
+  dopo averlo cambiato basta salvare le impostazioni. Se la pagina dà 404, vai in Impostazioni → Permalink e
+  premi "Salva" (rigenera gli indirizzi).
+- "Script del sito" attivo = carica Pixel/analytics/banner cookie degli altri plugin (`wp_head`/`wp_footer`).
+- Ogni file JS ha la sua versione (importmap con `?ver=versione-data`): dopo un aggiornamento del plugin il
+  browser carica sempre i file nuovi. `assets/.htaccess` chiede anche di ricontrollare JS e CSS (Apache).
 
 ## Il flusso
 

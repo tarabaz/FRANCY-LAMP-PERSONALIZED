@@ -1,0 +1,6 @@
+# Il browser deve sempre ricontrollare JS e CSS del configuratore (dopo un aggiornamento usa i file nuovi)
+<IfModule mod_headers.c>
+	<FilesMatch "\.(js|mjs|css)$">
+		Header set Cache-Control "no-cache"
+	</FilesMatch>
+</IfModule>

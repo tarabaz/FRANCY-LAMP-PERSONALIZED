@@ -143,7 +143,7 @@ export class Preview3D {
     for (const path of data.paths) shapes.push(...cleanShapes(SVGLoader.createShapes(path), 24));
     const depth = 1;
     const geo = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false });
-    const tex = new THREE.TextureLoader().load(url, () => this.setLit(this.lit));
+    const tex = new THREE.TextureLoader().load(url, () => this.setLit(this.lit), undefined, (e) => console.error('Texture del disegno non caricata', e));
     tex.colorSpace = THREE.SRGBColorSpace;
     // le UV delle facce sono le coordinate in mm (centro 0,0, y in basso): le porto in 0..1 sull'immagine
     tex.repeat.set(1 / 200, -1 / 200);

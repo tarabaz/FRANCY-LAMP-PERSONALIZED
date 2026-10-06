@@ -25,7 +25,8 @@ const state = {
   templates: [], template: null, // disegno pronto scelto: { id, name, url, dataUrl }
 };
 
-const worker = new Worker(new URL('./worker.js', import.meta.url));
+// stessa versione di app.js (?ver=...) così anche il worker non resta vecchio in cache
+const worker = new Worker(new URL('./worker.js' + new URL(import.meta.url).search, import.meta.url));
 let jobId = 0;
 let preview3d = null;
 let dirty3d = true;
@@ -599,9 +600,14 @@ let t3d;
 function update3d(ps) {
   clearTimeout(t3d);
   t3d = setTimeout(() => {
-    if (state.template) preview3d.setTemplate(state.template.dataUrl, buildFrame(null, {}).outline);
-    else preview3d.setParts(ps || parts());
-    dirty3d = false;
+    try {
+      if (state.template) preview3d.setTemplate(state.template.dataUrl, buildFrame(null, {}).outline);
+      else preview3d.setParts(ps || parts());
+      dirty3d = false;
+    } catch (err) {
+      console.error(err);
+      setStatus('Anteprima 3D non aggiornata: ricarica la pagina (Ctrl+F5)');
+    }
   }, 120);
 }
 
@@ -812,6 +818,13 @@ function hexToLab(hex) {
 setStatus('Caricamento font…');
 loadFont().then((f) => { state.font = f; render(); setStatus("Carica un'immagine per iniziare"); })
   .catch((err) => { console.error(err); render(); setStatus('Font non caricato: scritte disattivate'); });
+// nella pagina dedicata il nome del negozio riporta al sito
+if (CFG.homeUrl) {
+  const brand = $('.brand');
+  const a = document.createElement('a');
+  a.href = CFG.homeUrl; a.className = 'brand'; a.innerHTML = brand.innerHTML; a.title = 'Torna al negozio';
+  brand.replaceWith(a);
+}
 setFilaments(CFG.filaments);
 setTemplates(CFG.templates);
 if (qp.get('tpl')) fetch(qp.get('tpl')).then((r) => r.json()).then(setTemplates).catch(console.error); // solo per le prove
