@@ -2,7 +2,6 @@
 // pieni, pulita per la stampa 3D, poi vettorializzata per colore.
 // Gira in un Web Worker così la pagina resta reattiva e la foto non lascia mai il browser.
 
-importScripts('../vendor/imagetracer.js');
 
 const NONE = 255; // pixel fuori dal cerchio
 
@@ -401,49 +400,160 @@ function killSmallColored(labels, size, minArea, blackIdx) {
 }
 
 // ---------- vettorializzazione ----------
+// Vettorializzazione a contorni condivisi.
+// Ogni confine tra due zone viene calcolato e smussato UNA volta sola e usato identico (al contrario) da
+// entrambe le zone; gli incroci tra 3+ zone sono punti fissi comuni. Così tra i colori non restano né
+// fessure né sovrapposizioni. Coordinate: angoli dei pixel (0..size), poi convertite in mm.
 function trace(labels, size, ncolors, opts) {
-  const IT = self.ImageTracer;
-  const arr = [];
-  for (let y = 0; y < size + 2; y++) {
-    const row = new Array(size + 2).fill(-1);
-    if (y > 0 && y <= size) for (let x = 0; x < size; x++) { const l = labels[(y - 1) * size + x]; row[x + 1] = l === NONE ? ncolors : l; }
-    arr.push(row);
+  const W = size + 1;                                   // griglia degli angoli dei pixel
+  const OUT = NONE;
+  const lab = (x, y) => (x < 0 || y < 0 || x >= size || y >= size ? OUT : labels[y * size + x]);
+  // direzioni sugli angoli (y in basso): 0=E 1=S 2=O 3=N, in senso orario
+  const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
+  // etichetta a SINISTRA del semi-lato che parte dall'angolo (x,y) in direzione d, oppure -1 se lì non c'è confine
+  const leftOf = (x, y, d) => {
+    let a, b, left;
+    if (d === 0) { a = lab(x, y - 1); b = lab(x, y); left = a; }            // E: sopra | sotto
+    else if (d === 2) { a = lab(x - 1, y - 1); b = lab(x - 1, y); left = b; } // O
+    else if (d === 1) { a = lab(x - 1, y); b = lab(x, y); left = b; }       // S: sinistra | destra
+    else { a = lab(x - 1, y - 1); b = lab(x, y - 1); left = a; }            // N
+    return a === b ? -1 : left;
+  };
+  // incrocio = angolo dove si toccano 3+ zone, o 2 zone "a scacchiera"
+  const isJunction = (x, y) => {
+    const a = lab(x - 1, y - 1), b = lab(x, y - 1), c = lab(x - 1, y), d = lab(x, y);
+    const set = new Set([a, b, c, d]);
+    return set.size >= 3 || (set.size === 2 && a === d && b === c);
+  };
+
+  const visited = new Uint8Array(W * W * 4);
+  const ringsByLabel = Array.from({ length: ncolors }, () => []);
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) for (let d = 0; d < 4; d++) {
+    const L = leftOf(x, y, d);
+    if (L < 0 || L === OUT || L >= ncolors || visited[(y * W + x) * 4 + d]) continue;
+    // percorre l'anello della zona L tenendola a sinistra; agli incroci gira il più possibile a sinistra
+    const ring = [];
+    let cx = x, cy = y, cd = d, guard = 0;
+    do {
+      visited[(cy * W + cx) * 4 + cd] = 1;
+      ring.push(cy * W + cx);
+      cx += DX[cd]; cy += DY[cd];
+      let nd = -1;
+      for (const t of [3, 0, 1]) { const k = (cd + t) % 4; if (leftOf(cx, cy, k) === L) { nd = k; break; } }
+      if (nd < 0) break; // non dovrebbe succedere
+      cd = nd;
+    } while (!(cx === x && cy === y && cd === d) && ++guard < 4 * W * W);
+    ringsByLabel[L].push(ring);
   }
-  const palette = [];
-  for (let i = 0; i <= ncolors; i++) palette.push({ r: 0, g: 0, b: 0, a: 255 });
-  const options = IT.checkoptions({ ltres: opts.ltres ?? 1, qtres: opts.qtres ?? 1, pathomit: 4, rightangleenhance: false });
-  const ls = IT.layering({ array: arr, palette });
-  const bps = IT.batchpathscan(ls, options.pathomit);
-  const bis = IT.batchinternodes(bps, options);
-  const layers = IT.batchtracelayers(bis, options.ltres, options.qtres).slice(0, ncolors); // l'ultimo layer è il fuori-cerchio
-  // Serializza in stringhe "d" (coordinate in pixel immagine)
-  // Coordinate convertite direttamente in mm (centro disco = 0,0)
+
+  // catene tra incroci, smussate una volta sola e riusate da entrambe le zone
+  const cache = new Map();
+  const jx = (id) => id % W, jy = (id) => (id / W) | 0;
+  const junction = new Uint8Array(W * W);
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) if (isJunction(x, y)) junction[y * W + x] = 1;
+
+  const smoothOpen = (ids) => {
+    let P = ids.map((id) => [jx(id), jy(id)]);
+    for (let it = 0; it < 4; it++) {
+      const Q = P.map((p) => p.slice());
+      for (let i = 1; i < P.length - 1; i++) {
+        Q[i][0] = 0.25 * P[i - 1][0] + 0.5 * P[i][0] + 0.25 * P[i + 1][0];
+        Q[i][1] = 0.25 * P[i - 1][1] + 0.5 * P[i][1] + 0.25 * P[i + 1][1];
+      }
+      P = Q;
+    }
+    return simplify(P, 0.2);
+  };
+  const smoothClosed = (ids) => {
+    let P = ids.map((id) => [jx(id), jy(id)]);
+    const n = P.length;
+    for (let it = 0; it < 4; it++) {
+      const Q = P.map((p) => p.slice());
+      for (let i = 0; i < n; i++) {
+        const a = P[(i - 1 + n) % n], c = P[(i + 1) % n];
+        Q[i][0] = 0.25 * a[0] + 0.5 * P[i][0] + 0.25 * c[0];
+        Q[i][1] = 0.25 * a[1] + 0.5 * P[i][1] + 0.25 * c[1];
+      }
+      P = Q;
+    }
+    const s = simplify([...P, P[0]], 0.2);
+    s.pop();
+    return s.length >= 3 ? s : P;
+  };
+  // punti di una catena nel verso richiesto (calcolati una volta nel verso "canonico")
+  const chainPoints = (seg) => {
+    const n = seg.length;
+    const fwd = seg[0] < seg[n - 1] || (seg[0] === seg[n - 1] && seg[1] <= seg[n - 2]);
+    const key = fwd ? `${seg[0]},${seg[1]},${seg[n - 1]}` : `${seg[n - 1]},${seg[n - 2]},${seg[0]}`;
+    let pts = cache.get(key);
+    if (!pts) { pts = smoothOpen(fwd ? seg : seg.slice().reverse()); cache.set(key, pts); }
+    return fwd ? pts : pts.slice().reverse();
+  };
+  const closedPoints = (ring) => {
+    // anello senza incroci (isola): stesso inizio e verso canonico per le due zone che lo condividono
+    let m = 0;
+    for (let i = 1; i < ring.length; i++) if (ring[i] < ring[m]) m = i;
+    const n = ring.length;
+    const nxt = ring[(m + 1) % n], prv = ring[(m - 1 + n) % n];
+    const fwd = nxt < prv;
+    const canon = [];
+    for (let i = 0; i < n; i++) canon.push(ring[(m + (fwd ? i : -i) + n * 2) % n]);
+    const key = `c${canon[0]},${canon[1]}`;
+    let pts = cache.get(key);
+    if (!pts) { pts = smoothClosed(canon); cache.set(key, pts); }
+    return fwd ? pts : [pts[0], ...pts.slice(1).reverse()];
+  };
+
   const sc = opts.scale ?? 1, off = opts.offset ?? 0;
   const f = (v) => Math.round((v * sc + off) * 1000) / 1000;
-  return layers.map((layer) => {
+  return ringsByLabel.map((rings) => {
     let d = '';
-    for (const smp of layer) {
-      if (smp.isholepath) continue;
-      d += segStr(smp.segments, false, f);
-      for (const h of smp.holechildren) d += segStr(layer[h].segments, true, f);
+    for (const ring of rings) {
+      if (ring.length < 3) continue;
+      const n = ring.length;
+      let start = -1;
+      for (let i = 0; i < n; i++) if (junction[ring[i]]) { start = i; break; }
+      let pts;
+      if (start < 0) {
+        pts = closedPoints(ring);
+      } else {
+        pts = [];
+        const rot = [...ring.slice(start), ...ring.slice(0, start), ring[start]];
+        let s0 = 0;
+        for (let i = 1; i < rot.length; i++) {
+          if (junction[rot[i]]) {
+            const cp = chainPoints(rot.slice(s0, i + 1));
+            for (let k = 0; k < cp.length - 1; k++) pts.push(cp[k]); // l'ultimo è l'inizio della catena dopo
+            s0 = i;
+          }
+        }
+      }
+      if (pts.length < 3) continue;
+      d += `M${f(pts[0][0])} ${f(pts[0][1])}`;
+      for (let k = 1; k < pts.length; k++) d += `L${f(pts[k][0])} ${f(pts[k][1])}`;
+      d += 'Z';
     }
     return d;
   });
 }
 
-function segStr(segs, hole, f) {
-  if (!segs.length) return '';
-  let s = '';
-  if (!hole) {
-    s += `M${f(segs[0].x1)} ${f(segs[0].y1)}`;
-    for (const g of segs) s += g.type === 'Q' ? `Q${f(g.x2)} ${f(g.y2)} ${f(g.x3)} ${f(g.y3)}` : `L${f(g.x2)} ${f(g.y2)}`;
-  } else {
-    const last = segs[segs.length - 1];
-    s += last.type === 'Q' ? `M${f(last.x3)} ${f(last.y3)}` : `M${f(last.x2)} ${f(last.y2)}`;
-    for (let i = segs.length - 1; i >= 0; i--) {
-      const g = segs[i];
-      s += g.type === 'Q' ? `Q${f(g.x2)} ${f(g.y2)} ${f(g.x1)} ${f(g.y1)}` : `L${f(g.x1)} ${f(g.y1)}`;
+// Douglas-Peucker: toglie i punti superflui mantenendo la forma entro tol (pixel); estremi fissi
+function simplify(P, tol) {
+  if (P.length <= 2) return P;
+  const keep = new Uint8Array(P.length);
+  keep[0] = keep[P.length - 1] = 1;
+  const stack = [[0, P.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const [ax, ay] = P[a], [bx, by] = P[b];
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    let best = -1, bd = tol;
+    for (let i = a + 1; i < b; i++) {
+      const [px, py] = P[i];
+      const dist = len < 1e-9 ? Math.hypot(px - ax, py - ay) : Math.abs(dy * px - dx * py + bx * ay - by * ax) / len;
+      if (dist > bd) { bd = dist; best = i; }
     }
+    if (best > 0) { keep[best] = 1; stack.push([a, best], [best, b]); }
   }
-  return s + 'Z';
+  return P.filter((_, i) => keep[i]);
 }

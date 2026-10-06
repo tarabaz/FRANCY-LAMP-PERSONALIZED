@@ -62,7 +62,7 @@ Tutte reali (disegno quotato in [`docs/quote-disco.png`](../docs/quote-disco.png
 
 ## Struttura
 
-- `js/worker.js` – conversione immagine → zone di colore → tracciati (Web Worker)
+- `js/worker.js` – conversione immagine → zone di colore → tracciati a contorni condivisi (Web Worker): ogni confine tra due colori è calcolato una volta e usato identico da entrambe le zone, quindi niente fessure né sovrapposizioni
 - `js/frame.js` – cornice, fori e scritte ad arco
 - `js/preview3d.js` – anteprima Three.js: disco generato montato sul modello reale `models/lampada.stl`
   (COMPOSIZIONE_COMPLETA). Il disco sta 2 mm dietro il frontale della scocca, sotto il tappo. Le quote di
@@ -70,7 +70,7 @@ Tutte reali (disegno quotato in [`docs/quote-disco.png`](../docs/quote-disco.png
 - `js/app.js` – interfaccia, catalogo filamenti, pacchetto e convalida
 - `js/export-stl.js` – STL per colore e zip compresso
 - `js/export-eps.js` – EPS vettoriale
-- `vendor/` – imagetracerjs (Unlicense), opentype.js (MIT), three.js (MIT)
+- `vendor/` – opentype.js (MIT), three.js (MIT)
 - `fonts/` – M PLUS Rounded 1c (SIL OFL)
 
 Parametri utili per i test: `?img=percorso.jpg&zoom=1.4&mode=keep&ai=/url-endpoint-finto`.
