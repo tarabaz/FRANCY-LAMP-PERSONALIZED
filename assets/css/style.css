@@ -155,3 +155,29 @@ html.flc-page .flc { height: 100%; }
 .flc .ai-box .ai-style button.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 
 .flc .check { display: flex; align-items: center; gap: 8px; margin: 10px 0; cursor: pointer; }
+
+/* Convalida */
+.flc .submit-form { display: grid; gap: 6px; }
+.flc .submit-form input, .flc .submit-form textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font: inherit;
+}
+.flc .submit-form .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.flc .check.small { font-size: 12px; color: var(--muted); align-items: flex-start; margin: 4px 0; }
+.flc .check.small input { margin-top: 2px; }
+.flc button#submitBtn {
+  display: block; width: 100%; margin-top: 4px; padding: 11px; border-radius: 10px; cursor: pointer;
+  border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800;
+}
+.flc #submitMsg { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 13px; }
+.flc #submitMsg.error { background: #fdecea; color: #a12a1f; }
+.flc #submitMsg.ok { background: #e8f5e9; color: #1e6b2a; }
+
+/* Catalogo filamenti */
+.flc { position: relative; }
+.flc .fil-popover {
+  position: absolute; z-index: 20; width: 260px; max-height: 260px; overflow: auto; padding: 10px;
+  display: flex; flex-wrap: wrap; gap: 6px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+.flc .fil-popover .swatch:disabled { opacity: .25; cursor: not-allowed; }
+.flc .swatch-btn { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; padding: 0; }

@@ -26,7 +26,11 @@ function flc_shortcode() {
 		'restUrl' => (!empty($s['enabled']) && (!empty($s['gemini_key']) || !empty($s['fal_key'])))
 			? esc_url_raw(rest_url('francy-lamp/v1/ridisegna')) : '',
 		'statusUrl' => esc_url_raw(rest_url('francy-lamp/v1/stato')),
+		'submitUrl' => esc_url_raw(rest_url('francy-lamp/v1/convalida')),
 		'nonce'   => wp_create_nonce('wp_rest'),
+		// i download diretti dei file restano solo agli amministratori
+		'isAdmin' => current_user_can('manage_options'),
+		'filaments' => flc_filaments(),
 	);
 
 	$out  = '<script>window.FRANCY_LAMP = ' . wp_json_encode($config) . ';</script>';

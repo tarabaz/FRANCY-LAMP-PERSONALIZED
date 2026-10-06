@@ -1,5 +1,5 @@
 <?php
-// Pagina "Impostazioni → Francy Lamp": fornitori IA, chiavi, prompt e limiti anti-abuso.
+// Pagina "Francy Lamp Factory → Impostazioni": fornitori IA, chiavi, prompt, limiti anti-abuso e convalida.
 
 if (!defined('ABSPATH')) {
 	exit;
@@ -49,6 +49,8 @@ function flc_defaults() {
 		'prompt_stylized' => '',
 		'per_ip_day'   => 10,
 		'daily_cap'    => 300,
+		'submit_per_ip' => 5,
+		'notify_email' => '',
 	);
 }
 
@@ -63,9 +65,14 @@ function flc_settings() {
 	return $s;
 }
 
+// Le pagine stanno nel menu dedicato "Francy Lamp Factory" (vedi designs.php)
 add_action('admin_menu', function () {
-	add_options_page('Francy Lamp', 'Francy Lamp', 'manage_options', 'francy-lamp', 'flc_settings_page');
-});
+	add_submenu_page('edit.php?post_type=flc_design', 'Impostazioni Francy Lamp', 'Impostazioni', 'manage_options', 'francy-lamp', 'flc_settings_page');
+}, 20);
+
+function flc_settings_url() {
+	return admin_url('edit.php?post_type=flc_design&page=francy-lamp');
+}
 
 add_action('admin_init', function () {
 	register_setting('flc', FLC_OPTION, array('sanitize_callback' => 'flc_sanitize_settings'));
@@ -85,6 +92,8 @@ function flc_sanitize_settings($in) {
 		'prompt_stylized' => sanitize_textarea_field($in['prompt_stylized'] ?? ''),
 		'per_ip_day'   => max(0, (int) ($in['per_ip_day'] ?? $d['per_ip_day'])),
 		'daily_cap'    => max(0, (int) ($in['daily_cap'] ?? $d['daily_cap'])),
+		'submit_per_ip' => max(0, (int) ($in['submit_per_ip'] ?? $d['submit_per_ip'])),
+		'notify_email' => sanitize_email($in['notify_email'] ?? ''),
 	);
 	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
 	if ($out['prompt'] === flc_default_prompt()) {
@@ -122,7 +131,7 @@ function flc_settings_page() {
 	$labels = array_map(function ($x) { return $x['label']; }, $p);
 	?>
 	<div class="wrap">
-		<h1>Francy Lamp – Configuratore</h1>
+		<h1>Francy Lamp Factory – Impostazioni</h1>
 		<p>Inserisci il configuratore in una pagina con lo shortcode <code>[francy_lamp]</code>.
 			Endpoint del ridisegno IA: <code><?php echo esc_html(rest_url('francy-lamp/v1/ridisegna')); ?></code></p>
 
@@ -183,6 +192,23 @@ function flc_settings_page() {
 			<table class="form-table" role="presentation">
 				<tr><th>Ridisegni per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[per_ip_day]" value="<?php echo (int) $s['per_ip_day']; ?>"> <span class="description">(per indirizzo IP; 0 = nessun limite)</span></td></tr>
 				<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[daily_cap]" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">(blocca tutto oltre questa soglia: protegge il budget; 0 = nessun limite, il contatore conta comunque)</span></td></tr>
+			</table>
+			<h2>Convalida dei dischi</h2>
+			<table class="form-table" role="presentation">
+				<tr><th>Invii per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[submit_per_ip]" value="<?php echo (int) $s['submit_per_ip']; ?>"> <span class="description">(anti-spam; 0 = nessun limite)</span></td></tr>
+				<tr><th>Email per le notifiche</th><td><input type="email" class="regular-text" name="<?php echo esc_attr($opt); ?>[notify_email]" value="<?php echo esc_attr($s['notify_email']); ?>" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
+					<p class="description">Ti arriva una mail a ogni disco convalidato. Vuoto = email dell'amministratore.</p></td></tr>
+				<tr><th>Limiti di upload del server</th><td>
+					<?php
+					$up   = wp_convert_hr_to_bytes(ini_get('upload_max_filesize'));
+					$post = wp_convert_hr_to_bytes(ini_get('post_max_size'));
+					$ok   = min($up, $post) >= 32 * MB_IN_BYTES;
+					?>
+					<span style="color:<?php echo $ok ? '#00a32a' : '#d63638'; ?>;font-weight:600">
+						upload_max_filesize <?php echo esc_html(ini_get('upload_max_filesize')); ?> · post_max_size <?php echo esc_html(ini_get('post_max_size')); ?>
+					</span>
+					<p class="description">Ogni invio pesa circa 5–20 MB (foto originale, anteprime, STL compressi). <?php echo $ok ? 'I limiti vanno bene.' : 'Consigliato almeno 32M per entrambi: chiedi all\'hosting di alzarli (php.ini o pannello).'; ?></p>
+				</td></tr>
 			</table>
 			<?php submit_button(); ?>
 		</form>

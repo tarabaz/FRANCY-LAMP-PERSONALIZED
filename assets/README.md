@@ -29,7 +29,8 @@ strette del "dettaglio minimo" (diventano nere), contorni neri con spessore mini
 
 ## Pacchetto per Bambu Studio (.zip)
 
-Pulsante "Scarica pacchetto Bambu Studio". Lo zip contiene:
+Lo zip si genera alla convalida del cliente e arriva all'admin (vedi README principale); da admin c'è anche
+il pulsante "Scarica pacchetto completo". Contiene tra l'altro:
 - un **STL per colore** (`01_BASE_bianco`, `02_NERO`, `03_COLORE_…`), tutti con la **stessa origine**: centro
   disco in X 100 / Y 100, Y in alto, Z da 0. Base 0–0,52 mm, colori 0,52–1,00 mm (`FRAME.baseThickness`,
   `FRAME.artThickness`);
@@ -66,7 +67,9 @@ Tutte reali (disegno quotato in [`docs/quote-disco.png`](../docs/quote-disco.png
 - `js/preview3d.js` – anteprima Three.js: disco generato montato sul modello reale `models/lampada.stl`
   (COMPOSIZIONE_COMPLETA). Il disco sta 2 mm dietro il frontale della scocca, sotto il tappo. Le quote di
   allineamento sono in `LAMP_MODEL`.
-- `js/app.js` – interfaccia
+- `js/app.js` – interfaccia, catalogo filamenti, pacchetto e convalida
+- `js/export-stl.js` – STL per colore e zip compresso
+- `js/export-eps.js` – EPS vettoriale
 - `vendor/` – imagetracerjs (Unlicense), opentype.js (MIT), three.js (MIT)
 - `fonts/` – M PLUS Rounded 1c (SIL OFL)
 

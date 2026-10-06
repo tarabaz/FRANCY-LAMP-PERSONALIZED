@@ -1,24 +1,65 @@
 import { FRAME, geometry, loadFont, buildFrame } from './frame.js';
 import { Preview3D } from './preview3d.js';
-import { buildStlZip } from './export-stl.js';
+import { stlFiles, stlReadme, zipAsync } from './export-stl.js';
+import { buildEps } from './export-eps.js';
 
 const $ = (s) => document.querySelector(s);
 const root = $('#flc-root');
-const BLACK = '#151515';
-const WHITE = '#ffffff';
+const qp = new URLSearchParams(location.search);
+// Configurazione stampata dallo shortcode del plugin. Senza plugin (pagina di prova) i parametri arrivano dall'URL.
+const CFG = window.FRANCY_LAMP || {
+  restUrl: qp.get('ai') || '', statusUrl: qp.get('aistato') || '', submitUrl: qp.get('convalida') || '',
+  nonce: '', isAdmin: true, filaments: [], standalone: true,
+};
 const MAX_FILAMENTS = 12;
+// Nero e bianco "di riferimento": con il catalogo diventano le bobine più vicine
+let BLACK = '#151515';
+let WHITE = '#ffffff';
 
 const state = {
   img: null, zoom: 1, ox: 0, oy: 0,
   mode: 'outline', seed: 1, lit: false, view: '2d',
   result: null, colorOverrides: {}, font: null,
   bandColor: '#5b9bd5', textColor: BLACK,
+  filaments: [], originalFile: null, originalSrc: null, aiImageSrc: null, aiProvider: '',
 };
 
 const worker = new Worker(new URL('./worker.js', import.meta.url));
 let jobId = 0;
 let preview3d = null;
 let dirty3d = true;
+
+// ---------------- catalogo filamenti ----------------
+function setFilaments(list) {
+  state.filaments = (list || [])
+    .filter((f) => f && /^#[0-9a-f]{6}$/i.test(f.hex))
+    .map((f) => ({ name: String(f.name || f.hex), hex: f.hex.toLowerCase(), lab: hexToLab(f.hex) }));
+  if (state.filaments.length) {
+    const oldBlack = BLACK;
+    BLACK = nearestFilament('#151515').hex;
+    WHITE = nearestFilament('#ffffff').hex;
+    if (state.textColor === oldBlack) state.textColor = BLACK;
+    state.bandColor = nearestFilament(state.bandColor).hex;
+  }
+  renderPalette();
+  updateColorLimit();
+  render();
+}
+function nearestFilament(hex) {
+  const lab = hexToLab(hex);
+  let best = null, bd = Infinity;
+  for (const f of state.filaments) {
+    const d = (f.lab[0] - lab[0]) ** 2 + (f.lab[1] - lab[1]) ** 2 + (f.lab[2] - lab[2]) ** 2;
+    if (d < bd) { bd = d; best = f; }
+  }
+  return best;
+}
+// Nome della bobina per un colore (esatto se è un colore del catalogo, altrimenti la più vicina)
+function filamentName(hex) {
+  if (!state.filaments.length) return '';
+  const f = nearestFilament(hex);
+  return f ? (f.hex === hex.toLowerCase() ? f.name : `${f.name} (≈)`) : '';
+}
 
 // ---------------- ritaglio ----------------
 const crop = $('#crop');
@@ -78,12 +119,18 @@ $('#zoom').addEventListener('input', (e) => { state.zoom = +e.target.value; draw
 
 $('#file').addEventListener('change', (e) => {
   const file = e.target.files[0];
-  if (file) loadImage(URL.createObjectURL(file));
+  if (!file) return;
+  state.originalFile = file;
+  loadImage(URL.createObjectURL(file));
 });
 
 function loadImage(src, zoom = 1) {
   const img = new Image();
-  img.onload = () => { originalImg = null; $('#aiUndo').hidden = true; setImage(img, zoom, 0, 0); };
+  img.onload = () => {
+    originalImg = null; state.aiImageSrc = null; state.originalSrc = src;
+    $('#aiUndo').hidden = true;
+    setImage(img, zoom, 0, 0);
+  };
   img.src = src;
 }
 
@@ -95,11 +142,8 @@ function setImage(img, zoom, ox, oy) {
 }
 
 // ---------------- ridisegno con IA (passa dal plugin WordPress) ----------------
-// window.FRANCY_LAMP = { restUrl, nonce } viene stampato dallo shortcode del plugin.
-const qpAi = new URLSearchParams(location.search).get('ai'); // solo per test in locale
-const AI = window.FRANCY_LAMP || (qpAi ? { restUrl: qpAi, statusUrl: new URLSearchParams(location.search).get('aistato') || '', nonce: '' } : null);
 let originalImg = null;
-if (AI && AI.restUrl) { $('#aiBox').hidden = false; loadQuota(); }
+if (CFG.restUrl) { $('#aiBox').hidden = false; loadQuota(); }
 
 // Contatori del giorno: quanti ridisegni restano a te e a tutto il sito
 function showQuota(q) {
@@ -114,9 +158,9 @@ function showQuota(q) {
   $('#aiBtn').disabled = none || !state.img;
 }
 async function loadQuota() {
-  if (!AI.statusUrl) return;
+  if (!CFG.statusUrl) return;
   try {
-    const r = await fetch(AI.statusUrl, { credentials: 'same-origin', headers: AI.nonce ? { 'X-WP-Nonce': AI.nonce } : {} });
+    const r = await fetch(CFG.statusUrl, { credentials: 'same-origin', headers: CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {} });
     if (r.ok) showQuota(await r.json());
   } catch (e) { /* il contatore è solo informativo */ }
 }
@@ -152,10 +196,10 @@ $('#aiBtn').addEventListener('click', async () => {
   aiMessage('');
   setStatus("L'IA sta ridisegnando la tua immagine (di solito 10–30 secondi)…");
   try {
-    const r = await fetch(AI.restUrl, {
+    const r = await fetch(CFG.restUrl, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', ...(AI.nonce ? { 'X-WP-Nonce': AI.nonce } : {}) },
+      headers: { 'Content-Type': 'application/json', ...(CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}) },
       body: JSON.stringify({ image, style: aiStyle }),
     });
     const raw = await r.text();
@@ -168,6 +212,8 @@ $('#aiBtn').addEventListener('click', async () => {
     const img = new Image();
     await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = j.image; });
     if (!originalImg) originalImg = { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy, mode: state.mode };
+    state.aiImageSrc = j.image;
+    state.aiProvider = j.provider || '';
     $('#aiUndo').hidden = false;
     selectMode('keep');
     setImage(img, 1, 0, 0);
@@ -186,6 +232,7 @@ $('#aiUndo').addEventListener('click', () => {
   if (!originalImg) return;
   const o = originalImg;
   originalImg = null;
+  state.aiImageSrc = null;
   $('#aiUndo').hidden = true;
   selectMode(o.mode);
   setImage(o.img, o.zoom, o.ox, o.oy);
@@ -262,6 +309,30 @@ function updateColorLimit() {
   if (+el.value > max) { el.value = max; $('#colorsOut').textContent = max; schedule(); }
 }
 
+// Riquadro con i colori del catalogo filamenti (per scegliere una bobina)
+let popover = null;
+function closePopover() { if (popover) { popover.remove(); popover = null; } }
+document.addEventListener('pointerdown', (e) => { if (popover && !popover.contains(e.target) && !e.target.closest('[data-popover]')) closePopover(); });
+function openFilamentPopover(anchor, onPick, allowed) {
+  closePopover();
+  popover = document.createElement('div');
+  popover.className = 'fil-popover';
+  for (const f of state.filaments) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'swatch';
+    b.style.background = f.hex;
+    b.title = CFG.isAdmin ? f.name : '';
+    b.disabled = !allowed(f.hex);
+    b.addEventListener('click', () => { onPick(f.hex); closePopover(); });
+    popover.append(b);
+  }
+  const r = anchor.getBoundingClientRect(), rr = root.getBoundingClientRect();
+  popover.style.left = Math.max(8, Math.min(r.left - rr.left, rr.width - 268)) + 'px';
+  popover.style.top = (r.bottom - rr.top + root.scrollTop + 6) + 'px';
+  root.append(popover);
+}
+
 function renderPickers() {
   for (const [key, id] of [['band', '#bandPicker'], ['text', '#textPicker']]) {
     const host = $(id + ' .swatches');
@@ -273,7 +344,7 @@ function renderPickers() {
       b.type = 'button';
       b.className = 'swatch' + (c === current ? ' active' : '');
       b.style.background = c;
-      b.title = c;
+      b.title = (CFG.isAdmin && filamentName(c)) || c;
       b.addEventListener('click', () => setFrameColor(key, c));
       host.append(b);
     }
@@ -282,11 +353,17 @@ function renderPickers() {
     const add = document.createElement('label');
     add.className = 'swatch-add' + (free ? '' : ' disabled');
     add.title = free ? 'Scegli un colore nuovo' : 'Hai già 12 colori: scegli tra quelli del disegno';
-    add.innerHTML = '+<input type="color">';
-    const inp = add.querySelector('input');
-    inp.value = current;
-    inp.disabled = !free;
-    inp.addEventListener('change', () => setFrameColor(key, inp.value));
+    if (state.filaments.length) {
+      add.textContent = '+';
+      add.dataset.popover = '1';
+      if (free) add.addEventListener('click', () => openFilamentPopover(add, (hex) => setFrameColor(key, hex), () => true));
+    } else {
+      add.innerHTML = '+<input type="color">';
+      const inp = add.querySelector('input');
+      inp.value = current;
+      inp.disabled = !free;
+      inp.addEventListener('change', () => setFrameColor(key, inp.value));
+    }
     host.append(add);
   }
 }
@@ -356,8 +433,9 @@ function artColor(i) {
   if (state.colorOverrides[i]) return state.colorOverrides[i].toLowerCase();
   if (p.black) return BLACK;
   const hex = rgbToHex(p);
-  return isNearWhite(hex) ? WHITE : hex; // i bianchi del disegno usano lo stesso filamento della base
-
+  if (isNearWhite(hex)) return WHITE; // i bianchi del disegno usano lo stesso filamento della base
+  // con il catalogo il colore diventa quello della bobina più vicina
+  return state.filaments.length ? nearestFilament(hex).hex : hex;
 }
 
 function renderPalette() {
@@ -366,15 +444,27 @@ function renderPalette() {
   if (!state.result) return;
   state.result.palette.forEach((p, i) => {
     const li = document.createElement('li');
-    const inp = document.createElement('input');
-    inp.type = 'color'; inp.value = artColor(i);
-    inp.addEventListener('input', () => { state.colorOverrides[i] = inp.value; render(); });
+    let ctrl;
+    if (state.filaments.length) {
+      ctrl = document.createElement('button');
+      ctrl.type = 'button';
+      ctrl.className = 'swatch-btn';
+      ctrl.dataset.popover = '1';
+      ctrl.style.background = artColor(i);
+      ctrl.addEventListener('click', () => openFilamentPopover(ctrl, (hex) => { state.colorOverrides[i] = hex; renderPalette(); render(); },
+        (hex) => colorSet().has(hex) || colorSet().size < MAX_FILAMENTS));
+    } else {
+      ctrl = document.createElement('input');
+      ctrl.type = 'color'; ctrl.value = artColor(i);
+      ctrl.addEventListener('input', () => { state.colorOverrides[i] = ctrl.value; render(); });
+    }
     const name = document.createElement('span');
-    name.textContent = p.black ? 'Nero contorni' : `Colore ${i + 1}`;
+    const fil = CFG.isAdmin ? filamentName(artColor(i)) : ''; // il nome delle bobine lo vede solo l'admin
+    name.textContent = (p.black ? 'Nero contorni' : `Colore ${i + 1}`) + (fil ? ` · ${fil}` : '');
     const area = document.createElement('span');
     area.className = 'area';
     area.textContent = `${Math.round(p.area)} mm²`;
-    li.append(inp, name, area);
+    li.append(ctrl, name, area);
     ul.append(li);
   });
 }
@@ -394,8 +484,8 @@ function parts() {
   if (state.result) {
     const pal = state.result.palette;
     // prima i colori, poi il nero del disegno (in caso di sovrapposizione al bordo vince il nero)
-    pal.forEach((p, i) => { if (!p.black) art({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i) }); });
-    pal.forEach((p, i) => { if (p.black) art({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), black: true }); });
+    pal.forEach((p, i) => { if (!p.black) art({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i), area: p.area }); });
+    pal.forEach((p, i) => { if (p.black) art({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), black: true, area: p.area }); });
   }
   art({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, black: true });
   art({ id: 'cornice-fascia', d: frame.band, color: band });
@@ -410,7 +500,7 @@ function buildSvg(forExport) {
   const ps = parts();
   const colors = new Set(ps.map((p) => p.color.toLowerCase()));
   const body = ps.map((p) =>
-    `<g id="${p.id}" data-colore="${p.color}" data-strato="${p.layer}" data-z="${p.z}" data-spessore="${p.depth}"><path fill="${p.color}" fill-rule="evenodd" d="${p.d}"/></g>`).join('\n');
+    `<g id="${p.id}" data-colore="${p.color}" data-strato="${p.layer}" data-z="${p.z}" data-spessore="${p.depth}"${filamentName(p.color) ? ` data-filamento="${escapeAttr(filamentName(p.color))}"` : ''}><path fill="${p.color}" fill-rule="evenodd" d="${p.d}"/></g>`).join('\n');
   const head = forExport
     ? `<?xml version="1.0" encoding="UTF-8"?>\n<!-- FrancyStore3D - disco lampada Ø${FRAME.diameter} mm - unità: mm - ${colors.size} colori.\n     Strati: base bianca piena ${FRAME.baseThickness} mm (gruppo base-bianca) + motivo ${FRAME.artThickness} mm sopra (tutti gli altri gruppi). -->\n`
     : '';
@@ -426,6 +516,7 @@ function render() {
   $('#count').style.color = over ? '#c0392b' : '';
   $('#dlSvg').disabled = $('#dlStl').disabled = !state.result || over;
   $('#dlPng').disabled = !state.result;
+  $('#submitBtn').disabled = !state.result || over || !CFG.submitUrl;
   renderPickers();
   dirty3d = true;
   if (state.view === '3d' && preview3d) update3d(ps);
@@ -437,7 +528,141 @@ function update3d(ps) {
   t3d = setTimeout(() => { preview3d.setParts(ps || parts()); dirty3d = false; }, 120);
 }
 
-// ---------------- export ----------------
+// ---------------- file (anteprime, pacchetto completo) ----------------
+function svgToPng(lit, size = 1200) {
+  const { svg } = buildSvg(false);
+  return new Promise((ok, ko) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      if (lit) { ctx.fillStyle = '#15171c'; ctx.fillRect(0, 0, size, size); ctx.filter = 'brightness(1.12) saturate(1.25)'; }
+      ctx.drawImage(img, 0, 0, size, size);
+      c.toBlob((b) => (b ? ok(b) : ko(new Error('PNG non creato'))), 'image/png');
+    };
+    img.onerror = () => ko(new Error('Anteprima non creata'));
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  });
+}
+const bytes = async (blob) => new Uint8Array(await blob.arrayBuffer());
+const enc = (s) => new TextEncoder().encode(s);
+
+// Elenco colori usati con ruolo, bobina e area: va nel riepilogo per l'admin
+function colorSummary(ps) {
+  const roleOf = (p) => (p.layer === 'base' ? 'Base' : p.id.startsWith('disegno') ? 'Disegno' : p.id === 'cornice-fascia' ? 'Banda' : p.id === 'cornice-scritte' ? 'Scritte' : 'Cornice');
+  const byHex = new Map();
+  for (const p of ps) {
+    const hex = p.color.toLowerCase();
+    if (!byHex.has(hex)) byHex.set(hex, { hex, filament: filamentName(hex), roles: new Set(), area: 0 });
+    const e = byHex.get(hex);
+    e.roles.add(roleOf(p));
+    if (p.area) e.area += p.area;
+  }
+  return [...byHex.values()].map((e) => ({ ...e, roles: [...e.roles], area: Math.round(e.area) }));
+}
+
+async function buildPackage(customer) {
+  const ps = parts();
+  const svgText = buildSvg(true).svg;
+  const files = [];
+  const previewOff = await svgToPng(false), previewLit = await svgToPng(true);
+  files.push({ name: '01_anteprime/anteprima-spenta.png', data: await bytes(previewOff) });
+  files.push({ name: '01_anteprime/anteprima-accesa.png', data: await bytes(previewLit) });
+  // immagine originale così com'è stata caricata
+  if (state.originalFile) {
+    const ext = (state.originalFile.name.match(/\.[a-z0-9]+$/i) || ['.jpg'])[0].toLowerCase();
+    files.push({ name: `02_immagini/originale${ext}`, data: await bytes(state.originalFile) });
+  } else if (state.originalSrc) {
+    try { files.push({ name: '02_immagini/originale' + (state.originalSrc.match(/\.(png|jpe?g|webp)(\?|$)/i)?.[0].replace('?', '') || '.jpg'), data: await bytes(await (await fetch(state.originalSrc)).blob()) }); } catch (e) { /* facoltativo */ }
+  }
+  if (state.aiImageSrc) files.push({ name: '02_immagini/ridisegno-ia.png', data: await bytes(await (await fetch(state.aiImageSrc)).blob()) });
+  // il ritaglio esatto usato per la conversione
+  const c = document.createElement('canvas');
+  c.width = c.height = 1500;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1500, 1500);
+  drawImageTo(ctx, 1500);
+  files.push({ name: '02_immagini/ritaglio-usato.jpg', data: await bytes(await new Promise((ok) => c.toBlob(ok, 'image/jpeg', 0.92))) });
+  files.push({ name: '03_vettoriale/disco.svg', data: enc(svgText) });
+  files.push({ name: '03_vettoriale/disco.eps', data: enc(buildEps(ps, FRAME.diameter)) });
+  const stl = stlFiles(ps, { black: BLACK, white: WHITE, filamentName: (h) => (state.filaments.length ? nearestFilament(h).name : '') }, '04_stl/');
+  files.push(...stl.files);
+
+  const colors = colorSummary(ps);
+  const summary = {
+    creato: new Date().toISOString(),
+    cliente: customer,
+    disco: { diametro: FRAME.diameter, base: FRAME.baseThickness, motivo: FRAME.artThickness },
+    colori: colors,
+    stl: stl.list.map((l) => ({ file: l.file, colore: l.color, filamento: l.filament })),
+    scritte: texts(),
+    fascia: state.bandColor, colore_scritte: state.textColor,
+    impostazioni: { modalita: state.mode, colori: +$('#colors').value, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, fornitore_ia: state.aiProvider || null },
+  };
+  const lines = [
+    'FrancyStore3D - disco lampada personalizzato', '',
+    `Cliente: ${customer.name} <${customer.email}>${customer.phone ? ' tel. ' + customer.phone : ''}`,
+    customer.note ? `Note: ${customer.note}` : '', '',
+    'FILAMENTI DA USARE', ...colors.map((e) => `- ${e.hex}  ${e.filament || '(nessun catalogo)'}  →  ${e.roles.join(', ')}${e.area ? `  (${e.area} mm² nel disegno)` : ''}`), '',
+    ...stlReadme({ baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness }),
+    ...stl.list.map((l) => `  ${l.file}  ${l.color}${l.filament ? '  ' + l.filament : ''}`), '',
+    'Cartelle: 01_anteprime, 02_immagini (originale, eventuale ridisegno IA, ritaglio usato), 03_vettoriale (SVG, EPS), 04_stl.',
+  ].filter((l, i, a) => l !== '' || a[i - 1] !== '');
+  files.push({ name: 'LEGGIMI-filamenti.txt', data: enc(lines.join('\r\n') + '\r\n') });
+  files.push({ name: 'riepilogo.json', data: enc(JSON.stringify(summary, null, 2)) });
+  return { zip: await zipAsync(files), previewOff, previewLit, summary };
+}
+
+// ---------------- convalida (il cliente approva, i file vanno all'admin) ----------------
+if (!CFG.isAdmin) $('#adminFiles').hidden = true;
+$('#submitBox').hidden = !CFG.submitUrl;
+
+function submitMessage(text, kind) {
+  const el = $('#submitMsg');
+  el.hidden = !text;
+  el.textContent = text || '';
+  el.className = 'ai-msg' + (kind ? ' ' + kind : '');
+}
+
+$('#submitForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!state.result || !CFG.submitUrl) return;
+  const f = e.target;
+  const customer = { name: f.name.value.trim(), email: f.email.value.trim(), phone: f.phone.value.trim(), note: f.note.value.trim() };
+  if (!customer.name || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customer.email)) return submitMessage('Inserisci nome ed email validi.', 'error');
+  if (!f.privacy.checked) return submitMessage('Per inviare il disco serve il consenso al trattamento della foto.', 'error');
+  const btn = $('#submitBtn'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparo i file…';
+  submitMessage('');
+  try {
+    const pkg = await buildPackage(customer);
+    btn.textContent = 'Invio in corso…';
+    const fd = new FormData();
+    fd.append('package', pkg.zip, 'progetto.zip');
+    fd.append('preview', pkg.previewOff, 'anteprima.png');
+    fd.append('preview_lit', pkg.previewLit, 'anteprima-accesa.png');
+    fd.append('meta', JSON.stringify(pkg.summary));
+    fd.append('website', f.website.value); // campo esca anti-spam: deve restare vuoto
+    const r = await fetch(CFG.submitUrl, { method: 'POST', credentials: 'same-origin', headers: CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}, body: fd });
+    const raw = await r.text();
+    let j = {};
+    try { j = JSON.parse(raw); } catch (err) { /* non JSON */ }
+    if (!r.ok || !j.ok) {
+      if (r.status === 413) throw new Error('I file sono troppo pesanti per il server (limite di upload). Avvisa il negozio.');
+      throw new Error(j.message || `Invio non riuscito (HTTP ${r.status}).`);
+    }
+    submitMessage(`Grazie! Il tuo disco è stato inviato con il codice ${j.code}. Ti contatteremo a ${customer.email}.`, 'ok');
+    f.reset();
+  } catch (err) {
+    console.error(err);
+    submitMessage(err.message, 'error');
+  } finally {
+    btn.textContent = label; btn.disabled = false;
+  }
+});
+
+// ---------------- download diretti (solo admin / pagina di prova) ----------------
 function download(name, blob) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -451,49 +676,46 @@ $('#dlSvg').addEventListener('click', () => {
 $('#dlStl').addEventListener('click', async () => {
   const btn = $('#dlStl'), label = btn.textContent;
   btn.disabled = true; btn.textContent = 'Preparo i file…';
-  await new Promise((r) => setTimeout(r, 30)); // lascia aggiornare il pulsante prima del calcolo
   try {
-    const svg = { name: 'disco-lampada-francy.svg', note: 'vettoriale piatto modificabile (Illustrator, Inkscape, Affinity)', data: new TextEncoder().encode(buildSvg(true).svg) };
-    const { blob } = buildStlZip(parts(), { black: BLACK, white: WHITE, baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness }, [svg]);
-    download('disco-lampada-francy.zip', blob);
+    const pkg = await buildPackage({ name: 'prova admin', email: '-', phone: '', note: '' });
+    download('disco-lampada-francy.zip', pkg.zip);
   } catch (err) {
     console.error(err);
-    setStatus('Errore nella creazione degli STL');
+    setStatus('Errore nella creazione dei file');
   } finally {
     btn.textContent = label; btn.disabled = false;
   }
 });
-
 $('#dlPng').addEventListener('click', async () => {
   if (state.view === '3d' && preview3d) {
     const r = await fetch(preview3d.snapshot());
     return download('anteprima-lampada-3d.png', await r.blob());
   }
-  const { svg } = buildSvg(false);
-  const img = new Image();
-  img.onload = () => {
-    const c = document.createElement('canvas');
-    c.width = c.height = 1200;
-    const ctx = c.getContext('2d');
-    if (state.lit) ctx.filter = 'brightness(1.12) saturate(1.25)';
-    ctx.drawImage(img, 0, 0, 1200, 1200);
-    c.toBlob((b) => download('anteprima-lampada.png', b), 'image/png');
-  };
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  download('anteprima-lampada.png', await svgToPng(state.lit));
 });
 
 // ---------------- util ----------------
 function rgbToHex({ r, g, b }) { return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join(''); }
 function hexToRgb(h) { const v = parseInt(h.slice(1), 16); return { r: v >> 16, g: (v >> 8) & 255, b: v & 255 }; }
+function escapeAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function hexToLab(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const R = lin(r), G = lin(g), B = lin(b);
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const x = f((R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047), y = f(R * 0.2126 + G * 0.7152 + B * 0.0722), z = f((R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
 
 // ---------------- avvio ----------------
 setStatus('Caricamento font…');
 loadFont().then((f) => { state.font = f; render(); setStatus("Carica un'immagine per iniziare"); })
   .catch((err) => { console.error(err); render(); setStatus('Font non caricato: scritte disattivate'); });
+setFilaments(CFG.filaments);
+if (qp.get('cat')) fetch(qp.get('cat')).then((r) => r.json()).then(setFilaments).catch(console.error); // solo per le prove
 updateColorLimit();
 render();
 
 // Per i test: ?img=percorso carica subito un'immagine
-const qp = new URLSearchParams(location.search);
 if (qp.get('img')) loadImage(qp.get('img'), +qp.get('zoom') || 1);
 if (qp.get('mode') === 'keep') document.querySelector('#mode button[data-mode=keep]').click();

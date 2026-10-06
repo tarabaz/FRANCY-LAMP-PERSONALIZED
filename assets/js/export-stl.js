@@ -101,43 +101,62 @@ function crc32(data) {
   for (let i = 0; i < data.length; i++) c = CRC[(c ^ data[i]) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
-export function zip(files) {
+// Zip: ogni file { name, data(Uint8Array), method 0 = memorizzato / 8 = deflate, raw (dati compressi) }
+function zipEntries(entries) {
   const enc = new TextEncoder();
   const parts = [], central = [];
   let offset = 0;
-  for (const f of files) {
-    const name = enc.encode(f.name), data = f.data, crc = crc32(data);
+  for (const f of entries) {
+    const name = enc.encode(f.name), stored = f.raw || f.data, method = f.raw ? 8 : 0;
     const local = new DataView(new ArrayBuffer(30));
     local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(6, 0x0800, true);
-    local.setUint16(8, 0, true); local.setUint16(10, 0, true); local.setUint16(12, 0x21, true);
-    local.setUint32(14, crc, true); local.setUint32(18, data.length, true); local.setUint32(22, data.length, true);
+    local.setUint16(8, method, true); local.setUint16(10, 0, true); local.setUint16(12, 0x21, true);
+    local.setUint32(14, f.crc, true); local.setUint32(18, stored.length, true); local.setUint32(22, f.data.length, true);
     local.setUint16(26, name.length, true); local.setUint16(28, 0, true);
-    parts.push(new Uint8Array(local.buffer), name, data);
+    parts.push(new Uint8Array(local.buffer), name, stored);
     const cen = new DataView(new ArrayBuffer(46));
     cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x0800, true);
-    cen.setUint16(10, 0, true); cen.setUint16(12, 0, true); cen.setUint16(14, 0x21, true);
-    cen.setUint32(16, crc, true); cen.setUint32(20, data.length, true); cen.setUint32(24, data.length, true);
+    cen.setUint16(10, method, true); cen.setUint16(12, 0, true); cen.setUint16(14, 0x21, true);
+    cen.setUint32(16, f.crc, true); cen.setUint32(20, stored.length, true); cen.setUint32(24, f.data.length, true);
     cen.setUint16(28, name.length, true); cen.setUint32(42, offset, true);
     central.push(new Uint8Array(cen.buffer), name);
-    offset += 30 + name.length + data.length;
+    offset += 30 + name.length + stored.length;
   }
   const cenSize = central.reduce((a, c) => a + c.length, 0);
   const end = new DataView(new ArrayBuffer(22));
-  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
   end.setUint32(12, cenSize, true); end.setUint32(16, offset, true);
   return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
 }
 
-// Nomi file: BASE, NERO, BIANCO, poi COLORE_xx_hex. Le lettere che non vanno nei nomi file vengono tolte.
-export function buildStlZip(parts, { black, white, baseThickness, artThickness }, extraFiles = []) {
+export function zip(files) {
+  return zipEntries(files.map((f) => ({ ...f, crc: crc32(f.data) })));
+}
+
+// Zip compresso (deflate) con CompressionStream del browser; se non c'è, file memorizzati senza compressione
+export async function zipAsync(files) {
+  const canDeflate = typeof CompressionStream !== 'undefined';
+  const entries = [];
+  for (const f of files) {
+    const e = { ...f, crc: crc32(f.data) };
+    if (canDeflate && f.data.length > 256 && !/\.(jpe?g|png|zip)$/i.test(f.name)) {
+      try {
+        const stream = new Blob([f.data]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+        const raw = new Uint8Array(await new Response(stream).arrayBuffer());
+        if (raw.length < f.data.length) e.raw = raw;
+      } catch (err) { /* deflate-raw non supportato: resta memorizzato */ }
+    }
+    entries.push(e);
+  }
+  return zipEntries(entries);
+}
+
+const slug = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
+
+// STL per colore: nomi BASE, NERO, BIANCO, COLORE_hex (+ nome del filamento se c'è il catalogo)
+export function stlFiles(parts, { black, white, filamentName }, prefix = '') {
   const groups = partsToTriangles(parts);
-  const files = [];
-  const lines = [
-    'FrancyStore3D - disco lampada, un STL per colore',
-    `Base bianca ${baseThickness} mm + motivo ${artThickness} mm. Origine comune: centro disco in X ${CENTER[0]} / Y ${CENTER[1]}.`,
-    'Bambu Studio: seleziona tutti i file insieme e rispondi "Sì" a "caricare come un singolo oggetto con più parti?".',
-    '',
-  ];
+  const files = [], list = [];
   let i = 1;
   const order = [...groups.entries()].sort(([a], [b]) => {
     const rank = (k) => (k === 'base' ? 0 : k === black ? 1 : k === white ? 2 : 3);
@@ -145,13 +164,31 @@ export function buildStlZip(parts, { black, white, baseThickness, artThickness }
   });
   for (const [key, g] of order) {
     const tris = concat(g.chunks);
-    const label = key === 'base' ? 'BASE_bianco' : key === black ? 'NERO' : key === white ? 'BIANCO' : `COLORE_${g.color.slice(1)}`;
-    const name = `${String(i).padStart(2, '0')}_${label}.stl`;
+    let label = key === 'base' ? 'BASE_bianco' : key === black ? 'NERO' : key === white ? 'BIANCO' : `COLORE_${g.color.slice(1)}`;
+    const fil = filamentName ? filamentName(key === 'base' ? white : g.color) : '';
+    if (fil) label += '__' + slug(fil);
+    const name = `${prefix}${String(i).padStart(2, '0')}_${label}.stl`;
     files.push({ name, data: stlBinary(label, tris) });
-    lines.push(`${name}  colore ${g.color}  (${g.ids.join(', ')})`);
+    list.push({ file: name, color: key === 'base' ? white : g.color, filament: fil, parts: g.ids });
     i++;
   }
+  return { files, list };
+}
+
+export function stlReadme({ baseThickness, artThickness }) {
+  return [
+    'FrancyStore3D - disco lampada, un STL per colore',
+    `Base bianca ${baseThickness} mm + motivo ${artThickness} mm. Origine comune: centro disco in X ${CENTER[0]} / Y ${CENTER[1]}.`,
+    'Bambu Studio: seleziona tutti i file insieme e rispondi "Sì" a "caricare come un singolo oggetto con più parti?".',
+  ];
+}
+
+// Zip veloce per le prove dell'admin: STL + file extra
+export async function buildStlZip(parts, opts, extraFiles = []) {
+  const { files, list } = stlFiles(parts, opts);
+  const lines = [...stlReadme(opts), ''];
+  for (const l of list) lines.push(`${l.file}  colore ${l.color}${l.filament ? '  filamento ' + l.filament : ''}  (${l.parts.join(', ')})`);
   for (const f of extraFiles) { files.push(f); lines.push(`${f.name}  ${f.note || ''}`); }
   files.push({ name: 'LEGGIMI.txt', data: new TextEncoder().encode(lines.join('\r\n') + '\r\n') });
-  return { blob: zip(files), count: files.length - 1 };
+  return { blob: await zipAsync(files), count: list.length };
 }
