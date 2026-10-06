@@ -828,6 +828,15 @@ if (CFG.homeUrl) {
   a.append(...brand.childNodes);
   brand.replaceWith(a);
 }
+// disco predefinito scelto nelle impostazioni (colori e testi con cui si apre la pagina)
+if (CFG.defaults) {
+  const d = CFG.defaults;
+  if (/^#[0-9a-f]{6}$/i.test(d.band || '')) state.bandColor = d.band.toLowerCase();
+  if (/^#[0-9a-f]{6}$/i.test(d.textColor || '')) state.textColor = d.textColor.toLowerCase();
+  const t = d.texts || {};
+  for (const [id, k] of [['tTL', 'tl'], ['tTR', 'tr'], ['tBL', 'bl'], ['tBR', 'br']]) if (typeof t[k] === 'string') $('#' + id).value = t[k];
+}
+
 // footer: anno sempre aggiornato e link alle policy dalle impostazioni
 $('#footYear').textContent = new Date().getFullYear();
 if (CFG.copyrightName) $('#footName').textContent = CFG.copyrightName;

@@ -24,6 +24,12 @@ Il pulsante "Ridisegna in stile tombino" compare solo se il ridisegno è attivo 
 - Ogni file JS ha la sua versione (importmap con `?ver=versione-data`): dopo un aggiornamento del plugin il
   browser carica sempre i file nuovi. `assets/.htaccess` chiede anche di ricontrollare JS e CSS (Apache).
 
+## Disco predefinito
+
+In Impostazioni → **Disco predefinito** scegli come si apre il disco: colore della banda, colore delle scritte e
+i 4 testi (1 alto sinistra, 2 alto destra, 3 basso sinistra, 4 basso destra; vuoto = non mostrato).
+Di default: "Testo 2" e "Testo 3". Il cliente poi può cambiare tutto.
+
 ## Il flusso
 
 1. Il cliente personalizza il disco e preme **"Convalida il mio disco"** (nome, email, telefono, note, consenso).

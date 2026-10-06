@@ -60,6 +60,12 @@ function flc_defaults() {
 		'privacy_url'  => 'https://www.francystore3d.it/privacy-policy/',
 		'cookie_url'   => '',
 		'copyright_name' => 'FrancyStore3D',
+		'def_band'     => '#5b9bd5',
+		'def_text_color' => '#151515',
+		'def_tl'       => '',
+		'def_tr'       => 'Testo 2',
+		'def_bl'       => 'Testo 3',
+		'def_br'       => '',
 	);
 }
 
@@ -112,6 +118,12 @@ function flc_sanitize_settings($in) {
 		'privacy_url'  => esc_url_raw($in['privacy_url'] ?? '') ?: $d['privacy_url'],
 		'cookie_url'   => esc_url_raw($in['cookie_url'] ?? ''),
 		'copyright_name' => sanitize_text_field($in['copyright_name'] ?? '') ?: $d['copyright_name'],
+		'def_band'     => sanitize_hex_color($in['def_band'] ?? '') ?: $d['def_band'],
+		'def_text_color' => sanitize_hex_color($in['def_text_color'] ?? '') ?: $d['def_text_color'],
+		'def_tl'       => mb_substr(sanitize_text_field($in['def_tl'] ?? ''), 0, 14),
+		'def_tr'       => mb_substr(sanitize_text_field($in['def_tr'] ?? ''), 0, 14),
+		'def_bl'       => mb_substr(sanitize_text_field($in['def_bl'] ?? ''), 0, 10),
+		'def_br'       => mb_substr(sanitize_text_field($in['def_br'] ?? ''), 0, 10),
 	);
 	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
 	if ($out['prompt'] === flc_default_prompt()) {
@@ -229,6 +241,22 @@ function flc_settings_page() {
 				<tr><th>Ridisegni per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[per_ip_day]" value="<?php echo (int) $s['per_ip_day']; ?>"> <span class="description">(per indirizzo IP; 0 = nessun limite)</span></td></tr>
 				<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[daily_cap]" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">(blocca tutto oltre questa soglia: protegge il budget; 0 = nessun limite, il contatore conta comunque)</span></td></tr>
 			</table>
+			<h2>Disco predefinito</h2>
+			<p class="description">Come si presenta il disco quando un cliente apre il configuratore. Il cliente poi può cambiare tutto.</p>
+			<table class="form-table" role="presentation">
+				<tr><th>Colore della banda</th><td><input type="color" name="<?php echo esc_attr($opt); ?>[def_band]" value="<?php echo esc_attr($s['def_band']); ?>">
+					<span class="description">Con il catalogo filamenti attivo viene usata la bobina più vicina.</span></td></tr>
+				<tr><th>Colore delle scritte</th><td><input type="color" name="<?php echo esc_attr($opt); ?>[def_text_color]" value="<?php echo esc_attr($s['def_text_color']); ?>"></td></tr>
+				<tr><th>Testi sulla banda</th><td>
+					<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,240px));gap:8px">
+						<label>Testo 1 – in alto a sinistra<br><input type="text" maxlength="14" name="<?php echo esc_attr($opt); ?>[def_tl]" value="<?php echo esc_attr($s['def_tl']); ?>" style="width:100%"></label>
+						<label>Testo 2 – in alto a destra<br><input type="text" maxlength="14" name="<?php echo esc_attr($opt); ?>[def_tr]" value="<?php echo esc_attr($s['def_tr']); ?>" style="width:100%"></label>
+						<label>Testo 3 – in basso a sinistra<br><input type="text" maxlength="10" name="<?php echo esc_attr($opt); ?>[def_bl]" value="<?php echo esc_attr($s['def_bl']); ?>" style="width:100%"></label>
+						<label>Testo 4 – in basso a destra<br><input type="text" maxlength="10" name="<?php echo esc_attr($opt); ?>[def_br]" value="<?php echo esc_attr($s['def_br']); ?>" style="width:100%"></label>
+					</div>
+					<p class="description">Lascia vuoto un testo per non mostrarlo.</p></td></tr>
+			</table>
+
 			<h2>Disegni pronti</h2>
 			<table class="form-table" role="presentation">
 				<tr><th>Galleria nel configuratore</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[templates_enabled]" value="1" <?php checked($s['templates_enabled'], 1); ?>> Mostra il pulsante "Scegli un disegno pronto"</label>

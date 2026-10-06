@@ -24,6 +24,11 @@ function flc_frontend_config() {
 		'privacyUrl' => esc_url_raw($s['privacy_url']),
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),
 		'copyrightName' => $s['copyright_name'],
+		'defaults'  => array(
+			'band'      => $s['def_band'],
+			'textColor' => $s['def_text_color'],
+			'texts'     => array('tl' => $s['def_tl'], 'tr' => $s['def_tr'], 'bl' => $s['def_bl'], 'br' => $s['def_br']),
+		),
 		'siteName'  => get_bloginfo('name'),
 		// logo del sito impostato in Aspetto → Personalizza (se c'è)
 		'logoUrl'   => ($logo = get_theme_mod('custom_logo')) ? (string) wp_get_attachment_image_url($logo, 'medium') : '',
