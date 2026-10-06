@@ -218,10 +218,11 @@ let aiStyle = 'fedele';
 function showExample() {
   const ex = state.examples;
   const box = $('#aiExample');
-  if (!ex || !ex.original || !ex[aiStyle]) { box.hidden = true; return; }
+  const pair = ex && ex[aiStyle];
+  if (!pair || !pair.orig || !pair.res) { box.hidden = true; return; }
   box.hidden = false;
-  $('#exOrig').src = ex.original;
-  $('#exStyle').src = ex[aiStyle];
+  $('#exOrig').src = pair.orig;
+  $('#exStyle').src = pair.res;
   $('#exLabel').textContent = { fedele: 'Fedele', ritratto: 'Ritratto', anime: 'Anime' }[aiStyle] || aiStyle;
 }
 // stili disponibili decisi dall'admin (l'anime si può spegnere)

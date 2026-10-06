@@ -1,6 +1,8 @@
 <?php
-// Esempi dei 3 stili di ridisegno (Fedele, Ritratto, Anime) generati UNA volta dall'admin su una foto
-// d'esempio: il cliente vede "originale → risultato" e capisce cosa cambia senza spendere ridisegni.
+// Esempi dei 3 stili di ridisegno (Fedele, Ritratto, Anime): per ogni stile una coppia "originale → risultato"
+// che il cliente vede sotto i pulsanti degli stili, così capisce cosa cambia senza spendere ridisegni.
+// Ogni stile può avere la sua foto originale (es. un volto per Ritratto); se non ce l'ha usa la foto comune.
+// Il risultato si genera con l'IA (una volta sola) oppure si carica a mano.
 // File pubblici in wp-content/uploads/francy-lamp-esempi/.
 
 if (!defined('ABSPATH')) {
@@ -24,20 +26,29 @@ function flc_examples() {
 	return is_array($ex) ? $ex : array();
 }
 
-// Per il configuratore: solo se attivi e se ci sono originale + almeno uno stile
+// Foto originale di uno stile: la sua se c'è, altrimenti quella comune
+function flc_example_original($ex, $style) {
+	if (!empty($ex[$style . '_orig']['url'])) {
+		return $ex[$style . '_orig'];
+	}
+	return !empty($ex['original']['url']) ? $ex['original'] : null;
+}
+
+// Per il configuratore: { stile: { orig, res } } solo per gli stili con entrambe le immagini
 function flc_examples_for_frontend() {
 	$s  = flc_settings();
 	$ex = flc_examples();
-	if (empty($s['examples_enabled']) || empty($ex['original'])) {
+	if (empty($s['examples_enabled'])) {
 		return null;
 	}
-	$out = array('original' => $ex['original']['url']);
+	$out = array();
 	foreach (FLC_EX_STYLES as $k => $label) {
-		if (!empty($ex[$k]['url'])) {
-			$out[$k] = $ex[$k]['url'];
+		$orig = flc_example_original($ex, $k);
+		if ($orig && !empty($ex[$k]['url'])) {
+			$out[$k] = array('orig' => $orig['url'], 'res' => $ex[$k]['url']);
 		}
 	}
-	return count($out) > 1 ? $out : null;
+	return $out ? $out : null;
 }
 
 add_action('admin_menu', function () {
@@ -49,9 +60,10 @@ add_action('admin_post_flc_example_upload', function () {
 	if (!current_user_can('manage_options') || !check_admin_referer('flc_example_upload')) {
 		wp_die('Non autorizzato.', 403);
 	}
-	$back = admin_url('edit.php?post_type=flc_design&page=flc-esempi');
-	$f    = $_FILES['example'] ?? null;
-	if (!$f || !empty($f['error']) || !is_uploaded_file($f['tmp_name']) || !@getimagesize($f['tmp_name'])) {
+	$back  = admin_url('edit.php?post_type=flc_design&page=flc-esempi');
+	$f     = $_FILES['example'] ?? null;
+	$style = sanitize_key($_POST['style'] ?? ''); // vuoto = foto comune
+	if (($style !== '' && !isset(FLC_EX_STYLES[$style])) || !$f || !empty($f['error']) || !is_uploaded_file($f['tmp_name']) || !@getimagesize($f['tmp_name'])) {
 		wp_safe_redirect(add_query_arg('flc_msg', 'upload_err', $back));
 		exit;
 	}
@@ -65,19 +77,44 @@ add_action('admin_post_flc_example_upload', function () {
 	$side = min($size['width'], $size['height']);
 	$editor->crop((int) (($size['width'] - $side) / 2), (int) (($size['height'] - $side) / 2), $side, $side, 1024, 1024);
 	$editor->set_quality(90);
-	$saved = $editor->save($dir . '/originale.jpg', 'image/jpeg');
+	$name  = $style !== '' ? $style . '-originale.jpg' : 'originale.jpg';
+	$saved = $editor->save($dir . '/' . $name, 'image/jpeg');
 	if (is_wp_error($saved)) {
 		wp_safe_redirect(add_query_arg('flc_msg', 'upload_err', $back));
 		exit;
 	}
-	// nuova foto: i vecchi risultati non valgono più
-	foreach (array_keys(FLC_EX_STYLES) as $k) {
+	// nuova foto: i risultati costruiti su quella vecchia non valgono più
+	$ex      = flc_examples();
+	$targets = $style !== '' ? array($style) : array_filter(array_keys(FLC_EX_STYLES), function ($k) use ($ex) { return empty($ex[$k . '_orig']); });
+	foreach ($targets as $k) {
 		foreach (glob($dir . '/' . $k . '.*') as $old) {
 			@unlink($old);
 		}
+		unset($ex[$k]);
 	}
-	update_option(FLC_EX_OPTION, array('original' => array('url' => $url . '/originale.jpg?t=' . time())), false);
+	$ex[$style !== '' ? $style . '_orig' : 'original'] = array('url' => $url . '/' . $name . '?t=' . time());
+	update_option(FLC_EX_OPTION, $ex, false);
 	wp_safe_redirect(add_query_arg('flc_msg', 'upload_ok', $back));
+	exit;
+});
+
+// toglie la foto propria di uno stile (torna a usare quella comune)
+add_action('admin_post_flc_example_orig_reset', function () {
+	if (!current_user_can('manage_options') || !check_admin_referer('flc_example_orig_reset')) {
+		wp_die('Non autorizzato.', 403);
+	}
+	$style = sanitize_key($_POST['style'] ?? '');
+	if (isset(FLC_EX_STYLES[$style])) {
+		list($dir) = flc_examples_dir();
+		@unlink($dir . '/' . $style . '-originale.jpg');
+		foreach (glob($dir . '/' . $style . '.*') as $old) {
+			@unlink($old);
+		}
+		$ex = flc_examples();
+		unset($ex[$style . '_orig'], $ex[$style]);
+		update_option(FLC_EX_OPTION, $ex, false);
+	}
+	wp_safe_redirect(admin_url('edit.php?post_type=flc_design&page=flc-esempi'));
 	exit;
 });
 
@@ -134,9 +171,9 @@ function flc_rest_example(WP_REST_Request $req) {
 		return new WP_Error('flc_bad', 'Stile non valido.', array('status' => 400));
 	}
 	list($dir, $url) = flc_examples_dir();
-	$src = $dir . '/originale.jpg';
+	$src = is_file($dir . '/' . $style . '-originale.jpg') ? $dir . '/' . $style . '-originale.jpg' : $dir . '/originale.jpg';
 	if (!is_file($src)) {
-		return new WP_Error('flc_bad', 'Carica prima la foto d\'esempio.', array('status' => 400));
+		return new WP_Error('flc_bad', 'Carica prima la foto originale.', array('status' => 400));
 	}
 	if (function_exists('set_time_limit')) {
 		@set_time_limit(420);
@@ -167,48 +204,74 @@ function flc_examples_page() {
 	?>
 	<div class="wrap">
 		<h1>Esempi stili</h1>
-		<p>Carica una foto d'esempio e genera una volta i 3 stili di ridisegno, oppure carica tu le immagini di ogni stile ("Carica il tuo"). Nel configuratore, sotto i pulsanti
-			Fedele / Ritratto / Anime, il cliente vede "originale → risultato" e capisce la differenza senza spendere ridisegni.</p>
-		<?php if ($msg === 'upload_ok') : ?><div class="notice notice-success"><p>Foto d'esempio caricata. Ora genera gli stili.</p></div><?php endif; ?>
+		<p>Nel configuratore, sotto i pulsanti Fedele / Ritratto / Anime, il cliente vede "originale → risultato" dello stile selezionato e capisce la differenza senza spendere ridisegni.
+			Ogni stile può avere la sua coppia di immagini.</p>
+		<?php if ($msg === 'upload_ok') : ?><div class="notice notice-success"><p>Foto caricata. Ora genera o carica il risultato.</p></div><?php endif; ?>
 		<?php if ($msg === 'style_ok') : ?><div class="notice notice-success"><p>Esempio caricato.</p></div><?php endif; ?>
 		<?php if ($msg === 'upload_err') : ?><div class="notice notice-error"><p>Immagine non valida o non caricata.</p></div><?php endif; ?>
 
-		<h2>1. Foto d'esempio</h2>
-		<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
-			<input type="hidden" name="action" value="flc_example_upload">
-			<?php wp_nonce_field('flc_example_upload'); ?>
-			<input type="file" name="example" accept="image/*" required>
-			<?php submit_button('Carica foto', 'secondary', 'submit', false); ?>
-			<p class="description">Viene ritagliata quadrata al centro (1024×1024). Meglio una foto vera con un soggetto chiaro: una persona o un animale.
-				Caricando una nuova foto i vecchi esempi vengono cancellati.</p>
+		<h2>Foto comune</h2>
+		<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" style="display:flex;gap:14px;align-items:flex-start">
+			<?php if (!empty($ex['original']['url'])) : ?><img src="<?php echo esc_url($ex['original']['url']); ?>" style="width:110px;aspect-ratio:1;object-fit:cover;border-radius:8px" alt=""><?php endif; ?>
+			<div>
+				<input type="hidden" name="action" value="flc_example_upload">
+				<?php wp_nonce_field('flc_example_upload'); ?>
+				<input type="file" name="example" accept="image/*" required>
+				<?php submit_button('Carica foto comune', 'secondary', 'submit', false); ?>
+				<p class="description">Usata dagli stili che non hanno una foto propria. Ritaglio quadrato al centro (1024×1024).</p>
+			</div>
 		</form>
 
-		<h2>2. Genera gli stili</h2>
-		<p class="description">Ogni stile è un ridisegno a pagamento col fornitore impostato (circa 4 centesimi): 3 stili ≈ 12 centesimi, una volta sola.</p>
-		<div style="display:grid;grid-template-columns:repeat(4,minmax(150px,220px));gap:14px;margin:12px 0" id="flcEx">
-			<figure style="margin:0;text-align:center">
-				<?php if (!empty($ex['original'])) : ?><img src="<?php echo esc_url($ex['original']['url']); ?>" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">
-				<?php else : ?><div style="width:100%;aspect-ratio:1;border:2px dashed #c3c4c7;border-radius:8px;display:grid;place-items:center;color:#646970">nessuna foto</div><?php endif; ?>
-				<figcaption><strong>Originale</strong></figcaption>
-			</figure>
-			<?php foreach (FLC_EX_STYLES as $k => $label) : ?>
-				<figure style="margin:0;text-align:center" data-style="<?php echo esc_attr($k); ?>">
-					<?php if (!empty($ex[$k]['url'])) : ?><img src="<?php echo esc_url($ex[$k]['url']); ?>" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">
-					<?php else : ?><div class="flc-ph" style="width:100%;aspect-ratio:1;border:2px dashed #c3c4c7;border-radius:8px;display:grid;place-items:center;color:#646970">da generare</div><?php endif; ?>
-					<figcaption><strong><?php echo esc_html($label); ?></strong>
-						<?php if (!empty($ex[$k]['date'])) : ?><br><span class="description"><?php echo esc_html($ex[$k]['date'] . ' · ' . $ex[$k]['provider']); ?></span><?php endif; ?>
-						<br><button type="button" class="button flc-gen" data-style="<?php echo esc_attr($k); ?>" <?php disabled(empty($ex['original'])); ?>>Genera</button>
-					</figcaption>
-					<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" style="margin-top:6px">
-						<input type="hidden" name="action" value="flc_example_style_upload">
-						<input type="hidden" name="style" value="<?php echo esc_attr($k); ?>">
-						<?php wp_nonce_field('flc_example_style_upload'); ?>
-						<label class="button button-small" style="cursor:pointer">Carica il tuo<input type="file" name="example" accept="image/*" style="display:none" onchange="this.form.submit()"></label>
-					</form>
-				</figure>
+		<h2>Esempi per stile</h2>
+		<p class="description">Per ogni stile scegli la foto originale (es. un volto per Ritratto) e il risultato: generalo con l'IA (circa 4 centesimi, una volta sola) oppure caricalo tu.
+			Cambiando la foto originale di uno stile il suo risultato viene cancellato.</p>
+		<table class="widefat striped" style="max-width:820px;margin-top:10px" id="flcEx">
+			<thead><tr><th>Stile</th><th style="width:200px">Originale</th><th style="width:30px"></th><th style="width:200px">Risultato</th></tr></thead>
+			<tbody>
+			<?php foreach (FLC_EX_STYLES as $k => $label) :
+				$orig = flc_example_original($ex, $k);
+				$own  = !empty($ex[$k . '_orig']['url']); ?>
+				<tr data-style="<?php echo esc_attr($k); ?>">
+					<td><strong><?php echo esc_html($label); ?></strong>
+						<?php if (!empty($ex[$k]['date'])) : ?><br><span class="description"><?php echo esc_html($ex[$k]['date'] . ' · ' . $ex[$k]['provider']); ?></span><?php endif; ?></td>
+					<td>
+						<?php if ($orig) : ?><img src="<?php echo esc_url($orig['url']); ?>" style="<?php echo esc_attr('width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px'); ?>" alt="">
+						<?php else : ?><div style="<?php echo esc_attr('width:100%;aspect-ratio:1;border:2px dashed #c3c4c7;border-radius:8px;display:grid;place-items:center;color:#646970;text-align:center;padding:8px;box-sizing:border-box'); ?>">nessuna foto</div><?php endif; ?>
+						<p class="description" style="margin:4px 0"><?php echo $own ? 'Foto propria' : ($orig ? 'Foto comune' : ''); ?></p>
+						<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" style="display:inline">
+							<input type="hidden" name="action" value="flc_example_upload">
+							<input type="hidden" name="style" value="<?php echo esc_attr($k); ?>">
+							<?php wp_nonce_field('flc_example_upload'); ?>
+							<label class="button button-small" style="cursor:pointer">Scegli originale<input type="file" name="example" accept="image/*" style="display:none" onchange="this.form.submit()"></label>
+						</form>
+						<?php if ($own) : ?>
+						<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline">
+							<input type="hidden" name="action" value="flc_example_orig_reset">
+							<input type="hidden" name="style" value="<?php echo esc_attr($k); ?>">
+							<?php wp_nonce_field('flc_example_orig_reset'); ?>
+							<button class="button-link" style="font-size:12px">usa quella comune</button>
+						</form>
+						<?php endif; ?>
+					</td>
+					<td style="font-size:22px;color:#646970;vertical-align:middle">→</td>
+					<td class="flc-res">
+						<?php if (!empty($ex[$k]['url'])) : ?><img src="<?php echo esc_url($ex[$k]['url']); ?>" style="<?php echo esc_attr('width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px'); ?>" alt="">
+						<?php else : ?><div class="flc-ph" style="<?php echo esc_attr('width:100%;aspect-ratio:1;border:2px dashed #c3c4c7;border-radius:8px;display:grid;place-items:center;color:#646970;text-align:center;padding:8px;box-sizing:border-box'); ?>">da generare o caricare</div><?php endif; ?>
+						<p style="margin:6px 0 0">
+							<button type="button" class="button button-small flc-gen" data-style="<?php echo esc_attr($k); ?>" <?php disabled(!$orig); ?>><?php echo empty($ex[$k]['url']) ? 'Genera con IA' : 'Rigenera'; ?></button>
+						</p>
+						<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" style="margin-top:4px">
+							<input type="hidden" name="action" value="flc_example_style_upload">
+							<input type="hidden" name="style" value="<?php echo esc_attr($k); ?>">
+							<?php wp_nonce_field('flc_example_style_upload'); ?>
+							<label class="button button-small" style="cursor:pointer">Carica risultato<input type="file" name="example" accept="image/*" style="display:none" onchange="this.form.submit()"></label>
+						</form>
+					</td>
+				</tr>
 			<?php endforeach; ?>
-		</div>
-		<p><button type="button" class="button button-primary" id="flcGenAll" <?php disabled(empty($ex['original'])); ?>>Genera tutti e 3</button>
+			</tbody>
+		</table>
+		<p><button type="button" class="button button-primary" id="flcGenAll">Genera con IA quelli mancanti</button>
 			<span id="flcGenMsg" style="margin-left:10px"></span></p>
 		<p class="description">Mostrare o nascondere gli esempi ai clienti: Impostazioni → Prompt.</p>
 	</div>
@@ -218,7 +281,7 @@ function flc_examples_page() {
 		const nonce = <?php echo wp_json_encode(wp_create_nonce('wp_rest')); ?>;
 		const msg = document.getElementById('flcGenMsg');
 		async function gen(style) {
-			const fig = document.querySelector('#flcEx figure[data-style="' + style + '"]');
+			const fig = document.querySelector('#flcEx tr[data-style="' + style + '"] .flc-res');
 			const btn = fig.querySelector('.flc-gen');
 			btn.disabled = true; btn.textContent = 'Genero… (10–40 s)';
 			try {
@@ -239,10 +302,12 @@ function flc_examples_page() {
 		}
 		document.querySelectorAll('.flc-gen').forEach((b) => b.addEventListener('click', () => gen(b.dataset.style).catch(() => {})));
 		document.getElementById('flcGenAll').addEventListener('click', async () => {
-			for (const st of ['fedele', 'ritratto', 'anime']) {
+			const todo = [...document.querySelectorAll('#flcEx .flc-res')].filter((td) => td.querySelector('.flc-ph') && !td.querySelector('.flc-gen').disabled).map((td) => td.querySelector('.flc-gen').dataset.style);
+			if (!todo.length) { msg.textContent = 'Non manca niente (o manca la foto originale).'; return; }
+			for (const st of todo) {
 				try { await gen(st); } catch (e) { return; }
 			}
-			msg.textContent = 'Tutti e 3 gli esempi sono pronti.';
+			msg.textContent = 'Esempi pronti.';
 		});
 	})();
 	</script>

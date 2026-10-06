@@ -38,10 +38,12 @@ semplificazione, dettaglio minimo, area minima, risoluzione. Il cliente può sem
 
 ## Esempi degli stili IA
 
-**Francy Lamp Factory → Esempi stili**: carichi una foto d'esempio e per ognuno dei 3 stili (Fedele,
-Ritratto, Anime) premi **Genera** (un ridisegno a pagamento, una volta sola) oppure **Carica il tuo**.
-Nel configuratore, sotto i pulsanti degli stili, il cliente vede "Foto → risultato" dello stile selezionato,
-senza spendere ridisegni. Si nasconde da Impostazioni → Prompt. File pubblici in `uploads/francy-lamp-esempi/`.
+**Francy Lamp Factory → Esempi stili**: per ogni stile (Fedele, Ritratto, Anime) scegli la **foto originale** e il
+**risultato**. L'originale può essere quello dello stile (es. un volto per Ritratto, un animale per Anime) oppure la
+**foto comune** usata dagli stili senza foto propria. Il risultato si genera con l'IA (**Genera con IA**, una volta sola)
+oppure si carica a mano (**Carica risultato**). Nel configuratore, sotto i pulsanti degli stili, il cliente vede
+"originale → risultato" dello stile selezionato senza spendere ridisegni. Si nasconde da Impostazioni → Prompt.
+File pubblici in `uploads/francy-lamp-esempi/`.
 
 ## Il flusso
 
