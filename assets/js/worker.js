@@ -140,7 +140,7 @@ function convert(rgba, size, ppmm, opts, progress) {
     progress('Occhi e denti');
     if (whiteIdx < 0) { whiteIdx = palette.length; palette.push({ r: 250, g: 250, b: 250 }); }
     if (blackIdx < 0) { blackIdx = palette.length; palette.push({ r: 20, g: 20, b: 20 }); }
-    drawFace(labels, lab, inside, size, ppmm, opts, whiteIdx, blackIdx);
+    drawFace(labels, lab, inside, size, ppmm, opts, whiteIdx, blackIdx, skinSet);
   }
 
   // Compatta la palette togliendo colori spariti
@@ -370,37 +370,59 @@ function components(labels, size) {
 // opts.face: { eyes: [{ poly, corners: [a, b], iris: { x, y, r } }], mouth: poly } in pixel dell'immagine di lavoro.
 // Occhio: la palpebra viene un po' aperta (altezza minima stampabile), dentro bianco, iride nera, contorno nero.
 // Bocca: dentro le labbra i pixel chiari diventano denti bianchi, quelli molto scuri nero.
-function drawFace(labels, lab, inside, size, ppmm, opts, whiteIdx, blackIdx) {
+function drawFace(labels, lab, inside, size, ppmm, opts, whiteIdx, blackIdx, skinSet) {
   const set = (i, l) => { if (inside[i]) labels[i] = l; };
   for (const eye of opts.face.eyes || []) {
     const [A, B] = eye.corners;
     const cx = (A[0] + B[0]) / 2, cy = (A[1] + B[1]) / 2;
     const len = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1;
-    const u = [(B[0] - A[0]) / len, (B[1] - A[1]) / len], v = [-u[1], u[0]];
+    const u = [(B[0] - A[0]) / len, (B[1] - A[1]) / len];
+    let up = [-u[1], u[0]];
+    if (up[1] > 0) up = [-up[0], -up[1]];                          // "su" nell'immagine (y verso il basso)
     let bmin = 0, bmax = 0;
-    for (const p of eye.poly) { const bb = (p[0] - cx) * v[0] + (p[1] - cy) * v[1]; bmin = Math.min(bmin, bb); bmax = Math.max(bmax, bb); }
-    const h = bmax - bmin, minH = 2.2 * ppmm;                     // occhio alto almeno 2,2 mm
-    const fy = Math.max(1.25, minH / Math.max(h, 0.5)), fx = 1.08;
+    for (const p of eye.poly) { const bb = (p[0] - cx) * up[0] + (p[1] - cy) * up[1]; bmin = Math.min(bmin, bb); bmax = Math.max(bmax, bb); }
+    const h = bmax - bmin, minH = 1.5 * ppmm;                     // solo il minimo per poterlo stampare
+    const fy = Math.max(1, minH / Math.max(h, 0.5));
     const poly = eye.poly.map((p) => {
-      const a = (p[0] - cx) * u[0] + (p[1] - cy) * u[1], bb = (p[1] - cy) * v[1] + (p[0] - cx) * v[0];
-      return [cx + u[0] * a * fx + v[0] * bb * fy, cy + u[1] * a * fx + v[1] * bb * fy];
+      const a = (p[0] - cx) * u[0] + (p[1] - cy) * u[1], bb = (p[0] - cx) * up[0] + (p[1] - cy) * up[1];
+      return [cx + u[0] * a + up[0] * bb * fy, cy + u[1] * a + up[1] * bb * fy];
     });
-    const lw = Math.max(1, (opts.lineMm * ppmm) * 0.35);           // contorno dell'occhio
     const inEye = polyMask(poly, size);
-    const ring = distanceFrom(inEye, size);
-    for (let i = 0; i < ring.length; i++) if (!inEye[i] && ring[i] <= lw) set(i, blackIdx);
-    // iride: cerchio nero (dentro l'occhio), con un riflesso bianco se è abbastanza grande
+    // iride: il suo colore vero (la zona più presente lì, escluse pelle e bianco), pupilla nera al centro
     const ir = eye.iris;
-    const R = Math.max(ir ? ir.r : 0, 0.42 * Math.max(h * fy, minH));
+    const R = Math.max(ir ? ir.r : 0, 0.45 * ppmm);
     const ix = ir ? ir.x : cx, iy = ir ? ir.y : cy;
-    const hl = R * 0.32, hx = ix + R * 0.35, hy = iy - R * 0.35;
-    const showHl = hl >= 0.35 * ppmm;
+    const votes = new Map();
+    const Ls = [];
+    for (let i = 0; i < inEye.length; i++) {
+      if (!inEye[i]) continue;
+      Ls.push(lab[i * 3]);
+      const x = (i % size) + 0.5, y = ((i / size) | 0) + 0.5;
+      const l = labels[i];
+      if ((x - ix) ** 2 + (y - iy) ** 2 <= R * R && l !== whiteIdx && l !== NONE && !(skinSet && skinSet.has(l))) votes.set(l, (votes.get(l) || 0) + 1);
+    }
+    let irisL = blackIdx, bestV = 0;
+    for (const [l, v] of votes) if (v > bestV) { bestV = v; irisL = l; }
+    const thr = Ls.length ? otsu(Ls) : 60;                         // chiaro = bianco dell'occhio
+    const P = R * (irisL === blackIdx ? 1 : 0.42);
+    const hl = R * 0.22, hx = ix + R * 0.3, hy = iy - R * 0.3;
+    const showHl = hl >= 0.3 * ppmm;
     for (let i = 0; i < inEye.length; i++) {
       if (!inEye[i]) continue;
       const x = (i % size) + 0.5, y = ((i / size) | 0) + 0.5;
-      const inIris = (x - ix) ** 2 + (y - iy) ** 2 <= R * R;
-      const inHl = showHl && (x - hx) ** 2 + (y - hy) ** 2 <= hl * hl;
-      set(i, inIris && !inHl ? blackIdx : whiteIdx);
+      const d2 = (x - ix) ** 2 + (y - iy) ** 2;
+      if (showHl && (x - hx) ** 2 + (y - hy) ** 2 <= hl * hl) set(i, whiteIdx);
+      else if (d2 <= P * P) set(i, blackIdx);
+      else if (d2 <= R * R) set(i, irisL);
+      else if (lab[i * 3] > thr - 4 || fy > 1.05) set(i, whiteIdx); // bianco solo dov'è chiaro (o dove ho dovuto aprire)
+    }
+    // linea delle ciglia: solo sopra, sottile
+    const lw = Math.max(1, 0.35 * ppmm);
+    const ring = distanceFrom(inEye, size);
+    for (let i = 0; i < ring.length; i++) {
+      if (inEye[i] || ring[i] > lw) continue;
+      const x = (i % size) + 0.5, y = ((i / size) | 0) + 0.5;
+      if ((x - cx) * up[0] + (y - cy) * up[1] > 0) set(i, blackIdx);
     }
   }
   const mouth = opts.face.mouth;
