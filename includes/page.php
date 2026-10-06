@@ -21,6 +21,9 @@ function flc_frontend_config() {
 		'filaments' => flc_filaments(),
 		'templates' => flc_templates_for_frontend(),
 		'homeUrl'   => home_url('/'),
+		'siteName'  => get_bloginfo('name'),
+		// logo del sito impostato in Aspetto → Personalizza (se c'è)
+		'logoUrl'   => ($logo = get_theme_mod('custom_logo')) ? (string) wp_get_attachment_image_url($logo, 'medium') : '',
 	);
 }
 

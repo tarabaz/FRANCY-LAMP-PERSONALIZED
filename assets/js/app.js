@@ -818,12 +818,20 @@ function hexToLab(hex) {
 setStatus('Caricamento font…');
 loadFont().then((f) => { state.font = f; render(); setStatus("Carica un'immagine per iniziare"); })
   .catch((err) => { console.error(err); render(); setStatus('Font non caricato: scritte disattivate'); });
-// nella pagina dedicata il nome del negozio riporta al sito
+// intestazione: logo del sito (se c'è) e "Torna al sito"
 if (CFG.homeUrl) {
+  const back = $('#backSite');
+  back.href = CFG.homeUrl; back.hidden = false;
   const brand = $('.brand');
   const a = document.createElement('a');
-  a.href = CFG.homeUrl; a.className = 'brand'; a.innerHTML = brand.innerHTML; a.title = 'Torna al negozio';
+  a.href = CFG.homeUrl; a.className = 'brand'; a.title = 'Torna al sito';
+  a.append(...brand.childNodes);
   brand.replaceWith(a);
+}
+if (CFG.logoUrl) {
+  const logo = $('#brandLogo');
+  logo.src = CFG.logoUrl; logo.alt = CFG.siteName || 'FrancyStore3D'; logo.hidden = false;
+  document.querySelector('.brand-name').hidden = true; // il logo sostituisce la scritta
 }
 setFilaments(CFG.filaments);
 setTemplates(CFG.templates);
