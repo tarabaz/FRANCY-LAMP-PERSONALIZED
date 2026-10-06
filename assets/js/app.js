@@ -1,5 +1,6 @@
 import { FRAME, geometry, loadFont, buildFrame } from './frame.js';
 import { Preview3D } from './preview3d.js';
+import { buildStlZip } from './export-stl.js';
 
 const $ = (s) => document.querySelector(s);
 const root = $('#flc-root');
@@ -423,7 +424,7 @@ function render() {
   const over = n > MAX_FILAMENTS;
   $('#count').textContent = `Colori totali: ${n} / ${MAX_FILAMENTS}` + (over ? ' – troppi, riduci i colori del disegno' : '');
   $('#count').style.color = over ? '#c0392b' : '';
-  $('#dlSvg').disabled = !state.result || over;
+  $('#dlSvg').disabled = $('#dlStl').disabled = !state.result || over;
   $('#dlPng').disabled = !state.result;
   renderPickers();
   dirty3d = true;
@@ -447,6 +448,22 @@ function download(name, blob) {
 $('#dlSvg').addEventListener('click', () => {
   download('disco-lampada-francy.svg', new Blob([buildSvg(true).svg], { type: 'image/svg+xml' }));
 });
+$('#dlStl').addEventListener('click', async () => {
+  const btn = $('#dlStl'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparo i file…';
+  await new Promise((r) => setTimeout(r, 30)); // lascia aggiornare il pulsante prima del calcolo
+  try {
+    const svg = { name: 'disco-lampada-francy.svg', note: 'vettoriale piatto modificabile (Illustrator, Inkscape, Affinity)', data: new TextEncoder().encode(buildSvg(true).svg) };
+    const { blob } = buildStlZip(parts(), { black: BLACK, white: WHITE, baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness }, [svg]);
+    download('disco-lampada-francy.zip', blob);
+  } catch (err) {
+    console.error(err);
+    setStatus('Errore nella creazione degli STL');
+  } finally {
+    btn.textContent = label; btn.disabled = false;
+  }
+});
+
 $('#dlPng').addEventListener('click', async () => {
   if (state.view === '3d' && preview3d) {
     const r = await fetch(preview3d.snapshot());

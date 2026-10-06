@@ -10,7 +10,7 @@ export const FRAME = {
   band: 12,               // spessore fascia colorata
   innerLine: 3,           // spessore bordino nero che delimita l'artwork
   slotBorder: 4,          // contorno nero attorno all'asola, attraversa la banda fino al bordino interno
-  overlap: 0.8,           // quanto il disegno va sotto la linea nera interna
+  overlap: 0.2,           // quanto il disegno va sotto il bordino interno (minimo, per non creare parti sovrapposte negli STL)
   sideNotch: { diameter: 10, heightFromBottom: 200 * 2 / 3 }, // fori laterali: centro sul bordo a 2/3 dell'altezza
   bottomSlot: { diameter: 10, centerFromBottom: 12 },          // asola in basso a U: centro foro a 12 mm dal fondo
   textHeight: 0.62,       // altezza testo come frazione della fascia
@@ -117,6 +117,33 @@ function arcText(font, text, centerDeg, rBaseline, size, top, maxSpanDeg) {
 }
 
 // Ritorna gli elementi della cornice come path separati per colore/parte
+// Anello nero esterno come forma unica a "C": bordo esterno con fori laterali, poi l'asola come
+// rettangolo tra cerchio esterno e banda, e ritorno lungo il cerchio della banda.
+// (Fatto come "cerchio meno cerchio" i due contorni coinciderebbero sui lati dell'asola e la triangolazione sbaglia.)
+function ringPath(F, g) {
+  const R = g.R, rO = g.rBandOut;
+  const hw = F.bottomSlot.diameter / 2;
+  const rn = F.sideNotch.diameter / 2;
+  const yN = R - F.sideNotch.heightFromBottom;
+  const aR = Math.atan2(yN, Math.sqrt(R * R - yN * yN));
+  const aL = Math.PI - aR;
+  const da = 2 * Math.asin(rn / (2 * R));
+  const aB = Math.asin(hw / R);
+  const yTopR = Math.sqrt(R * R - hw * hw), yB = Math.sqrt(rO * rO - hw * hw);
+  const arcR = (a) => { const [x, y] = pt(R, a); return `A${R} ${R} 0 0 1 ${x} ${y}`; };
+  const notch = (a) => { const [x, y] = pt(R, a + da); return `A${rn} ${rn} 0 0 0 ${x} ${y}`; };
+  const [x0, y0] = pt(R, aR + da);
+  let d = `M${x0} ${y0}`;
+  d += arcR(Math.PI / 2 - aB);                                            // fino al lato destro dell'asola
+  d += `L${n(hw)} ${n(yB)}`;                                              // su lungo l'asola fino alla banda
+  d += `A${n(rO)} ${n(rO)} 0 0 0 0 ${n(-rO)}A${n(rO)} ${n(rO)} 0 0 0 ${n(-hw)} ${n(yB)}`; // giro interno
+  d += `L${n(-hw)} ${n(yTopR)}`;                                          // giù lungo l'asola
+  d += arcR(aL - da) + notch(aL);
+  d += arcR(-Math.PI / 2 + 2 * Math.PI);
+  d += arcR(aR + 2 * Math.PI - da) + notch(aR + 2 * Math.PI);
+  return d + 'Z';
+}
+
 // Banda colorata interrotta in basso dal contorno nero dell'asola (forma a "C") e contorno stesso.
 // Forme esatte e non sovrapposte: banda, contorno, anello e bordino si toccano solo sui bordi.
 function slotBorderShapes(F, g) {
@@ -160,8 +187,8 @@ export function buildFrame(font, texts, F = FRAME) {
     geometry: g,
     // sagoma completa del disco (per la base bianca)
     outline: notchedCircle(F, g.R, true),
-    // anello nero = contorno con tacche meno cerchio della fascia (evenodd)
-    blackRing: notchedCircle(F, g.R, true) + notchedCircle(F, g.rBandOut, false),
+    // anello nero esterno con fori laterali e asola
+    blackRing: ringPath(F, g),
     // fascia = corona circolare (interrotta dal contorno dell'asola) meno le lettere
     // (evenodd: i "buchi" delle lettere tornano fascia)
     band: (sb ? sb.band : notchedCircle(F, g.rBandOut, false) + notchedCircle(F, g.rBandIn, false)) + textD,

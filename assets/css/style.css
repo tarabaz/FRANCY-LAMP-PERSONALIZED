@@ -83,11 +83,11 @@ html.flc-page .flc { height: 100%; }
 .flc .texts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .flc .texts input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 
-.flc button#dlSvg, .flc button#dlPng, .flc button.ghost {
+.flc button#dlSvg, .flc button#dlPng, .flc button#dlStl, .flc button.ghost {
   display: block; width: 100%; margin: 6px 0; padding: 10px; border-radius: 10px; cursor: pointer;
   border: 0; background: var(--ink); color: #fff; font-weight: 600;
 }
-.flc button.ghost, .flc button#dlPng { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.flc button.ghost, .flc button#dlPng, .flc button#dlSvg { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
 .flc button:disabled { opacity: .4; cursor: not-allowed; }
 
 .flc .stage { display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 14px; background: var(--stage); transition: background .3s; }

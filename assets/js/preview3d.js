@@ -3,6 +3,7 @@ import * as THREE from '../vendor/three/three.module.js';
 import { SVGLoader } from '../vendor/three/addons/SVGLoader.js';
 import { OrbitControls } from '../vendor/three/addons/OrbitControls.js';
 import { STLLoader } from '../vendor/three/addons/STLLoader.js';
+import { cleanShapes } from './export-stl.js';
 
 // Quote ricavate da COMPOSIZIONE_COMPLETA.STL (coordinate originali del file, in mm)
 const LAMP_MODEL = {
@@ -111,9 +112,9 @@ export class Preview3D {
       if (!p.d) continue;
       const data = loader.parse(`<svg xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="${p.d}"/></svg>`);
       const shapes = [];
-      for (const path of data.paths) shapes.push(...SVGLoader.createShapes(path));
+      for (const path of data.paths) shapes.push(...cleanShapes(SVGLoader.createShapes(path), 6));
       if (!shapes.length) continue;
-      const geo = new THREE.ExtrudeGeometry(shapes, { depth: p.depth, bevelEnabled: false, curveSegments: 6 });
+      const geo = new THREE.ExtrudeGeometry(shapes, { depth: p.depth, bevelEnabled: false });
       const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.55, side: THREE.DoubleSide });
       // le parti dopo vincono dove si sovrappongono sullo stesso piano (es. disegno sotto la linea nera)
       mat.polygonOffset = true;

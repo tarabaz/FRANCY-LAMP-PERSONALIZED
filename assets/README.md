@@ -27,6 +27,19 @@ Serve un server (anche quello sopra): aprendo `index.html` come file il browser 
 Pulizia per la stampa, in entrambe: niente zone sotto l'area minima, niente zone colorate più
 strette del "dettaglio minimo" (diventano nere), contorni neri con spessore minimo.
 
+## Pacchetto per Bambu Studio (.zip)
+
+Pulsante "Scarica pacchetto Bambu Studio". Lo zip contiene:
+- un **STL per colore** (`01_BASE_bianco`, `02_NERO`, `03_COLORE_…`), tutti con la **stessa origine**: centro
+  disco in X 100 / Y 100, Y in alto, Z da 0. Base 0–0,52 mm, colori 0,52–1,00 mm (`FRAME.baseThickness`,
+  `FRAME.artThickness`);
+- l'**SVG piatto** modificabile;
+- `LEGGIMI.txt` con l'elenco file → colore.
+
+In Bambu Studio selezioni tutti gli STL insieme e confermi "carica come singolo oggetto con più parti":
+si posizionano da soli. Mesh chiuse e normali verso l'esterno (controllate con script); anello, banda e
+contorno dell'asola sono forme uniche e non sovrapposte.
+
 ## Il file SVG esportato
 
 - Unità in mm, centro del disco in (0,0), dimensione 200×200 mm.
