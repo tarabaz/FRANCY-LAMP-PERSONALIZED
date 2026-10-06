@@ -1,7 +1,8 @@
 <?php
 // Catalogo filamenti: le bobine che hai davvero. Il configuratore riduce i colori del disegno a queste
 // e lo zip di ogni progetto dice quali bobine montare.
-// Formato: una riga per bobina, "Nome | #rrggbb" (es. "Bambu PLA Basic Rosso | #C12E1F").
+// Formato: una riga per bobina, "Nome | #rrggbb" (es. "Bambu PLA Basic Rosso | #C12E1F"),
+// con facoltativo il TD (Transmission Distance, quanta luce passa): "Nome | #rrggbb | 1.6".
 
 if (!defined('ABSPATH')) {
 	exit;
@@ -30,8 +31,8 @@ function flc_parse_filaments($text, &$errors = null) {
 		if ($line === '' || $line[0] === '#' && !preg_match('/\|/', $line)) {
 			continue;
 		}
-		if (!preg_match('/^(.+?)\s*[|;,\t]\s*#?([0-9a-fA-F]{6})\s*$/', $line, $m)) {
-			$errors[] = sprintf('Riga %d non valida: "%s" (usa: Nome | #rrggbb)', $n + 1, $line);
+		if (!preg_match('/^(.+?)\s*[|;,\t]\s*#?([0-9a-fA-F]{6})(?:\s*[|;\t]\s*(?:TD\s*)?([0-9]+(?:[.,][0-9]+)?))?\s*$/i', $line, $m)) {
+			$errors[] = sprintf('Riga %d non valida: "%s" (usa: Nome | #rrggbb oppure Nome | #rrggbb | TD)', $n + 1, $line);
 			continue;
 		}
 		$hex = '#' . strtolower($m[2]);
@@ -41,7 +42,11 @@ function flc_parse_filaments($text, &$errors = null) {
 		}
 		$name        = sanitize_text_field($m[1]);
 		$seen[$hex]  = $name;
-		$out[]       = array('name' => $name, 'hex' => $hex);
+		$item        = array('name' => $name, 'hex' => $hex);
+		if (isset($m[3]) && $m[3] !== '') {
+			$item['td'] = round((float) str_replace(',', '.', $m[3]), 2);
+		}
+		$out[] = $item;
 	}
 	return $out;
 }
@@ -70,7 +75,7 @@ function flc_filaments_page() {
 		return;
 	}
 	$list = flc_filaments();
-	$text = implode("\n", array_map(function ($f) { return $f['name'] . ' | ' . strtoupper($f['hex']); }, $list));
+	$text = implode("\n", array_map(function ($f) { return $f['name'] . ' | ' . strtoupper($f['hex']) . (isset($f['td']) ? ' | ' . $f['td'] : ''); }, $list));
 	?>
 	<div class="wrap">
 		<h1>Catalogo filamenti</h1>
@@ -79,14 +84,16 @@ function flc_filaments_page() {
 		<?php settings_errors(FLC_FIL_OPTION); ?>
 		<form method="post" action="options.php">
 			<?php settings_fields('flc_fil'); ?>
-			<p><strong>Una riga per bobina</strong>, nel formato <code>Nome | #rrggbb</code>. Esempio:</p>
+			<p><strong>Una riga per bobina</strong>, nel formato <code>Nome | #rrggbb</code>, facoltativo il TD in fondo: <code>Nome | #rrggbb | 1.6</code>. Esempio:</p>
 			<pre style="background:#fff;border:1px solid #c3c4c7;padding:8px 12px;display:inline-block">Bambu PLA Basic Nero | #000000
 Bambu PLA Basic Bianco | #FFFFFF
 Bambu PLA Basic Rosso | #C12E1F
-Sunlu PLA Azzurro Cielo | #5B9BD5</pre>
+Sunlu PLA Azzurro Cielo | #5B9BD5 | 4.2</pre>
 			<p><textarea name="<?php echo esc_attr(FLC_FIL_OPTION); ?>" rows="16" class="large-text code" placeholder="Nome | #rrggbb"><?php echo esc_textarea($text); ?></textarea></p>
 			<p class="description">Consiglio: per il codice colore usa il valore indicato dal produttore, o misuralo da una foto
-				della bobina alla luce del giorno. Includi sempre un nero e un bianco: servono per contorni e base.</p>
+				della bobina alla luce del giorno. Includi sempre un nero e un bianco: servono per contorni e base.<br>
+				<strong>TD</strong> (Transmission Distance, come in HueForge): quanta luce attraversa il filamento. Basso (0,5–2) = coprente, da acceso diventa
+				più scuro; alto (4–10) = traslucido. Lo trovi su filamentcolors.xyz, nel wiki Polymaker o lo misuri con un TD1S.</p>
 			<?php submit_button('Salva catalogo'); ?>
 		</form>
 
@@ -96,7 +103,8 @@ Sunlu PLA Azzurro Cielo | #5B9BD5</pre>
 				<?php foreach ($list as $f) : ?>
 					<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:6px 10px">
 						<span style="width:26px;height:26px;border-radius:50%;background:<?php echo esc_attr($f['hex']); ?>;border:1px solid #c3c4c7"></span>
-						<span><?php echo esc_html($f['name']); ?><br><code><?php echo esc_html(strtoupper($f['hex'])); ?></code></span>
+						<span><?php echo esc_html($f['name']); ?><br><code><?php echo esc_html(strtoupper($f['hex'])); ?></code>
+							<?php if (isset($f['td'])) : ?><span class="description" title="Transmission Distance">TD <?php echo esc_html($f['td']); ?><?php echo $f['td'] < 1 ? ' · da acceso molto più scuro' : ''; ?></span><?php endif; ?></span>
 					</div>
 				<?php endforeach; ?>
 			</div>
