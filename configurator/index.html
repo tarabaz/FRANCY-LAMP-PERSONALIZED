@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuratore Lampada – FrancyStore3D</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.js" } }
+  </script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">FrancyStore3D <span>· Configuratore lampada</span></div>
+    <div class="lit-toggle" role="group" aria-label="Stato lampada">
+      <button data-lit="0" class="active">Spenta</button>
+      <button data-lit="1">Accesa</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel">
+      <section>
+        <h2><span>1</span> La tua immagine</h2>
+        <label class="upload">
+          <input type="file" id="file" accept="image/*">
+          <span>Carica un'immagine</span>
+        </label>
+        <div class="crop-wrap">
+          <canvas id="crop" width="300" height="300"></canvas>
+          <p class="hint" id="cropHint">Trascina per spostare, rotellina o cursore per lo zoom</p>
+        </div>
+        <label class="row">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+      </section>
+
+      <section>
+        <h2><span>2</span> Stile</h2>
+        <div class="seg" id="mode">
+          <button data-mode="outline" class="active">Foto / disegno<small>creo io i contorni neri</small></button>
+          <button data-mode="keep">Grafica pronta<small>contorni neri già presenti</small></button>
+        </div>
+        <label class="row">Colori <output id="colorsOut">10</output>
+          <input type="range" id="colors" min="2" max="12" step="1" value="10"></label>
+        <label class="row" id="lineRow">Spessore contorni (mm) <output id="lineOut">1.2</output>
+          <input type="range" id="line" min="0.6" max="2.5" step="0.1" value="1.2"></label>
+        <label class="row" id="thickRow" hidden>Ingrossa il nero (mm) <output id="thickOut">0.15</output>
+          <input type="range" id="thick" min="0" max="1" step="0.05" value="0.15"></label>
+        <details>
+          <summary>Avanzate</summary>
+          <label class="row">Semplificazione <output id="smoothOut">2</output>
+            <input type="range" id="smooth" min="0" max="4" step="1" value="2"></label>
+          <label class="row">Dettaglio minimo (mm) <output id="featOut">0.8</output>
+            <input type="range" id="feat" min="0.4" max="2.5" step="0.1" value="0.8"></label>
+          <label class="row">Area minima zona (mm²) <output id="areaOut">4</output>
+            <input type="range" id="area" min="0.5" max="20" step="0.5" value="4"></label>
+          <label class="row">Risoluzione (px/mm) <output id="ppmmOut">5</output>
+            <input type="range" id="ppmm" min="3" max="8" step="1" value="5"></label>
+          <button class="ghost" id="reseed">Prova un'altra combinazione di colori</button>
+        </details>
+      </section>
+
+      <section>
+        <h2><span>3</span> Cornice e scritte</h2>
+        <label class="row">Colore fascia <input type="color" id="bandColor" value="#5b9bd5"></label>
+        <label class="row">Colore scritte <input type="color" id="textColor" value="#151515"></label>
+        <div class="texts">
+          <input id="tTL" placeholder="In alto a sinistra" value="カラカラ" maxlength="14">
+          <input id="tTR" placeholder="In alto a destra" value="CUBONE" maxlength="14">
+          <input id="tBL" placeholder="In basso a sinistra" value="夜" maxlength="6">
+          <input id="tBR" placeholder="In basso a destra" value="昼" maxlength="6">
+        </div>
+      </section>
+    </aside>
+
+    <section class="stage">
+      <div class="tabs" role="tablist">
+        <button data-view="2d" class="active">Anteprima 2D</button>
+        <button data-view="3d">Anteprima 3D</button>
+      </div>
+      <div class="view" id="view2d"><div id="svgHost"></div></div>
+      <div class="view" id="view3d" hidden></div>
+      <div class="status" id="status">Carica un'immagine per iniziare</div>
+    </section>
+
+    <aside class="panel right">
+      <section>
+        <h2>Colori del disco</h2>
+        <p class="hint">Clicca un colore per cambiarlo. Massimo 12 colori, nero dei contorni compreso.</p>
+        <ul id="palette" class="palette"></ul>
+        <p class="count" id="count"></p>
+      </section>
+      <section>
+        <h2>File</h2>
+        <button id="dlSvg" disabled>Scarica SVG per la stampa</button>
+        <button id="dlPng" class="ghost" disabled>Scarica anteprima PNG</button>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
