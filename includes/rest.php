@@ -88,6 +88,8 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	// Il tentativo conta anche se poi fallisce (evita raffiche di richieste)
 	set_transient($key, $used + 1, DAY_IN_SECONDS);
 
+	// Modalità scelta dal cliente: fedele al soggetto (predefinita) o più stilizzata
+	$prompt    = $req->get_param('style') === 'stilizzato' ? $s['prompt_stylized'] : $s['prompt'];
 	$providers = flc_providers();
 	$order     = array($s['primary']);
 	if ($s['fallback'] !== 'none' && $s['fallback'] !== $s['primary']) {
@@ -99,7 +101,7 @@ function flc_rest_redraw(WP_REST_Request $req) {
 		if (empty($providers[$p])) {
 			continue;
 		}
-		$out = call_user_func($providers[$p]['run'], $bin, $mime, $s['prompt'], $s);
+		$out = call_user_func($providers[$p]['run'], $bin, $mime, $prompt, $s);
 		if (is_wp_error($out)) {
 			$errors[] = $out->get_error_message();
 			continue;

@@ -127,6 +127,12 @@ function aiMessage(text, kind) {
   el.className = 'ai-msg' + (kind ? ' ' + kind : '');
 }
 
+let aiStyle = 'fedele';
+document.querySelectorAll('#aiStyle button').forEach((b) => b.addEventListener('click', () => {
+  aiStyle = b.dataset.style;
+  document.querySelectorAll('#aiStyle button').forEach((x) => x.classList.toggle('active', x === b));
+}));
+
 function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).click(); }
 
 $('#aiBtn').addEventListener('click', async () => {
@@ -149,7 +155,7 @@ $('#aiBtn').addEventListener('click', async () => {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', ...(AI.nonce ? { 'X-WP-Nonce': AI.nonce } : {}) },
-      body: JSON.stringify({ image }),
+      body: JSON.stringify({ image, style: aiStyle }),
     });
     const raw = await r.text();
     let j = {};

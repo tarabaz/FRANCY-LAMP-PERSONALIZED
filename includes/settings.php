@@ -7,12 +7,30 @@ if (!defined('ABSPATH')) {
 
 const FLC_OPTION = 'flc_settings';
 
+// Prompt usati finché non vengono personalizzati. I vecchi predefiniti vengono sostituiti da quelli nuovi.
 function flc_default_prompt() {
+	return 'Redraw this photo as a Japanese decorative manhole cover illustration in a clean anime / cel-shaded style. '
+		. 'IMPORTANT: keep the likeness of the subject. Preserve the exact face shape, eye shape and eye color, eyebrows, nose, mouth and smile, ears, '
+		. 'hairstyle and hair color, skin tone, expression, head pose, clothing and any object being held. A person who knows the subject must recognise them. '
+		. 'Draw the facial features with clear black line art: eyes with pupils and small white highlights, eyebrows, nose, mouth, ears and hair strands. '
+		. 'Use flat solid colors with at most two tones per area (base color plus one simple shadow tone), thick uniform black outlines around every shape, '
+		. 'no gradients, no blur, no textures, no text, no letters, no frame or border. '
+		. 'Simplify only the background into a few bold flat shapes. Keep the subject large and centered; the artwork must fill the whole square canvas because it will be cropped to a circle.';
+}
+
+function flc_default_prompt_stylized() {
 	return 'Redraw this image as a Japanese decorative manhole cover illustration. '
 		. 'Style: flat solid colors only (at most 10 different colors), thick uniform black outlines around every shape, '
 		. 'no gradients, no shading, no textures, no text, no letters, no frame or border. '
 		. 'Simplify small details into bold clean shapes, keep the composition, the subject and the main colors recognisable. '
 		. 'The main subject must be centered, the artwork must fill the whole square canvas because it will be cropped to a circle.';
+}
+
+// Prompt predefiniti delle versioni precedenti: se salvati nelle impostazioni vengono rimpiazzati dal nuovo
+function flc_old_default_prompts() {
+	return array(
+		'Redraw this image as a Japanese decorative manhole cover illustration. Style: flat solid colors only (at most 10 different colors), thick uniform black outlines around every shape, no gradients, no shading, no textures, no text, no letters, no frame or border. Simplify small details into bold clean shapes, keep the composition, the subject and the main colors recognisable. The main subject must be centered, the artwork must fill the whole square canvas because it will be cropped to a circle.',
+	);
 }
 
 function flc_defaults() {
@@ -24,14 +42,22 @@ function flc_defaults() {
 		'gemini_model' => 'gemini-2.5-flash-image',
 		'fal_key'      => '',
 		'fal_model'    => 'fal-ai/flux-pro/kontext',
-		'prompt'       => flc_default_prompt(),
+		'prompt'       => '',
+		'prompt_stylized' => '',
 		'per_ip_day'   => 10,
 		'daily_cap'    => 300,
 	);
 }
 
 function flc_settings() {
-	return wp_parse_args(get_option(FLC_OPTION, array()), flc_defaults());
+	$s = wp_parse_args(get_option(FLC_OPTION, array()), flc_defaults());
+	if (trim((string) $s['prompt']) === '' || in_array(trim((string) $s['prompt']), flc_old_default_prompts(), true)) {
+		$s['prompt'] = flc_default_prompt();
+	}
+	if (trim((string) $s['prompt_stylized']) === '') {
+		$s['prompt_stylized'] = flc_default_prompt_stylized();
+	}
+	return $s;
 }
 
 add_action('admin_menu', function () {
@@ -52,10 +78,18 @@ function flc_sanitize_settings($in) {
 		'fallback'     => in_array($in['fallback'] ?? '', array_merge(array('none'), $providers), true) ? $in['fallback'] : 'none',
 		'gemini_model' => sanitize_text_field($in['gemini_model'] ?? $d['gemini_model']),
 		'fal_model'    => sanitize_text_field($in['fal_model'] ?? $d['fal_model']),
-		'prompt'       => sanitize_textarea_field($in['prompt'] ?? '') ?: $d['prompt'],
+		'prompt'       => sanitize_textarea_field($in['prompt'] ?? ''),
+		'prompt_stylized' => sanitize_textarea_field($in['prompt_stylized'] ?? ''),
 		'per_ip_day'   => max(0, (int) ($in['per_ip_day'] ?? $d['per_ip_day'])),
 		'daily_cap'    => max(0, (int) ($in['daily_cap'] ?? $d['daily_cap'])),
 	);
+	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
+	if ($out['prompt'] === flc_default_prompt()) {
+		$out['prompt'] = '';
+	}
+	if ($out['prompt_stylized'] === flc_default_prompt_stylized()) {
+		$out['prompt_stylized'] = '';
+	}
 	// Le chiavi non vengono mai rimandate al browser: campo vuoto = mantieni quella salvata
 	foreach (array('gemini_key', 'fal_key') as $k) {
 		$v       = trim(sanitize_text_field($in[$k] ?? ''));
@@ -136,8 +170,11 @@ function flc_settings_page() {
 			</table>
 
 			<h2>Prompt</h2>
-			<textarea name="<?php echo esc_attr($opt); ?>[prompt]" rows="6" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
-			<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nel prompt chiedi "no text".</p>
+			<p><strong>Fedele al soggetto</strong> (predefinito per il cliente): mantiene volto, occhi, sorriso e pettinatura.</p>
+			<textarea name="<?php echo esc_attr($opt); ?>[prompt]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
+			<p><strong>Più stilizzato</strong>: semplifica di più, utile per sfondi, paesaggi e oggetti.</p>
+			<textarea name="<?php echo esc_attr($opt); ?>[prompt_stylized]" rows="5" class="large-text code"><?php echo esc_textarea($s['prompt_stylized']); ?></textarea>
+			<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nel prompt chiedi "no text". Per tornare al testo predefinito svuota il campo e salva.</p>
 
 			<h2>Limiti anti-abuso</h2>
 			<table class="form-table" role="presentation">
