@@ -282,15 +282,15 @@ function parts() {
   if (state.result) {
     const pal = state.result.palette;
     // prima i colori, poi il nero del disegno (in caso di sovrapposizione al bordo vince il nero)
-    pal.forEach((p, i) => { if (!p.black) list.push({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i), z: 0, depth: 2 }); });
-    pal.forEach((p, i) => { if (p.black) list.push({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), z: 0, depth: 2.4, black: true }); });
+    pal.forEach((p, i) => { if (!p.black) list.push({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i), z: 0, depth: 0.8 }); });
+    pal.forEach((p, i) => { if (p.black) list.push({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), z: 0, depth: 1.2, black: true }); });
   } else {
-    list.push({ id: 'disegno-vuoto', d: `M${-geometry().rImg} 0A1 1 0 0 0 ${geometry().rImg} 0A1 1 0 0 0 ${-geometry().rImg} 0Z`, color: '#ffffff', z: 0, depth: 2 });
+    list.push({ id: 'disegno-vuoto', d: `M${-geometry().rImg} 0A1 1 0 0 0 ${geometry().rImg} 0A1 1 0 0 0 ${-geometry().rImg} 0Z`, color: '#ffffff', z: 0, depth: 0.8 });
   }
-  list.push({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, z: 0, depth: 2.4, black: true });
-  list.push({ id: 'cornice-fascia', d: frame.band, color: band, z: 0, depth: 2 });
-  if (frame.text) list.push({ id: 'cornice-scritte', d: frame.text, color: txt, z: 0, depth: 2.4, black: isNearBlack(txt) });
-  list.push({ id: 'cornice-anello-nero', d: frame.blackRing, color: BLACK, z: 0, depth: 3, black: true });
+  list.push({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, z: 0, depth: 1.2, black: true });
+  list.push({ id: 'cornice-fascia', d: frame.band, color: band, z: 0, depth: 0.8 });
+  if (frame.text) list.push({ id: 'cornice-scritte', d: frame.text, color: txt, z: 0, depth: 1.2, black: isNearBlack(txt) });
+  list.push({ id: 'cornice-anello-nero', d: frame.blackRing, color: BLACK, z: 0, depth: 1.4, black: true });
   return list;
 }
 

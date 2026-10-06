@@ -48,7 +48,9 @@ In `js/frame.js` → `FRAME`.
 
 - `js/worker.js` – conversione immagine → zone di colore → tracciati (Web Worker)
 - `js/frame.js` – cornice, fori e scritte ad arco
-- `js/preview3d.js` – anteprima Three.js (la base è un segnaposto, da sostituire con i modelli reali)
+- `js/preview3d.js` – anteprima Three.js: disco generato montato sul modello reale `models/lampada.stl`
+  (COMPOSIZIONE_COMPLETA). Il disco sta 2 mm dietro il frontale della scocca, sotto il tappo. Le quote di
+  allineamento sono in `LAMP_MODEL`.
 - `js/app.js` – interfaccia
 - `vendor/` – imagetracerjs (Unlicense), opentype.js (MIT), three.js (MIT)
 - `fonts/` – M PLUS Rounded 1c (SIL OFL)

@@ -1,7 +1,17 @@
-// Anteprima 3D: disco estruso dalle parti SVG + base segnaposto (da sostituire con i modelli reali).
+// Anteprima 3D: disco estruso dalle parti SVG montato sul modello reale della lampada.
 import * as THREE from '../vendor/three/three.module.js';
 import { SVGLoader } from '../vendor/three/addons/SVGLoader.js';
 import { OrbitControls } from '../vendor/three/addons/OrbitControls.js';
+import { STLLoader } from '../vendor/three/addons/STLLoader.js';
+
+// Quote ricavate da COMPOSIZIONE_COMPLETA.STL (coordinate originali del file, in mm)
+const LAMP_MODEL = {
+  url: new URL('../models/lampada.stl', import.meta.url).href,
+  discCenter: [1055.48, 1173.26], // centro della scocca Ø204,4
+  frontZ: 1056.74,                // faccia frontale della scocca
+  discRecess: 2,                  // il disco sta 2 mm dietro il frontale (il tappo lo copre in alcuni punti)
+  floorY: 1027.28 - 1173.26,      // fondo della base, rispetto al centro disco
+};
 
 export class Preview3D {
   constructor(container) {
@@ -13,9 +23,9 @@ export class Preview3D {
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(35, 1, 1, 5000);
-    this.camera.position.set(170, 60, 560);
+    this.camera.position.set(190, 40, 620);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, -15, 0);
+    this.controls.target.set(0, -25, 0);
     this.controls.enableDamping = true;
 
     this.ambient = new THREE.AmbientLight(0xffffff, 0.9);
@@ -46,30 +56,19 @@ export class Preview3D {
   }
 
   buildStatic() {
-    const dark = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 });
-    // Retro / scocca dietro il disco
-    const back = new THREE.Mesh(new THREE.CylinderGeometry(100, 100, 24, 96), dark);
-    back.rotation.x = Math.PI / 2;
-    back.position.z = -12.5;
-    this.lamp.add(back);
-    // Base segnaposto a "pagnotta" come nelle foto
-    const w = 150, h = 34, depth = 60, r = 16;
-    const s = new THREE.Shape();
-    s.moveTo(-w / 2 + r, 0);
-    s.lineTo(w / 2 - r, 0);
-    s.quadraticCurveTo(w / 2, 0, w / 2, r);
-    s.lineTo(w / 2, h - r);
-    s.quadraticCurveTo(w / 2, h, w / 2 - r, h);
-    s.quadraticCurveTo(0, h - 8, -w / 2 + r, h);
-    s.quadraticCurveTo(-w / 2, h, -w / 2, h - r);
-    s.lineTo(-w / 2, r);
-    s.quadraticCurveTo(-w / 2, 0, -w / 2 + r, 0);
-    const base = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelSize: 1.5, bevelThickness: 1.5, curveSegments: 16 }), dark);
-    base.position.set(0, -100 - 18, -depth / 2 - 6);
-    this.lamp.add(base);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x6b4a32, roughness: 0.8 }));
+    // Modello reale della lampada (base + scocca), STL in mm, Y in alto, fronte verso +Z.
+    // Lo sposto in modo che il centro del disco sia in (0,0) e la faccia frontale della scocca in z=0.
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.05 });
+    new STLLoader().load(LAMP_MODEL.url, (geo) => {
+      geo.translate(-LAMP_MODEL.discCenter[0], -LAMP_MODEL.discCenter[1], -LAMP_MODEL.frontZ);
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, dark);
+      this.lamp.add(mesh);
+    }, undefined, (err) => console.error('Modello lampada non caricato', err));
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({ color: 0x6b4a32, roughness: 0.8 }));
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -119.6;
+    floor.position.y = LAMP_MODEL.floorY - 0.2;
     this.scene.add(floor);
     this.floor = floor;
   }
@@ -79,6 +78,7 @@ export class Preview3D {
     this.disc.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
     this.disc.clear();
     this.colorMats = [];
+    this.discDepth = Math.max(0, ...parts.map((p) => p.depth || 0));
     const loader = new SVGLoader();
     for (const p of parts) {
       if (!p.d) continue;
@@ -96,6 +96,8 @@ export class Preview3D {
       this.disc.add(m);
     }
     this.disc.scale.set(1, -1, 1); // SVG ha Y verso il basso
+    // Il disco sta tra cover e tappo frontale: faccia anteriore 2 mm dietro il frontale della scocca
+    this.disc.position.z = -LAMP_MODEL.discRecess - this.discDepth;
     this.setLit(this.lit);
   }
 
