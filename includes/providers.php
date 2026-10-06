@@ -46,6 +46,7 @@ function flc_run_gemini($image, $mime, $prompt, $s) {
 			),
 		)),
 		'generationConfig' => array(
+			'temperature'        => 0.3, // più basso = meno libertà creativa, più fedele all'originale
 			'responseModalities' => array('TEXT', 'IMAGE'),
 			'imageConfig'        => array('aspectRatio' => '1:1'),
 		),

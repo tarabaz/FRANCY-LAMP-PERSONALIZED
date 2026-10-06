@@ -9,27 +9,30 @@ const FLC_OPTION = 'flc_settings';
 
 // Prompt usati finché non vengono personalizzati. I vecchi predefiniti vengono sostituiti da quelli nuovi.
 function flc_default_prompt() {
-	return 'Redraw this photo as a Japanese decorative manhole cover illustration in a clean anime / cel-shaded style. '
-		. 'IMPORTANT: keep the likeness of the subject. Preserve the exact face shape, eye shape and eye color, eyebrows, nose, mouth and smile, ears, '
-		. 'hairstyle and hair color, skin tone, expression, head pose, clothing and any object being held. A person who knows the subject must recognise them. '
-		. 'Draw the facial features with clear black line art: eyes with pupils and small white highlights, eyebrows, nose, mouth, ears and hair strands. '
-		. 'Use flat solid colors with at most two tones per area (base color plus one simple shadow tone), thick uniform black outlines around every shape, '
-		. 'no gradients, no blur, no textures, no text, no letters, no frame or border. '
-		. 'Simplify only the background into a few bold flat shapes. Keep the subject large and centered; the artwork must fill the whole square canvas because it will be cropped to a circle.';
+	return 'This is a STYLE CONVERSION, not a redesign. Convert the attached image into flat-color vector line art, like a Japanese decorative manhole cover, '
+		. 'while keeping EXACTLY the same composition. Treat the input as a tracing template: every element must stay in the same position, size and proportion. '
+		. 'Do NOT change the pose, the body orientation, the camera angle, the head direction, the facial expression, the number or position of objects, '
+		. 'the framing or the cropping: anything cut off by the image edge stays cut off. '
+		. 'Do NOT redraw the subject from memory or from your knowledge of the character, and do not make it more generic, symmetrical or front-facing. '
+		. 'Keep identifiable details: for a person the exact face shape, eyes, eyebrows, nose, mouth, smile, hairstyle, hair and skin color; for a character its exact expression, teeth, eyes and markings as shown. '
+		. 'Rendering: flat solid colors, at most two tones per area (base color plus one simple shadow tone), thick uniform black outlines around every shape, '
+		. 'no gradients, no glow, no blur, no textures, no text, no letters, no frame or border. '
+		. 'Reduce the many colors of the original to a small bold palette that matches the original hues, and merge tiny details and busy background texture into a few large flat shapes. '
+		. 'The artwork must fill the whole square canvas because it will be cropped to a circle.';
 }
 
 function flc_default_prompt_stylized() {
-	return 'Redraw this image as a Japanese decorative manhole cover illustration. '
-		. 'Style: flat solid colors only (at most 10 different colors), thick uniform black outlines around every shape, '
-		. 'no gradients, no shading, no textures, no text, no letters, no frame or border. '
-		. 'Simplify small details into bold clean shapes, keep the composition, the subject and the main colors recognisable. '
-		. 'The main subject must be centered, the artwork must fill the whole square canvas because it will be cropped to a circle.';
+	return 'Convert the attached image into a Japanese decorative manhole cover illustration with flat solid colors (at most 10 different colors) and thick uniform black outlines around every shape. '
+		. 'Keep the same subject, pose and general composition as the input, but simplify shapes and details more boldly and make the background simple and decorative. '
+		. 'No gradients, no shading, no textures, no glow, no text, no letters, no frame or border. '
+		. 'The main subject must stay centered and the artwork must fill the whole square canvas because it will be cropped to a circle.';
 }
 
 // Prompt predefiniti delle versioni precedenti: se salvati nelle impostazioni vengono rimpiazzati dal nuovo
 function flc_old_default_prompts() {
 	return array(
 		'Redraw this image as a Japanese decorative manhole cover illustration. Style: flat solid colors only (at most 10 different colors), thick uniform black outlines around every shape, no gradients, no shading, no textures, no text, no letters, no frame or border. Simplify small details into bold clean shapes, keep the composition, the subject and the main colors recognisable. The main subject must be centered, the artwork must fill the whole square canvas because it will be cropped to a circle.',
+		'Redraw this photo as a Japanese decorative manhole cover illustration in a clean anime / cel-shaded style. IMPORTANT: keep the likeness of the subject. Preserve the exact face shape, eye shape and eye color, eyebrows, nose, mouth and smile, ears, hairstyle and hair color, skin tone, expression, head pose, clothing and any object being held. A person who knows the subject must recognise them. Draw the facial features with clear black line art: eyes with pupils and small white highlights, eyebrows, nose, mouth, ears and hair strands. Use flat solid colors with at most two tones per area (base color plus one simple shadow tone), thick uniform black outlines around every shape, no gradients, no blur, no textures, no text, no letters, no frame or border. Simplify only the background into a few bold flat shapes. Keep the subject large and centered; the artwork must fill the whole square canvas because it will be cropped to a circle.',
 	);
 }
 
@@ -170,7 +173,7 @@ function flc_settings_page() {
 			</table>
 
 			<h2>Prompt</h2>
-			<p><strong>Fedele al soggetto</strong> (predefinito per il cliente): mantiene volto, occhi, sorriso e pettinatura.</p>
+			<p><strong>Fedele al soggetto</strong> (predefinito per il cliente): conversione di stile che blocca posa, espressione e composizione.</p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
 			<p><strong>Più stilizzato</strong>: semplifica di più, utile per sfondi, paesaggi e oggetti.</p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt_stylized]" rows="5" class="large-text code"><?php echo esc_textarea($s['prompt_stylized']); ?></textarea>
