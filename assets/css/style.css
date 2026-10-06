@@ -82,6 +82,9 @@ html.flc-page .flc { height: 100%; }
 .flc .seg button.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 
 .flc details summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
+.flc details.adjust { margin: 4px 0 10px; }
+.flc details.adjust summary #adjBadge { color: var(--ink); font-weight: 600; }
+.flc details.adjust .ghost.small { padding: 4px 10px; font-size: 12px; }
 .flc .texts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .flc .texts input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 
@@ -255,3 +258,5 @@ html.flc-page .flc { height: 100%; }
 .flc .ai-example img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; background: var(--line); }
 .flc .ai-example figcaption { font-size: 11px; color: var(--muted); margin-top: 3px; }
 .flc .ai-example-arrow { font-size: 18px; color: var(--muted); }
+/* nero contorni bloccato: resta nero pieno, solo senza clic */
+.flc .swatch-btn:disabled { opacity: 1; cursor: not-allowed; }

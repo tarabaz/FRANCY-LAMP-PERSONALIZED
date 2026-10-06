@@ -79,7 +79,44 @@ function drawImageTo(ctx, size) {
   const s = coverScale() * zoom * k;
   const w = img.width * s, h = img.height * s;
   ctx.drawImage(img, size / 2 - w / 2 + ox * k, size / 2 - h / 2 + oy * k, w, h);
+  applyAdjust(ctx, size);
 }
+
+// ---------------- luminosità / contrasto / saturazione ----------------
+// Si applicano all'immagine PRIMA della riduzione dei colori (anteprima del ritaglio, conversione,
+// immagine mandata all'IA e "ritaglio usato" nello zip). Valori da -100 a +100, 0 = immagine originale.
+const adjust = { b: 0, c: 0, s: 0 };
+function applyAdjust(ctx, size) {
+  const { b, c, s } = adjust;
+  if (!b && !c && !s) return;
+  const lut = new Uint8ClampedArray(256);
+  const cc = c * 1.28, f = (259 * (cc + 255)) / (255 * (259 - cc));
+  for (let v = 0; v < 256; v++) lut[v] = f * (v + b * 1.28 - 128) + 128;
+  const sat = 1 + s / 100;
+  const id = ctx.getImageData(0, 0, size, size), d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = lut[d[i]], g = lut[d[i + 1]], bl = lut[d[i + 2]];
+    if (s) {
+      const gray = 0.299 * r + 0.587 * g + 0.114 * bl;
+      r = gray + (r - gray) * sat; g = gray + (g - gray) * sat; bl = gray + (bl - gray) * sat;
+    }
+    d[i] = r; d[i + 1] = g; d[i + 2] = bl;
+  }
+  ctx.putImageData(id, 0, 0);
+}
+function setAdjust(vals) {
+  Object.assign(adjust, vals);
+  for (const key of ['b', 'c', 's']) {
+    const id = 'adj' + key.toUpperCase();
+    $('#' + id).value = adjust[key];
+    $('#' + id + 'Out').textContent = (adjust[key] > 0 ? '+' : '') + adjust[key];
+  }
+  $('#adjBadge').hidden = !(adjust.b || adjust.c || adjust.s);
+}
+for (const key of ['b', 'c', 's']) {
+  $('#adj' + key.toUpperCase()).addEventListener('input', (e) => { setAdjust({ [key]: +e.target.value }); drawCrop(); schedule(); });
+}
+$('#adjReset').addEventListener('click', () => { setAdjust({ b: 0, c: 0, s: 0 }); drawCrop(); schedule(); });
 
 function drawCrop() {
   cctx.clearRect(0, 0, crop.width, crop.height);
@@ -139,6 +176,7 @@ function loadImage(src, zoom = 1) {
 
 function setImage(img, zoom, ox, oy) {
   state.img = img; state.zoom = zoom; state.ox = ox; state.oy = oy;
+  setAdjust({ b: 0, c: 0, s: 0 }); // immagine nuova (o risultato IA, che ha già le regolazioni): si riparte da zero
   $('#zoom').value = zoom;
   $('#aiBtn').disabled = !!state.aiExhausted;
   drawCrop(); run();
@@ -802,7 +840,7 @@ async function buildPackage(customer) {
     stl: stl.list.map((l) => ({ file: l.file, colore: l.color, filamento: l.filament })),
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
-    impostazioni: { modalita: state.mode, colori: +$('#colors').value, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
+    impostazioni: { modalita: state.mode, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
     'FrancyStore3D - disco lampada personalizzato', '',

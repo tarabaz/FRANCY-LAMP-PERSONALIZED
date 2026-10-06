@@ -42,6 +42,17 @@
           <p class="hint" id="cropHint">Trascina per spostare, rotellina o cursore per lo zoom</p>
         </div>
         <label class="row lockable">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+        <details class="adjust lockable" id="adjustBox">
+          <summary>Regola immagine <span id="adjBadge" hidden>· modificata</span></summary>
+          <label class="row">Luminosità <output id="adjBOut">0</output>
+            <input type="range" id="adjB" min="-100" max="100" step="1" value="0"></label>
+          <label class="row">Contrasto <output id="adjCOut">0</output>
+            <input type="range" id="adjC" min="-100" max="100" step="1" value="0"></label>
+          <label class="row">Saturazione <output id="adjSOut">0</output>
+            <input type="range" id="adjS" min="-100" max="100" step="1" value="0"></label>
+          <button type="button" class="ghost small" id="adjReset">Ripristina</button>
+          <p class="hint">Più contrasto e saturazione separano meglio i colori; più luminosità schiarisce le zone scure prima della scelta dei colori.</p>
+        </details>
         <div class="ai-box lockable" id="aiBox" hidden>
           <div class="ai-style" id="aiStyle" role="group" aria-label="Tipo di ridisegno">
             <button type="button" data-style="fedele" class="active">Fedele<small>stessa posa ed espressione</small></button>

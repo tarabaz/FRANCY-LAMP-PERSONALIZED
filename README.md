@@ -112,6 +112,10 @@ d'animazione giapponese classico, sempre a colori piatti stampabili; si spegne d
 si modificano in Impostazioni → Francy Lamp; se il testo è quello predefinito non viene salvato, così gli
 aggiornamenti del plugin migliorano anche il tuo prompt.
 
+Sotto lo zoom c'è **Regola immagine** (luminosità, contrasto, saturazione da -100 a +100, pulsante Ripristina):
+si applica prima della riduzione dei colori, all'immagine mandata all'IA e al "ritaglio usato" nello zip; i valori
+finiscono nel riepilogo del progetto. Con un'immagine nuova o un risultato IA si riparte da zero.
+
 Sotto gli stili c'è l'interruttore **Rimuovi lo sfondo**: se acceso compare il menu **Nuovo sfondo** (Bianco,
 Vetrata da cattedrale, Cielo stile anime, Raggi di luce, Onde giapponesi, Tinta unita) e all'IA viene chiesto di
 togliere lo sfondo della foto e metterci quello scelto. L'elenco si modifica in Impostazioni → Sfondo, una riga per
