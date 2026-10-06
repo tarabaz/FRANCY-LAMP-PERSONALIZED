@@ -199,11 +199,13 @@ for (const [id, out] of Object.entries(sliders)) {
 document.querySelectorAll('#mode button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('active', x === b));
   state.mode = b.dataset.mode;
-  $('#lineRow').hidden = state.mode !== 'outline';
+  $('#addRow').hidden = state.mode !== 'keep';
+  $('#lineRow').hidden = state.mode === 'keep' && !$('#addOutlines').checked;
   $('#thickRow').hidden = state.mode === 'outline';
   updateColorLimit();
   schedule();
 }));
+$('#addOutlines').addEventListener('change', () => { $('#lineRow').hidden = !$('#addOutlines').checked; schedule(); });
 $('#reseed').addEventListener('click', () => { state.seed++; run(); });
 
 document.querySelectorAll('.lit-toggle button').forEach((b) => b.addEventListener('click', () => {
@@ -318,6 +320,7 @@ function run() {
     mode: state.mode,
     colors: +$('#colors').value,
     lineMm: +$('#line').value,
+    addOutlines: state.mode === 'keep' && $('#addOutlines').checked,
     thickenMm: +$('#thick').value,
     smooth: +$('#smooth').value,
     minFeatureMm: +$('#feat').value,

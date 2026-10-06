@@ -79,6 +79,13 @@ function convert(rgba, size, ppmm, opts, progress) {
       if (opts.thickenMm > 0) dilateLabel(labels, inside, size, blackIdx, opts.thickenMm * ppmm);
     }
     mergeSmallRegions(labels, size, minAreaPx, palette.length);
+    // Immagini senza contorni (o con contorni solo su una parte): aggiungo il nero tra le zone colorate
+    // che non ne hanno già, senza toccare quelli esistenti
+    if (opts.addOutlines) {
+      if (blackIdx < 0) { blackIdx = palette.length; palette.push({ r: 20, g: 20, b: 20 }); }
+      progress('Contorni mancanti');
+      drawOutlines(labels, inside, size, blackIdx, (opts.lineMm * ppmm) / 2, true);
+    }
   }
 
   // Zone colorate troppo strette per essere stampate -> nere (se c'è un nero) o al vicino
@@ -351,14 +358,14 @@ function distanceFrom(isSeed, size) {
   return d;
 }
 
-function drawOutlines(labels, inside, size, blackIdx, halfWidthPx) {
+function drawOutlines(labels, inside, size, blackIdx, halfWidthPx, skipBlack) {
   const n = labels.length;
   const edge = new Uint8Array(n);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const i = y * size + x, l = labels[i];
-    if (l === NONE) continue;
-    if ((x < size - 1 && labels[i + 1] !== l && labels[i + 1] !== NONE) ||
-        (y < size - 1 && labels[i + size] !== l && labels[i + size] !== NONE)) edge[i] = 1;
+    if (l === NONE || (skipBlack && l === blackIdx)) continue;
+    const diff = (j) => labels[j] !== l && labels[j] !== NONE && !(skipBlack && labels[j] === blackIdx);
+    if ((x < size - 1 && diff(i + 1)) || (y < size - 1 && diff(i + size))) edge[i] = 1;
   }
   const d = distanceFrom(edge, size);
   const t = Math.max(0.5, halfWidthPx - 0.5);
