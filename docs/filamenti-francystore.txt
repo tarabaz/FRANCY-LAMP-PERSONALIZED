@@ -1,7 +1,7 @@
 Bambu Scarlet Red | #DE4343
 Bambu Terracotta | #B15533
-Bambu Mandarin Orange | #F99663
-Bambu Latte Brown | #D3B7A7
+Bambu Mandarin Orange | #F99663 | 2.5
+Bambu Latte Brown | #D3B7A7 | 0.9
 Bambu Dark Chocolate | #4D3324
 Bambu Dark Brown | #7D6556
 Bambu Caramel | #AE835B
@@ -10,46 +10,46 @@ Bambu Bone White | #CBC6B8
 Bambu Lemon Yellow | #F7D959
 Bambu Dark Green | #68724D
 Bambu Apple Green | #C2E189
-Bambu Grass Green | #61C680
+Bambu Grass Green | #61C680 | 0.8
 Bambu Lilac Purple | #AE96D4
-Bambu Sakura Pink | #E8AFCF
+Bambu Sakura Pink | #E8AFCF | 2.2
 Bambu Plum | #950051
 Bambu Dark Red | #BB3D43
-Poly Matte Lava Red | #ED272E
-Poly Matte Army Red | #BF312E
-Poly Matte Muted Red | #D8402E
-Poly Matte Army Brown | #795A4D
-Poly Matte Earth Brown | #7C594A
-Poly Matte Army Beige | #D8BBA5
-Poly Matte Muted White | #B8ADA4
-Poly Matte Wood Brown | #AB7449
-Poly Matte Pastel Peanut | #BF9573
-Poly Matte Pastel Peach | #F6BF8B
-Poly Matte Sunrise Orange | #F88B17
-Poly Matte Pastel Banana | #F7D475
-Poly Matte Savannah Yellow | #F3C432
-Poly Matte Army Light Green | #AB8C02
-Poly Matte Lime Green | #D7D602
-Poly Matte Army Dark Green | #5F6244
-Poly Matte Pastel Mint | #C0D2B8
-Poly Matte Forest Green | #6AAD76
-Poly Matte Arctic Teal | #61BCC3
-Poly Matte Sky Blue | #1AC5FC
-Poly Matte Pastel Ice | #A4D0DF
-Poly Matte Sapphire Blue | #0163A6
-Poly Matte Muted Blue | #5F778E
-Poly Matte Army Blue | #2E4462
-Poly Matte Pastel Periwinkle | #ADB4E6
-Poly Matte Army Purple | #36364A
-Poly Matte Electric Indigo | #6858A9
-Poly Matte Lavender Purple | #9572BF
-Poly Matte Muted Purple | #7C5C78
-Poly Matte Lotus Pink | #D076C0
-Poly Matte Sakura Pink | #EAADBD
-Poly Matte Pastel Candy | #F0CDD9
-Poly Matte Pastel Watermelon | #EC474B
-Poly Matte Cotton White | #F4EFEB
-Poly Matte Muted Green | #777E71
-Poly Matte Ash Grey | #485155
-Poly Matte Fossil Grey | #8A8C94
-Poly Matte Charcoal Black | #2F2E30
+Poly Matte Lava Red | #ED2F2E | 1.9
+Poly Matte Army Red | #BF312E | 0.3
+Poly Matte Muted Red | #D84B2E | 1.4
+Poly Matte Army Brown | #795A4D | 0.1
+Poly Matte Earth Brown | #7C594A | 0.2
+Poly Matte Army Beige | #DBBAA5 | 0.7
+Poly Matte Muted White | #BBADA4 | 0.7
+Poly Matte Wood Brown | #AB7449 | 0.2
+Poly Matte Pastel Peanut | #BF9573 | 0.7
+Poly Matte Pastel Peach | #F6BF8B | 3.3
+Poly Matte Sunrise Orange | #F88B17 | 2.9
+Poly Matte Pastel Banana | #F7D475 | 3.6
+Poly Matte Savannah Yellow | #F3C432 | 3.5
+Poly Matte Army Light Green | #AB8C02 | 0.8
+Poly Matte Lime Green | #D7D602 | 2.4
+Poly Matte Army Dark Green | #5F6244 | 0.1
+Poly Matte Pastel Mint | #D2DEBB | 2.9
+Poly Matte Forest Green | #60AD70 | 0.3
+Poly Matte Arctic Teal | #61BCC3 | 0.6
+Poly Matte Sky Blue | #1AC5FC | 1.3
+Poly Matte Pastel Ice | #A4D0DF | 1.8
+Poly Matte Sapphire Blue | #0163A6 | 0.5
+Poly Matte Muted Blue | #5F778E | 0.5
+Poly Matte Army Blue | #2E4462 | 0.1
+Poly Matte Pastel Periwinkle | #ADB4E6 | 1.5
+Poly Matte Army Purple | #36364A | 0.2
+Poly Matte Electric Indigo | #6858A9 | 0.3
+Poly Matte Lavender Purple | #9572BF | 0.6
+Poly Matte Muted Purple | #7C5C78 | 0.6
+Poly Matte Lotus Pink | #DD76C0 | 2
+Poly Matte Sakura Pink | #EAADBD | 2.3
+Poly Matte Pastel Candy | #F0D6D9 | 2.9
+Poly Matte Pastel Watermelon | #EE474B | 2.4
+Poly Matte Cotton White | #F4EFEB | 4.1
+Poly Matte Muted Green | #777E71 | 0.5
+Poly Matte Ash Grey | #485155 | 0.1
+Poly Matte Fossil Grey | #8A8C94 | 0.4
+Poly Matte Charcoal Black | #2F2E30 | 0.1
