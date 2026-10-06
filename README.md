@@ -117,7 +117,8 @@ Vetrata da cattedrale, Cielo stile anime, Raggi di luce, Onde giapponesi, Tinta 
 togliere lo sfondo della foto e metterci quello scelto. L'elenco si modifica in Impostazioni → Sfondo, una riga per
 sfondo nel formato `Nome | descrizione in inglese`; lo sfondo scelto finisce nel riepilogo del progetto.
 
-Se il principale dà errore si passa da soli al fornitore di riserva. Per aggiungere un fornitore:
+Se Gemini risponde senza immagine (es. `IMAGE_OTHER`, un rifiuto senza motivo) il plugin riprova da solo fino a 3 volte
+con impostazioni diverse; i tentativi a vuoto non generano immagini e costano pochissimo. Se il principale dà errore si passa da soli al fornitore di riserva. Per aggiungere un fornitore:
 una funzione in `includes/providers.php` più una voce in `flc_providers()`.
 
 ## Limiti anti-abuso

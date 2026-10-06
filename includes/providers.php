@@ -38,39 +38,56 @@ function flc_run_gemini($image, $mime, $prompt, $s) {
 	}
 	$model = rawurlencode($s['gemini_model'] ?: 'gemini-2.5-flash-image');
 	$url   = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
-	$body  = array(
-		'contents'         => array(array(
-			'parts' => array(
-				array('text' => $prompt),
-				array('inline_data' => array('mime_type' => $mime, 'data' => base64_encode($image))),
-			),
-		)),
-		'generationConfig' => array(
-			'temperature'        => 0.3, // più basso = meno libertà creativa, più fedele all'originale
-			'responseModalities' => array('TEXT', 'IMAGE'),
-			'imageConfig'        => array('aspectRatio' => '1:1'),
-		),
+	// Gemini a volte rifiuta senza motivo (finishReason IMAGE_OTHER / NO_IMAGE / solo testo): spesso basta
+	// riprovare. 2° tentativo: un po' più di libertà; 3°: prima l'immagine e poi un comando corto e diretto.
+	// I tentativi falliti non producono immagini, quindi costano pochissimo.
+	$attempts = array(
+		array('temp' => 0.3, 'image_first' => false, 'prompt' => $prompt),
+		array('temp' => 0.7, 'image_first' => false, 'prompt' => $prompt),
+		array('temp' => 0.9, 'image_first' => true, 'prompt' => 'Generate a new image from the attached picture following these instructions. ' . $prompt),
 	);
-	$res = wp_remote_post($url, array(
-		'timeout' => 120,
-		'headers' => array('Content-Type' => 'application/json', 'x-goog-api-key' => $s['gemini_key']),
-		'body'    => wp_json_encode($body),
-	));
-	if (is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200) {
-		return flc_http_error($res, 'Gemini');
-	}
-	$j = json_decode(wp_remote_retrieve_body($res), true);
-	foreach ($j['candidates'][0]['content']['parts'] ?? array() as $part) {
-		$inline = $part['inlineData'] ?? ($part['inline_data'] ?? null);
-		if ($inline && !empty($inline['data'])) {
-			return array(
-				'mime' => $inline['mimeType'] ?? ($inline['mime_type'] ?? 'image/png'),
-				'data' => base64_decode($inline['data']),
-			);
+	$reasons = array();
+	foreach ($attempts as $a) {
+		$img_part  = array('inline_data' => array('mime_type' => $mime, 'data' => base64_encode($image)));
+		$text_part = array('text' => $a['prompt']);
+		$body = array(
+			'contents'         => array(array('parts' => $a['image_first'] ? array($img_part, $text_part) : array($text_part, $img_part))),
+			'generationConfig' => array(
+				'temperature'        => $a['temp'], // più basso = meno libertà creativa, più fedele all'originale
+				'responseModalities' => array('TEXT', 'IMAGE'),
+				'imageConfig'        => array('aspectRatio' => '1:1'),
+			),
+		);
+		$res = wp_remote_post($url, array(
+			'timeout' => 120,
+			'headers' => array('Content-Type' => 'application/json', 'x-goog-api-key' => $s['gemini_key']),
+			'body'    => wp_json_encode($body),
+		));
+		if (is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200) {
+			return flc_http_error($res, 'Gemini'); // chiave, credito, quota: inutile riprovare
+		}
+		$j    = json_decode(wp_remote_retrieve_body($res), true);
+		$said = '';
+		foreach ($j['candidates'][0]['content']['parts'] ?? array() as $part) {
+			$inline = $part['inlineData'] ?? ($part['inline_data'] ?? null);
+			if ($inline && !empty($inline['data'])) {
+				return array(
+					'mime' => $inline['mimeType'] ?? ($inline['mime_type'] ?? 'image/png'),
+					'data' => base64_decode($inline['data']),
+				);
+			}
+			if (!empty($part['text'])) {
+				$said .= ' ' . $part['text'];
+			}
+		}
+		$reason = $j['candidates'][0]['finishReason'] ?? ($j['promptFeedback']['blockReason'] ?? 'nessuna immagine');
+		$reasons[] = $reason . ($said !== '' ? ': "' . mb_substr(trim($said), 0, 160) . '"' : '');
+		// blocchi di sicurezza veri: riprovare non serve
+		if (in_array($reason, array('SAFETY', 'IMAGE_SAFETY', 'PROHIBITED_CONTENT', 'IMAGE_PROHIBITED_CONTENT', 'BLOCKLIST'), true)) {
+			break;
 		}
 	}
-	$reason = $j['candidates'][0]['finishReason'] ?? ($j['promptFeedback']['blockReason'] ?? 'nessuna immagine');
-	return new WP_Error('flc_empty', 'Gemini non ha restituito un\'immagine (' . $reason . ')');
+	return new WP_Error('flc_empty', 'Gemini non ha restituito un\'immagine dopo ' . count($reasons) . ' tentativi (' . implode(' / ', $reasons) . ')');
 }
 
 // --- fal.ai (endpoint sincrono, vale per FLUX Kontext, Qwen Image Edit, Seedream edit…) ---

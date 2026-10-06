@@ -30,22 +30,20 @@ function flc_default_prompt_stylized() {
 
 // Stile vetrata da cattedrale: perfetto per una lampada retroilluminata (tessere di colore + piombature nere)
 function flc_default_prompt_vetrata() {
-	return 'Convert the attached image into a Gothic cathedral stained glass window design. '
-		. 'Keep the same subject, pose, composition and recognisable features (for a person: face shape, eyes, eyebrows, smile, hairstyle, hair and skin color, expression; '
-		. 'for an animal or character: its markings, colors and expression). '
-		. 'Divide every area into separate pieces of glass outlined by thick, continuous, uniform black lead lines (lead came), exactly like a real stained glass window: '
-		. 'the subject is built from fairly large glass pieces that follow its shapes, folds and features, and every piece is completely enclosed by black lead lines. '
-		. 'Each glass piece is ONE flat solid color: no gradients, no painted shading inside the pieces, no glass texture, no reflections, no glow, no light rays. '
-		. 'Use rich luminous jewel-tone colors (ruby red, cobalt blue, emerald green, amber gold, violet) adapted to the original colors, at most 10 colors in total. '
-		. 'Avoid tiny shards: every piece must be large enough to be printed. No text, no letters, no frame or border. '
-		. 'The artwork must fill the whole square canvas because it will be cropped to a circle.';
+	return 'Turn the attached image into a stained glass window artwork, like a cathedral window. '
+		. 'Keep the same subject, pose and composition, and keep the subject clearly recognisable with its own colors and markings. '
+		. 'Build the whole picture from pieces of colored glass separated by thick black lines of uniform width, like the lead lines of a real stained glass window. '
+		. 'The subject is made of large glass pieces that follow its shapes. The background is made of clean geometric glass pieces: straight-edged polygons, triangles and long shards radiating outward from the subject. '
+		. 'No flowers, no leaves, no petals, no vines, no floral or plant ornaments. '
+		. 'Every glass piece is one flat solid color with no shading and no texture. Rich jewel colors matching the original, at most 10 colors. '
+		. 'Pieces must be large, no tiny fragments. No text, no frame. Fill the whole square canvas; it will be cropped to a circle.';
 }
 
 // Sfondi proposti al cliente quando sceglie "Rimuovi lo sfondo": una riga per sfondo, "Etichetta | descrizione in inglese"
 function flc_default_backgrounds() {
 	return implode("\n", array(
 		'Bianco (luce piena) | a plain pure white empty background, nothing else: no shadow, no ground, no objects',
-		'Vetrata da cattedrale | a Gothic cathedral stained glass mosaic: irregular geometric glass pieces in jewel tones (deep blue, ruby red, amber gold, emerald green) separated by thick black lead lines, radiating around the subject like a rose window, each piece one flat solid color',
+		'Vetrata da cattedrale | a geometric stained glass mosaic made only of straight-edged angular pieces (triangles, trapezoids, long shards) radiating outward from the subject like sun rays, in jewel tones (deep blue, ruby red, amber, emerald green) separated by thick black lines, each piece one flat color, with no flowers, leaves, petals or floral shapes',
 		'Cielo stile anime | a stylised anime sky: deep blue sky with a few large bold white cumulus clouds, flat solid colors with black outlines',
 		'Raggi di luce | a sunburst of wide straight rays radiating from behind the subject, alternating two flat warm colors, separated by black lines',
 		'Onde giapponesi | a traditional Japanese seigaiha wave pattern (overlapping concentric arcs) in two or three flat blue tones with black outlines',
@@ -68,9 +66,8 @@ function flc_backgrounds($s = null) {
 
 // Istruzione aggiunta al prompt quando il cliente rimuove lo sfondo
 function flc_background_instruction($bg) {
-	return "\n\nBACKGROUND (this overrides any earlier instruction about the background): completely remove the original background, "
-		. 'meaning everything that is not the main subject, and replace it with ' . $bg['prompt'] . '. '
-		. 'Keep the main subject exactly as described above, unchanged, large and centered, with a clean black outline separating it from the new background.';
+	return "\n\nBackground: replace the original background (everything that is not the main subject) with " . $bg['prompt'] . '. '
+		. 'The main subject stays as described above, large and centered, with a black outline around it.';
 }
 
 // Stile anime: atmosfera da film d'animazione giapponese classico, ma resa stampabile (colori piatti + contorni)
@@ -153,12 +150,15 @@ function flc_settings() {
 	if (trim((string) $s['prompt_anime']) === '') {
 		$s['prompt_anime'] = flc_default_prompt_anime();
 	}
-	if (trim((string) $s['prompt_vetrata']) === '') {
+	// prima versione del prompt Vetrata (faceva rosoni a fiori e veniva rifiutato spesso da Gemini)
+	if (trim((string) $s['prompt_vetrata']) === '' || md5(trim((string) $s['prompt_vetrata'])) === 'f8f8d0135758c19deefd4e49764a9b7c') {
 		$s['prompt_vetrata'] = flc_default_prompt_vetrata();
 	}
 	if (trim((string) $s['backgrounds']) === '') {
 		$s['backgrounds'] = flc_default_backgrounds();
 	}
+	// vecchio sfondo "Vetrata da cattedrale" a rosone: sostituito con quello geometrico
+	$s['backgrounds'] = preg_replace('/^Vetrata da cattedrale \\| a Gothic cathedral stained glass mosaic.*$/m', explode("\n", flc_default_backgrounds())[1], $s['backgrounds']);
 	return $s;
 }
 

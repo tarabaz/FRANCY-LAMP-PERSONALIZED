@@ -82,7 +82,7 @@ function flc_rest_redraw(WP_REST_Request $req) {
 
 	// Le IA ci mettono 10–60 s: sugli hosting con limite PHP a 30 s la richiesta verrebbe troncata
 	if (function_exists('set_time_limit')) {
-		@set_time_limit(180);
+		@set_time_limit(420);
 	}
 
 	// Il tentativo conta anche se poi fallisce (evita raffiche di richieste)
@@ -105,6 +105,9 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	flc_log_usage(false);
 	error_log('[francy-lamp] ridisegno fallito: ' . implode(' | ', $errors));
 	$msg = 'Il ridisegno non è riuscito, riprova tra poco.';
+	if (strpos(implode(' ', $errors), 'non ha restituito') !== false) {
+		$msg = "L'IA non è riuscita a ridisegnare questa immagine: prova con un altro stile, senza cambiare lo sfondo o con un'altra foto.";
+	}
 	if (current_user_can('manage_options')) {
 		$msg .= ' Dettagli (visibili solo agli admin): ' . implode(' | ', $errors);
 	}

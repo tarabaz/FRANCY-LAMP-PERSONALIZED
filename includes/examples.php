@@ -139,7 +139,7 @@ function flc_rest_example(WP_REST_Request $req) {
 		return new WP_Error('flc_bad', 'Carica prima la foto d\'esempio.', array('status' => 400));
 	}
 	if (function_exists('set_time_limit')) {
-		@set_time_limit(180);
+		@set_time_limit(420);
 	}
 	$s   = flc_settings();
 	$s['style_anime'] = 1; // l'esempio Anime si genera anche se lo stile è nascosto ai clienti
