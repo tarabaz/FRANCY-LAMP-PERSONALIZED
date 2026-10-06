@@ -9,9 +9,14 @@ if (!defined('ABSPATH')) {
 
 const FLC_FIL_OPTION = 'flc_filaments';
 
-// Lista [{ name, hex }] già pulita
+// Lista [{ name, hex }] già pulita.
+// Finché il catalogo non è mai stato salvato si usano le bobine di FrancyStore3D (includes/filamenti-predefiniti.txt).
 function flc_filaments() {
-	$list = get_option(FLC_FIL_OPTION, array());
+	$list = get_option(FLC_FIL_OPTION, null);
+	if ($list === null || $list === false) {
+		$file = __DIR__ . '/filamenti-predefiniti.txt';
+		$list = is_file($file) ? flc_parse_filaments(file_get_contents($file)) : array();
+	}
 	return is_array($list) ? array_values($list) : array();
 }
 
