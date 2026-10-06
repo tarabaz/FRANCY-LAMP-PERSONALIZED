@@ -89,7 +89,14 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	set_transient($key, $used + 1, DAY_IN_SECONDS);
 
 	// Modalità scelta dal cliente: fedele al soggetto (predefinita) o più stilizzata
-	$prompt    = $req->get_param('style') === 'stilizzato' ? $s['prompt_stylized'] : $s['prompt'];
+	$style     = (string) $req->get_param('style');
+	if ($style === 'anime' && !empty($s['style_anime'])) {
+		$prompt = $s['prompt_anime'];
+	} elseif ($style === 'stilizzato') {
+		$prompt = $s['prompt_stylized'];
+	} else {
+		$prompt = $s['prompt'];
+	}
 	$providers = flc_providers();
 	$order     = array($s['primary']);
 	if ($s['fallback'] !== 'none' && $s['fallback'] !== $s['primary']) {

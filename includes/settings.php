@@ -28,6 +28,18 @@ function flc_default_prompt_stylized() {
 		. 'The main subject must stay centered and the artwork must fill the whole square canvas because it will be cropped to a circle.';
 }
 
+// Stile anime: atmosfera da film d'animazione giapponese classico, ma resa stampabile (colori piatti + contorni)
+function flc_default_prompt_anime() {
+	return 'Redraw the attached image as a still from a classic hand-drawn Japanese animated feature film with a warm, whimsical fairy-tale mood: '
+		. 'gentle rounded character design, soft friendly expressive faces, cozy storybook atmosphere, nostalgic and magical, nature simplified into charming shapes. '
+		. 'Keep the same subject, pose, composition and recognisable features (for a person: face shape, eyes, eyebrows, smile, hairstyle, hair and skin color, expression; '
+		. 'for an animal or character: its markings, colors and expression). '
+		. 'IMPORTANT, this will be 3D printed in flat colors: render ONLY with flat solid cel-shaded colors (at most 10 colors, at most two tones per area), '
+		. 'clean thick uniform black outlines around every shape, no gradients, no watercolor texture, no glow, no blur, no film grain. '
+		. 'Simplify the background into a few large flat shapes. No text, no letters, no frame or border. '
+		. 'The artwork must fill the whole square canvas because it will be cropped to a circle.';
+}
+
 // Prompt predefiniti delle versioni precedenti: se salvati nelle impostazioni vengono rimpiazzati dal nuovo
 function flc_old_default_prompts() {
 	return array(
@@ -47,6 +59,8 @@ function flc_defaults() {
 		'fal_model'    => 'fal-ai/flux-pro/kontext',
 		'prompt'       => '',
 		'prompt_stylized' => '',
+		'prompt_anime' => '',
+		'style_anime' => 1,
 		'per_ip_day'   => 10,
 		'daily_cap'    => 300,
 		'submit_per_ip' => 5,
@@ -77,6 +91,9 @@ function flc_settings() {
 	if (trim((string) $s['prompt_stylized']) === '') {
 		$s['prompt_stylized'] = flc_default_prompt_stylized();
 	}
+	if (trim((string) $s['prompt_anime']) === '') {
+		$s['prompt_anime'] = flc_default_prompt_anime();
+	}
 	return $s;
 }
 
@@ -105,6 +122,8 @@ function flc_sanitize_settings($in) {
 		'fal_model'    => sanitize_text_field($in['fal_model'] ?? $d['fal_model']),
 		'prompt'       => sanitize_textarea_field($in['prompt'] ?? ''),
 		'prompt_stylized' => sanitize_textarea_field($in['prompt_stylized'] ?? ''),
+		'prompt_anime' => sanitize_textarea_field($in['prompt_anime'] ?? ''),
+		'style_anime' => empty($in['style_anime']) ? 0 : 1,
 		'per_ip_day'   => max(0, (int) ($in['per_ip_day'] ?? $d['per_ip_day'])),
 		'daily_cap'    => max(0, (int) ($in['daily_cap'] ?? $d['daily_cap'])),
 		'submit_per_ip' => max(0, (int) ($in['submit_per_ip'] ?? $d['submit_per_ip'])),
@@ -131,6 +150,9 @@ function flc_sanitize_settings($in) {
 	}
 	if ($out['prompt_stylized'] === flc_default_prompt_stylized()) {
 		$out['prompt_stylized'] = '';
+	}
+	if ($out['prompt_anime'] === flc_default_prompt_anime()) {
+		$out['prompt_anime'] = '';
 	}
 	// Le chiavi non vengono mai rimandate al browser: campo vuoto = mantieni quella salvata
 	foreach (array('gemini_key', 'fal_key') as $k) {
@@ -230,10 +252,14 @@ function flc_settings_page() {
 			</table>
 
 			<h2>Prompt</h2>
-			<p><strong>Fedele al soggetto</strong> (predefinito per il cliente): conversione di stile che blocca posa, espressione e composizione.</p>
+			<p><strong>Fedele</strong> (predefinito per il cliente): conversione di stile che blocca posa, espressione e composizione.</p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
-			<p><strong>Più stilizzato</strong>: semplifica di più, utile per sfondi, paesaggi e oggetti.</p>
+			<p><strong>Stilizzato</strong>: semplifica di più, utile per sfondi, paesaggi e oggetti.</p>
 			<textarea name="<?php echo esc_attr($opt); ?>[prompt_stylized]" rows="5" class="large-text code"><?php echo esc_textarea($s['prompt_stylized']); ?></textarea>
+			<p><strong>Anime</strong> (atmosfera da film d'animazione giapponese classico, resa a colori piatti stampabili)
+				<label style="margin-left:12px"><input type="checkbox" name="<?php echo esc_attr($opt); ?>[style_anime]" value="1" <?php checked($s['style_anime'], 1); ?>> mostra questa scelta ai clienti</label></p>
+			<textarea name="<?php echo esc_attr($opt); ?>[prompt_anime]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_anime']); ?></textarea>
+			<p class="description">Il prompt descrive lo stile senza nominare artisti o studi: alcuni modelli rifiutano i nomi, e non usarli evita problemi di marchio.</p>
 			<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nel prompt chiedi "no text". Per tornare al testo predefinito svuota il campo e salva.</p>
 
 			<h2>Limiti anti-abuso</h2>

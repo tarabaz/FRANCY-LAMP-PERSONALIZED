@@ -90,10 +90,11 @@ Le chiavi API restano sul server e non arrivano mai al browser. Le immagini non 
 | Google Gemini | `gemini-2.5-flash-image` | Free tier di AI Studio per i test |
 | fal.ai | `fal-ai/flux-pro/kontext`, `fal-ai/qwen-image-edit`, `fal-ai/bytedance/seedream/v4/edit` … | Un'unica chiave per tanti modelli |
 
-Il cliente sceglie tra **Fedele al soggetto** (predefinito: mantiene volto, occhi, sorriso, pettinatura) e
-**Più stilizzato** (forme più semplici, utile per sfondi e oggetti). I due prompt si modificano in
-Impostazioni → Francy Lamp; se il testo è quello predefinito non viene salvato, così gli aggiornamenti del
-plugin migliorano anche il tuo prompt.
+Il cliente sceglie tra tre stili: **Fedele** (predefinito: conversione di stile che blocca posa, espressione e
+composizione), **Stilizzato** (forme più semplici, utile per sfondi e oggetti) e **Anime** (atmosfera da film
+d'animazione giapponese classico, sempre a colori piatti stampabili; si spegne da Impostazioni). I tre prompt
+si modificano in Impostazioni → Francy Lamp; se il testo è quello predefinito non viene salvato, così gli
+aggiornamenti del plugin migliorano anche il tuo prompt.
 
 Se il principale dà errore si passa da soli al fornitore di riserva. Per aggiungere un fornitore:
 una funzione in `includes/providers.php` più una voce in `flc_providers()`.

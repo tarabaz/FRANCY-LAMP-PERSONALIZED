@@ -21,6 +21,7 @@ function flc_frontend_config() {
 		'filaments' => flc_filaments(),
 		'templates' => flc_templates_for_frontend(),
 		'homeUrl'   => home_url('/'),
+		'aiStyles'  => array_values(array_filter(array('fedele', 'stilizzato', !empty($s['style_anime']) ? 'anime' : ''))),
 		'privacyUrl' => esc_url_raw($s['privacy_url']),
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),
 		'copyrightName' => $s['copyright_name'],

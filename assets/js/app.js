@@ -175,6 +175,8 @@ function aiMessage(text, kind) {
 }
 
 let aiStyle = 'fedele';
+// stili disponibili decisi dall'admin (l'anime si può spegnere)
+if (Array.isArray(CFG.aiStyles)) document.querySelectorAll('#aiStyle button').forEach((b) => { b.hidden = !CFG.aiStyles.includes(b.dataset.style); });
 document.querySelectorAll('#aiStyle button').forEach((b) => b.addEventListener('click', () => {
   aiStyle = b.dataset.style;
   document.querySelectorAll('#aiStyle button').forEach((x) => x.classList.toggle('active', x === b));
