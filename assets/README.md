@@ -9,7 +9,7 @@ e scarica l'SVG per la stampa.
 ## Avvio in locale (senza WordPress)
 
 ```bash
-cd francy-lamp/assets
+cd assets
 python3 -m http.server 8765
 # poi apri http://localhost:8765
 ```
