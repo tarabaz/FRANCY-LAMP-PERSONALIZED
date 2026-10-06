@@ -2,6 +2,7 @@ import { FRAME, geometry, loadFont, buildFrame } from './frame.js';
 import { Preview3D } from './preview3d.js';
 import { stlFiles, stlReadme, zipAsync } from './export-stl.js';
 import { buildEps } from './export-eps.js';
+import { build3mf } from './export-3mf.js';
 
 const $ = (s) => document.querySelector(s);
 const root = $('#flc-root');
@@ -11,7 +12,7 @@ const CFG = window.FRANCY_LAMP || {
   restUrl: qp.get('ai') || '', statusUrl: qp.get('aistato') || '', submitUrl: qp.get('convalida') || '',
   nonce: '', isAdmin: true, filaments: [], templates: [], standalone: true,
 };
-const MAX_FILAMENTS = 12;
+const MAX_FILAMENTS = 13; // H2C: 1 bobina fissa sull'ugello 1 (bianco) + 3 AMS da 4 sull'ugello 2
 // Nero e bianco "di riferimento": con il catalogo diventano le bobine più vicine
 let BLACK = '#151515';
 let WHITE = '#ffffff';
@@ -354,8 +355,8 @@ function templateSvg() {
     `<image href="${state.template.dataUrl}" xlink:href="${state.template.dataUrl}" x="${-R}" y="${-R}" width="${2 * R}" height="${2 * R}" preserveAspectRatio="xMidYMid slice" clip-path="url(#flcTplClip)"/></svg>`;
 }
 
-// ---------------- regola dei 12 colori ----------------
-// Il limite è "al massimo 12": bianco della base e nero dei contorni contano sempre.
+// ---------------- regola dei 13 colori ----------------
+// Il limite è "al massimo 13" (H2C: bianco fisso su ugello 1 + 12 AMS): bianco della base e nero dei contorni contano sempre.
 // Fascia e scritte possono usare un colore già presente nel disegno (gratis) o uno nuovo se c'è posto.
 function drawingColors() {
   if (!state.result) return [];
@@ -424,11 +425,11 @@ function renderPickers() {
       b.addEventListener('click', () => setFrameColor(key, c));
       host.append(b);
     }
-    // colore nuovo: solo se aggiungerlo non supera i 12
+    // colore nuovo: solo se aggiungerlo non supera il limite
     const free = colorSet(key).size < MAX_FILAMENTS;
     const add = document.createElement('label');
     add.className = 'swatch-add' + (free ? '' : ' disabled');
-    add.title = free ? 'Scegli un colore nuovo' : 'Hai già 12 colori: scegli tra quelli del disegno';
+    add.title = free ? 'Scegli un colore nuovo' : `Hai già ${MAX_FILAMENTS} colori: scegli tra quelli del disegno`;
     if (state.filaments.length) {
       add.textContent = '+';
       add.dataset.popover = '1';
@@ -642,6 +643,13 @@ function svgToPng(lit, size = 1200) {
   });
 }
 const bytes = async (blob) => new Uint8Array(await blob.arrayBuffer());
+async function resizePng(blob, size) {
+  const bmp = await createImageBitmap(blob);
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  c.getContext('2d').drawImage(bmp, 0, 0, size, size);
+  return bytes(await new Promise((ok) => c.toBlob(ok, 'image/png')));
+}
 const enc = (s) => new TextEncoder().encode(s);
 
 // Elenco colori usati con ruolo, bobina e area: va nel riepilogo per l'admin
@@ -709,6 +717,22 @@ async function buildPackage(customer) {
   const stl = stlFiles(ps, { black: BLACK, white: WHITE, filamentName: (h) => (state.filaments.length ? nearestFilament(h).name : '') }, '04_stl/');
   files.push(...stl.files);
 
+  // progetto Bambu Studio con parti e filamenti già assegnati (profili dal progetto modello H2C)
+  let bambu = null;
+  try {
+    const tplUrl = CFG.bambuTemplateUrl || new URL('../bambu/h2c-template.json', import.meta.url).href;
+    const template = await (await fetch(tplUrl, { credentials: 'same-origin' })).json();
+    const thumb = await resizePng(previewOff, 512), thumbSmall = await resizePng(previewOff, 128);
+    bambu = await build3mf(ps, {
+      template, white: WHITE, black: BLACK, title: 'Disco lampada FrancyStore3D',
+      filamentName: (h) => (state.filaments.length ? nearestFilament(h).name : ''),
+      baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness, thumb, thumbSmall,
+    });
+    files.push({ name: '05_bambu/disco-lampada.3mf', data: await bytes(bambu.blob) });
+  } catch (err) {
+    console.error('3MF non creato', err); // lo zip resta valido anche senza
+  }
+
   const colors = colorSummary(ps);
   const summary = {
     creato: new Date().toISOString(),
@@ -727,7 +751,8 @@ async function buildPackage(customer) {
     'FILAMENTI DA USARE', ...colors.map((e) => `- ${e.hex}  ${e.filament || '(nessun catalogo)'}  →  ${e.roles.join(', ')}${e.area ? `  (${e.area} mm² nel disegno)` : ''}`), '',
     ...stlReadme({ baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness }),
     ...stl.list.map((l) => `  ${l.file}  ${l.color}${l.filament ? '  ' + l.filament : ''}`), '',
-    'Cartelle: 01_anteprime, 02_immagini (originale, eventuale ridisegno IA, ritaglio usato), 03_vettoriale (SVG, EPS), 04_stl.',
+    ...(bambu ? ['PROGETTO BAMBU STUDIO (05_bambu/disco-lampada.3mf)', 'Apri il file con Bambu Studio: parti, colori degli slot e ugelli sono già assegnati.', ...bambu.list.map((l) => `  filamento ${l.filament}${l.filament === 1 ? ' (ugello 1, bobina fissa)' : ' (ugello 2, AMS)'}: ${l.part}`), ''] : []),
+    'Cartelle: 01_anteprime, 02_immagini (originale, eventuale ridisegno IA, ritaglio usato), 03_vettoriale (SVG, EPS), 04_stl, 05_bambu (progetto .3mf).',
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '');
   files.push({ name: 'LEGGIMI-filamenti.txt', data: enc(lines.join('\r\n') + '\r\n') });
   files.push({ name: 'riepilogo.json', data: enc(JSON.stringify(summary, null, 2)) });

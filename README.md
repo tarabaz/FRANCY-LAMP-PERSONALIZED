@@ -52,6 +52,9 @@ senza spendere ridisegni. Si nasconde da Impostazioni → Prompt. File pubblici 
    - `02_immagini/` originale caricato, eventuale ridisegno IA, ritaglio usato
    - `03_vettoriale/` `disco.svg` e `disco.eps` (modificabili a mano)
    - `04_stl/` un STL per colore, stessa origine, col nome della bobina nel file
+   - `05_bambu/disco-lampada.3mf` progetto Bambu Studio per H2C: parti già separate e filamenti già
+     assegnati (filamento 1 = bianco sulla bobina fissa dell'ugello 1, gli altri sull'ugello 2 con gli AMS).
+     Le impostazioni di stampa vengono dal tuo progetto di riferimento (`assets/bambu/h2c-template.json`).
    - `LEGGIMI-filamenti.txt` e `riepilogo.json`: bobine da montare, ruolo di ogni colore, area
 3. In **Francy Lamp Factory → Progetti** compare la voce con codice (es. `FL-2026-0001`), anteprima, cliente,
    filamenti, stato (Nuovo / In lavorazione / Stampato / Consegnato / Annullato) e il pulsante **Scarica zip**.

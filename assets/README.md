@@ -2,7 +2,7 @@
 
 Pagina statica che gira tutta nel browser: la foto del cliente non viene mai salvata sul server
 (passa dal server solo se il cliente usa il ridisegno IA, e anche lì non viene salvata).
-Il cliente carica l'immagine e ottiene il disco Ø200 mm ridotto a max 12 colori pieni e
+Il cliente carica l'immagine e ottiene il disco Ø200 mm ridotto a max 13 colori pieni e
 vettorializzato, con cornice fissa e scritte sulla fascia. Vede l'anteprima 2D/3D spenta e accesa
 e scarica l'SVG per la stampa.
 

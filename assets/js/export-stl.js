@@ -31,7 +31,7 @@ export function cleanShapes(shapes, divisions = 16) {
 }
 
 // parts: [{ id, d, color, z, depth, black, layer }] -> Map colore -> Float32Array triangoli
-function partsToTriangles(parts) {
+export function partsToTriangles(parts) {
   const loader = new SVGLoader();
   const byColor = new Map();
   for (const p of parts) {
