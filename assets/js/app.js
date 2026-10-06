@@ -422,6 +422,9 @@ function renderPickers() {
       b.className = 'swatch' + (c === current ? ' active' : '');
       b.style.background = c;
       b.title = (CFG.isAdmin && filamentName(c)) || c;
+      // scritte e fascia mai dello stesso colore: le scritte sparirebbero
+      const other = (key === 'band' ? state.textColor : state.bandColor).toLowerCase();
+      if (c === other && c !== current) { b.disabled = true; b.title = key === 'band' ? 'È il colore delle scritte' : 'È il colore della fascia'; }
       b.addEventListener('click', () => setFrameColor(key, c));
       host.append(b);
     }
@@ -433,7 +436,7 @@ function renderPickers() {
     if (state.filaments.length) {
       add.textContent = '+';
       add.dataset.popover = '1';
-      if (free) add.addEventListener('click', () => openFilamentPopover(add, (hex) => setFrameColor(key, hex), () => true));
+      if (free) add.addEventListener('click', () => openFilamentPopover(add, (hex) => setFrameColor(key, hex), (hex) => hex !== (key === 'band' ? state.textColor : state.bandColor).toLowerCase()));
     } else {
       add.innerHTML = '+<input type="color">';
       const inp = add.querySelector('input');
@@ -448,6 +451,7 @@ function renderPickers() {
 function setFrameColor(key, c) {
   c = c.toLowerCase();
   if (!colorSet(key).has(c) && colorSet(key).size >= MAX_FILAMENTS) return;
+  if (c === (key === 'band' ? state.textColor : state.bandColor).toLowerCase()) return;
   if (key === 'band') state.bandColor = c; else state.textColor = c;
   updateColorLimit();
   render();
@@ -506,13 +510,55 @@ function setStatus(t) { $('#status').textContent = t || (state.result ? 'Pronto'
 
 // ---------------- palette ----------------
 function artColor(i) {
-  const p = state.result.palette[i];
   if (state.colorOverrides[i]) return state.colorOverrides[i].toLowerCase();
-  if (p.black) return BLACK;
-  const hex = rgbToHex(p);
-  if (isNearWhite(hex)) return WHITE; // i bianchi del disegno usano lo stesso filamento della base
-  // con il catalogo il colore diventa quello della bobina più vicina
-  return state.filaments.length ? nearestFilament(hex).hex : hex;
+  return autoColors()[i];
+}
+
+// Colori automatici del disegno. Due colori diversi trovati nell'immagine non diventano mai la stessa
+// bobina (altrimenti le zone attaccate si fondono e lo stacco sparisce): ogni colore prende la bobina
+// più vicina ancora libera. Il nero resta dei contorni, il bianco al solo colore più chiaro del disegno.
+let autoCache = null;
+function autoColors() {
+  const r = state.result, ov = JSON.stringify(state.colorOverrides);
+  if (autoCache && autoCache.r === r && autoCache.f === state.filaments && autoCache.ov === ov && autoCache.k === BLACK + WHITE) return autoCache.list;
+  const pal = r.palette, out = new Array(pal.length).fill(null);
+  const used = new Set([BLACK, WHITE]);
+  for (const k in state.colorOverrides) used.add(state.colorOverrides[k].toLowerCase());
+  pal.forEach((p, i) => { if (p.black) out[i] = BLACK; });
+  // il colore quasi bianco più chiaro usa la stessa bobina della base
+  let wi = -1, wl = -1;
+  pal.forEach((p, i) => {
+    if (out[i] || state.colorOverrides[i]) return;
+    const hex = rgbToHex(p), L = hexToLab(hex)[0];
+    if (isNearWhite(hex) && L > wl) { wl = L; wi = i; }
+  });
+  if (wi >= 0) out[wi] = WHITE;
+  const todo = pal.map((p, i) => i).filter((i) => !out[i] && !state.colorOverrides[i]);
+  if (!state.filaments.length) {
+    for (const i of todo) out[i] = rgbToHex(pal[i]);
+  } else {
+    // abbinamento colore → bobina: prima le coppie più vicine, ogni bobina una sola volta
+    const pairs = [];
+    for (const i of todo) {
+      const lab = hexToLab(rgbToHex(pal[i]));
+      for (const f of state.filaments) {
+        pairs.push([(f.lab[0] - lab[0]) ** 2 + (f.lab[1] - lab[1]) ** 2 + (f.lab[2] - lab[2]) ** 2, i, f.hex]);
+      }
+    }
+    pairs.sort((a, b) => a[0] - b[0]);
+    for (const [, i, hex] of pairs) {
+      if (out[i] || used.has(hex)) continue;
+      out[i] = hex; used.add(hex);
+    }
+    // catalogo troppo piccolo: per i colori rimasti si torna alla bobina più vicina
+    for (const i of todo) if (!out[i]) out[i] = nearestFilament(rgbToHex(pal[i])).hex;
+  }
+  autoCache = { r, f: state.filaments, ov, k: BLACK + WHITE, list: out };
+  return out;
+}
+// colori già usati dalle altre zone del disegno (per non sceglierne uno uguale)
+function otherDrawingColors(i) {
+  return new Set(state.result.palette.map((_, j) => (j === i ? null : artColor(j))).filter(Boolean));
 }
 
 function renderPalette() {
@@ -529,7 +575,7 @@ function renderPalette() {
       ctrl.dataset.popover = '1';
       ctrl.style.background = artColor(i);
       ctrl.addEventListener('click', () => openFilamentPopover(ctrl, (hex) => { state.colorOverrides[i] = hex; renderPalette(); render(); },
-        (hex) => colorSet().has(hex) || colorSet().size < MAX_FILAMENTS));
+        (hex) => !otherDrawingColors(i).has(hex) && (colorSet().has(hex) || colorSet().size < MAX_FILAMENTS)));
     } else {
       ctrl = document.createElement('input');
       ctrl.type = 'color'; ctrl.value = artColor(i);
