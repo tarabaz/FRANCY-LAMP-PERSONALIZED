@@ -120,6 +120,13 @@ async function loadQuota() {
   } catch (e) { /* il contatore è solo informativo */ }
 }
 
+function aiMessage(text, kind) {
+  const el = $('#aiMsg');
+  el.hidden = !text;
+  el.textContent = text || '';
+  el.className = 'ai-msg' + (kind ? ' ' + kind : '');
+}
+
 function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).click(); }
 
 $('#aiBtn').addEventListener('click', async () => {
@@ -133,6 +140,9 @@ $('#aiBtn').addEventListener('click', async () => {
   const image = c.toDataURL('image/jpeg', 0.9);
 
   $('#aiBox').classList.add('busy');
+  const btnLabel = $('#aiBtn').textContent;
+  $('#aiBtn').textContent = '⏳ Ridisegno in corso… (10–30 s)';
+  aiMessage('');
   setStatus("L'IA sta ridisegnando la tua immagine (di solito 10–30 secondi)…");
   try {
     const r = await fetch(AI.restUrl, {
@@ -141,20 +151,27 @@ $('#aiBtn').addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json', ...(AI.nonce ? { 'X-WP-Nonce': AI.nonce } : {}) },
       body: JSON.stringify({ image }),
     });
-    const j = await r.json().catch(() => ({}));
+    const raw = await r.text();
+    let j = {};
+    try { j = JSON.parse(raw); } catch (e) { /* risposta non JSON: errore del server o timeout dell'hosting */ }
     showQuota(j.quota || (j.data && j.data.quota));
-    if (!r.ok || !j.image) throw new Error(j.message || 'Il ridisegno non è riuscito, riprova tra poco.');
+    if (!r.ok || !j.image) {
+      throw new Error(j.message || `Il ridisegno non è riuscito (risposta del server: HTTP ${r.status}${raw && !j.message ? ' – ' + raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) : ''}).`);
+    }
     const img = new Image();
     await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = j.image; });
     if (!originalImg) originalImg = { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy, mode: state.mode };
     $('#aiUndo').hidden = false;
     selectMode('keep');
     setImage(img, 1, 0, 0);
+    aiMessage(`Ridisegno fatto${j.provider ? ' con ' + j.provider : ''}: ora il disco parte dall'immagine dell'IA.`, 'ok');
   } catch (err) {
     console.error(err);
     setStatus(err.message);
+    aiMessage(err.message, 'error');
   } finally {
     $('#aiBox').classList.remove('busy');
+    $('#aiBtn').textContent = btnLabel;
   }
 });
 

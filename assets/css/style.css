@@ -142,3 +142,7 @@ html.flc-page .flc { height: 100%; }
 
 .flc .ai-box .quota { margin: 6px 0 0; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .flc .ai-box .quota.empty { color: #c0392b; }
+
+.flc .ai-box .ai-msg { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.4; word-break: break-word; }
+.flc .ai-box .ai-msg.error { background: #fdecea; color: #a12a1f; }
+.flc .ai-box .ai-msg.ok { background: #e8f5e9; color: #1e6b2a; }

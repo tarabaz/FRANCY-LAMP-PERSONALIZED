@@ -80,6 +80,11 @@ function flc_rest_redraw(WP_REST_Request $req) {
 		return new WP_Error('flc_bad', 'Immagine non valida o troppo grande.', array('status' => 400));
 	}
 
+	// Le IA ci mettono 10–60 s: sugli hosting con limite PHP a 30 s la richiesta verrebbe troncata
+	if (function_exists('set_time_limit')) {
+		@set_time_limit(180);
+	}
+
 	// Il tentativo conta anche se poi fallisce (evita raffiche di richieste)
 	set_transient($key, $used + 1, DAY_IN_SECONDS);
 
