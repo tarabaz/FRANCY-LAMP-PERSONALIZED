@@ -43,8 +43,27 @@ function convert(rgba, size, ppmm, opts, progress) {
   }
   const outlines = opts.mode === 'outline';
   // In modalità "contorni automatici" il nero è un colore in più, quindi k = N-1
-  const k = Math.max(1, outlines ? opts.colors - 1 : opts.colors);
+  let k = Math.max(1, outlines ? opts.colors - 1 : opts.colors);
   let centers = kmeans(lab, inside, n, k, opts.seed || 1);
+
+  // Bianchi protetti: denti e bianco degli occhi sono zone piccole e il k-means li unisce alla pelle
+  // chiara (diventano rosa). Se nell'immagine c'è del bianco, aggiungo un bianco puro: non costa un
+  // filamento in più perché è la stessa bobina della base.
+  // un cluster biancastro (bianco sporcato dai bordi o un po' rosato) diventa bianco puro
+  let whiteIdx = -1;
+  centers.forEach((c, i) => {
+    if (c[0] > 80 && Math.hypot(c[1], c[2]) < 14 && (whiteIdx < 0 || c[0] > centers[whiteIdx][0])) whiteIdx = i;
+  });
+  if (whiteIdx >= 0) centers[whiteIdx] = [98, 0, 0];
+  else {
+    let tot = 0, wcount = 0;
+    for (let i = 0; i < n; i++) {
+      if (!inside[i]) continue;
+      tot++;
+      if (lab[i * 3] > 80 && Math.hypot(lab[i * 3 + 1], lab[i * 3 + 2]) < 16) wcount++;
+    }
+    if (wcount > tot * 0.0004) { centers.push([98, 0, 0]); whiteIdx = centers.length - 1; k = centers.length; }
+  }
 
   let labels = new Uint8Array(n).fill(NONE);
   assign(lab, inside, labels, centers);
@@ -61,7 +80,7 @@ function convert(rgba, size, ppmm, opts, progress) {
 
   if (outlines) {
     // Aree piccole -> assorbite dal vicino, poi linee nere tra le zone
-    mergeSmallRegions(labels, size, minAreaPx, k);
+    mergeSmallRegions(labels, size, minAreaPx, k, whiteIdx);
     blackIdx = k;
     palette.push({ r: 20, g: 20, b: 20 });
     progress('Contorni neri');
@@ -77,7 +96,7 @@ function convert(rgba, size, ppmm, opts, progress) {
       for (let i = 0; i < labels.length; i++) if (labels[i] !== NONE && centers[labels[i]][0] < 22) labels[i] = blackIdx;
       if (opts.thickenMm > 0) dilateLabel(labels, inside, size, blackIdx, opts.thickenMm * ppmm);
     }
-    mergeSmallRegions(labels, size, minAreaPx, palette.length);
+    mergeSmallRegions(labels, size, minAreaPx, palette.length, whiteIdx);
     // Immagini senza contorni (o con contorni solo su una parte): aggiungo il nero tra le zone colorate
     // che non ne hanno già, senza toccare quelli esistenti
     if (opts.addOutlines) {
@@ -91,7 +110,7 @@ function convert(rgba, size, ppmm, opts, progress) {
   if (blackIdx >= 0) {
     progress('Spessori minimi');
     openColored(labels, inside, size, blackIdx, (opts.minFeatureMm * ppmm) / 2);
-    killSmallColored(labels, size, minAreaPx, blackIdx);
+    killSmallColored(labels, size, minAreaPx, blackIdx, whiteIdx);
   }
 
   // Compatta la palette togliendo colori spariti
@@ -99,7 +118,7 @@ function convert(rgba, size, ppmm, opts, progress) {
   for (let i = 0; i < n; i++) if (labels[i] !== NONE) counts[labels[i]]++;
   const remap = new Uint8Array(256).fill(NONE);
   const newPal = [];
-  palette.forEach((p, i) => { if (counts[i] > 0) { remap[i] = newPal.length; newPal.push({ ...p, area: counts[i] / (ppmm * ppmm), black: i === blackIdx }); } });
+  palette.forEach((p, i) => { if (counts[i] > 0) { remap[i] = newPal.length; newPal.push({ ...p, area: counts[i] / (ppmm * ppmm), black: i === blackIdx, white: i === whiteIdx }); } });
   for (let i = 0; i < n; i++) labels[i] = remap[labels[i]];
   palette = newPal;
 
@@ -300,10 +319,11 @@ function components(labels, size) {
 }
 
 // Le regioni sotto soglia prendono il colore del vicino con cui confinano di più
-function mergeSmallRegions(labels, size, minArea, k) {
+// (le zone bianche – denti, occhi – restano anche se piccole: soglia a un quarto)
+function mergeSmallRegions(labels, size, minArea, k, whiteIdx = -1) {
   for (let pass = 0; pass < 3; pass++) {
     const { comp, comps } = components(labels, size);
-    const small = comps.map((c) => c.area < minArea);
+    const small = comps.map((c) => c.area < (c.label === whiteIdx ? minArea / 4 : minArea));
     if (!small.some(Boolean)) return;
     const votes = new Map();
     const n = labels.length;
@@ -391,11 +411,11 @@ function openColored(labels, inside, size, blackIdx, r) {
   for (let i = 0; i < n; i++) if (!isBlack[i] && d2[i] > r + 0.5 && inside[i]) labels[i] = blackIdx;
 }
 
-function killSmallColored(labels, size, minArea, blackIdx) {
+function killSmallColored(labels, size, minArea, blackIdx, whiteIdx = -1) {
   const { comp, comps } = components(labels, size);
   for (let i = 0; i < labels.length; i++) {
     const c = comp[i];
-    if (c >= 0 && labels[i] !== blackIdx && comps[c].area < minArea) labels[i] = blackIdx;
+    if (c >= 0 && labels[i] !== blackIdx && comps[c].area < (labels[i] === whiteIdx ? minArea / 4 : minArea)) labels[i] = blackIdx;
   }
 }
 

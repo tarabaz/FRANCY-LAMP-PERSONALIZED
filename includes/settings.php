@@ -15,6 +15,7 @@ function flc_default_prompt() {
 		. 'the framing or the cropping: anything cut off by the image edge stays cut off. '
 		. 'Do NOT redraw the subject from memory or from your knowledge of the character, and do not make it more generic, symmetrical or front-facing. '
 		. 'Keep identifiable details: for a person the exact face shape, eyes, eyebrows, nose, mouth, smile, hairstyle, hair and skin color; for a character its exact expression, teeth, eyes and markings as shown. '
+		. 'Teeth and the whites of the eyes must be pure white, never pink or skin colored. '
 		. 'Rendering: flat solid colors, at most two tones per area (base color plus one simple shadow tone), thick uniform black outlines around every shape, '
 		. 'no gradients, no glow, no blur, no textures, no text, no letters, no frame or border. '
 		. 'Reduce the many colors of the original to a small bold palette that matches the original hues, and merge tiny details and busy background texture into a few large flat shapes. '
@@ -35,6 +36,7 @@ function flc_default_prompt_vetrata() {
 		. 'Build the whole picture from pieces of colored glass separated by thick black lines of uniform width, like the lead lines of a real stained glass window. '
 		. 'The subject is made of large glass pieces that follow its shapes. The background is made of clean geometric glass pieces: straight-edged polygons, triangles and long shards radiating outward from the subject. '
 		. 'No flowers, no leaves, no petals, no vines, no floral or plant ornaments. '
+		. 'Teeth and the whites of the eyes must be pure white, never pink or skin colored. '
 		. 'Every glass piece is one flat solid color with no shading and no texture. Rich jewel colors matching the original, at most 10 colors. '
 		. 'Pieces must be large, no tiny fragments. No text, no frame. Fill the whole square canvas; it will be cropped to a circle.';
 }
@@ -77,6 +79,7 @@ function flc_default_prompt_anime() {
 		. 'vivid saturated colors (deep blue sky, warm sunset orange and pink, bright highlights), cinematic and emotional mood. '
 		. 'Keep the same subject, pose, composition and recognisable features (for a person: face shape, eyes, eyebrows, smile, hairstyle, hair and skin color, expression; '
 		. 'for an animal or character: its markings, colors and expression). '
+		. 'Teeth and the whites of the eyes must be pure white, never pink or skin colored. '
 		. 'IMPORTANT, this will be 3D printed in flat colors: translate that look into flat solid cel-shaded colors ONLY (at most 10 colors, at most two tones per area), '
 		. 'clean thick uniform black outlines around every shape, no gradients, no lens flare, no glow, no light rays, no blur, no film grain. '
 		. 'Simplify the background into a few large flat shapes (for example a stylised sky with a few bold clouds). No text, no letters, no frame or border. '

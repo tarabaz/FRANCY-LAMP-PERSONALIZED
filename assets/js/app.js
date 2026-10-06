@@ -537,8 +537,8 @@ function autoColors() {
   const used = new Set([BLACK, WHITE]);
   for (const k in state.colorOverrides) used.add(state.colorOverrides[k].toLowerCase());
   pal.forEach((p, i) => { if (p.black) out[i] = BLACK; });
-  // il colore quasi bianco più chiaro usa la stessa bobina della base
-  let wi = -1, wl = -1;
+  // il bianco protetto (denti, occhi) usa sempre la bobina della base
+  let wi = pal.findIndex((p, i) => p.white && !state.colorOverrides[i]), wl = wi >= 0 ? Infinity : -1;
   pal.forEach((p, i) => {
     if (out[i] || state.colorOverrides[i]) return;
     const hex = rgbToHex(p), L = hexToLab(hex)[0];
