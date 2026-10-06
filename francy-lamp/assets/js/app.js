@@ -2,6 +2,7 @@ import { FRAME, geometry, loadFont, buildFrame } from './frame.js';
 import { Preview3D } from './preview3d.js';
 
 const $ = (s) => document.querySelector(s);
+const root = $('#flc-root');
 const BLACK = '#151515';
 const MAX_FILAMENTS = 12;
 
@@ -79,13 +80,70 @@ $('#file').addEventListener('change', (e) => {
 
 function loadImage(src, zoom = 1) {
   const img = new Image();
-  img.onload = () => {
-    state.img = img; state.zoom = zoom; state.ox = 0; state.oy = 0;
-    $('#zoom').value = zoom;
-    drawCrop(); run();
-  };
+  img.onload = () => { originalImg = null; $('#aiUndo').hidden = true; setImage(img, zoom, 0, 0); };
   img.src = src;
 }
+
+function setImage(img, zoom, ox, oy) {
+  state.img = img; state.zoom = zoom; state.ox = ox; state.oy = oy;
+  $('#zoom').value = zoom;
+  $('#aiBtn').disabled = false;
+  drawCrop(); run();
+}
+
+// ---------------- ridisegno con IA (passa dal plugin WordPress) ----------------
+// window.FRANCY_LAMP = { restUrl, nonce } viene stampato dallo shortcode del plugin.
+const qpAi = new URLSearchParams(location.search).get('ai'); // solo per test in locale
+const AI = window.FRANCY_LAMP || (qpAi ? { restUrl: qpAi, nonce: '' } : null);
+let originalImg = null;
+if (AI && AI.restUrl) $('#aiBox').hidden = false;
+
+function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).click(); }
+
+$('#aiBtn').addEventListener('click', async () => {
+  if (!state.img || $('#aiBox').classList.contains('busy')) return;
+  // Mando all'IA solo il ritaglio quadrato attuale, ridotto a 1024 px
+  const c = document.createElement('canvas');
+  c.width = c.height = 1024;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1024, 1024);
+  drawImageTo(ctx, 1024);
+  const image = c.toDataURL('image/jpeg', 0.9);
+
+  $('#aiBox').classList.add('busy');
+  setStatus("L'IA sta ridisegnando la tua immagine (di solito 10–30 secondi)…");
+  try {
+    const r = await fetch(AI.restUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', ...(AI.nonce ? { 'X-WP-Nonce': AI.nonce } : {}) },
+      body: JSON.stringify({ image }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.image) throw new Error(j.message || 'Il ridisegno non è riuscito, riprova tra poco.');
+    const img = new Image();
+    await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = j.image; });
+    if (!originalImg) originalImg = { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy, mode: state.mode };
+    $('#aiUndo').hidden = false;
+    if (typeof j.remaining === 'number') $('#aiHint').textContent = `Ridisegni rimasti oggi: ${j.remaining}`;
+    selectMode('keep');
+    setImage(img, 1, 0, 0);
+  } catch (err) {
+    console.error(err);
+    setStatus(err.message);
+  } finally {
+    $('#aiBox').classList.remove('busy');
+  }
+});
+
+$('#aiUndo').addEventListener('click', () => {
+  if (!originalImg) return;
+  const o = originalImg;
+  originalImg = null;
+  $('#aiUndo').hidden = true;
+  selectMode(o.mode);
+  setImage(o.img, o.zoom, o.ox, o.oy);
+});
 
 // ---------------- controlli ----------------
 const sliders = { colors: 'colorsOut', line: 'lineOut', thick: 'thickOut', smooth: 'smoothOut', feat: 'featOut', area: 'areaOut', ppmm: 'ppmmOut' };
@@ -106,7 +164,7 @@ $('#reseed').addEventListener('click', () => { state.seed++; run(); });
 document.querySelectorAll('.lit-toggle button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.lit-toggle button').forEach((x) => x.classList.toggle('active', x === b));
   state.lit = b.dataset.lit === '1';
-  document.body.classList.toggle('lit', state.lit);
+  root.classList.toggle('lit', state.lit);
   if (preview3d) preview3d.setLit(state.lit);
 }));
 

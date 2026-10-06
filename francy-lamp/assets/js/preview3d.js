@@ -1,5 +1,5 @@
 // Anteprima 3D: disco estruso dalle parti SVG + base segnaposto (da sostituire con i modelli reali).
-import * as THREE from 'three';
+import * as THREE from '../vendor/three/three.module.js';
 import { SVGLoader } from '../vendor/three/addons/SVGLoader.js';
 import { OrbitControls } from '../vendor/three/addons/OrbitControls.js';
 

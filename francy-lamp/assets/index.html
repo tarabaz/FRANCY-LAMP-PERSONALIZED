@@ -1,15 +1,14 @@
 <!doctype html>
-<html lang="it">
+<html lang="it" class="flc-page">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Configuratore Lampada – FrancyStore3D</title>
   <link rel="stylesheet" href="css/style.css">
-  <script type="importmap">
-    { "imports": { "three": "./vendor/three/three.module.js" } }
-  </script>
 </head>
 <body>
+<!-- FLC:START -->
+<div class="flc" id="flc-root">
   <header class="top">
     <div class="brand">FrancyStore3D <span>· Configuratore lampada</span></div>
     <div class="lit-toggle" role="group" aria-label="Stato lampada">
@@ -31,6 +30,11 @@
           <p class="hint" id="cropHint">Trascina per spostare, rotellina o cursore per lo zoom</p>
         </div>
         <label class="row">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+        <div class="ai-box" id="aiBox" hidden>
+          <button id="aiBtn" disabled>✨ Ridisegna in stile tombino</button>
+          <button id="aiUndo" class="ghost" hidden>Torna all'immagine originale</button>
+          <p class="hint" id="aiHint">L'IA ridisegna la tua immagine con colori piatti e contorni neri.</p>
+        </div>
       </section>
 
       <section>
@@ -97,6 +101,8 @@
     </aside>
   </main>
 
+</div>
+<!-- FLC:END -->
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

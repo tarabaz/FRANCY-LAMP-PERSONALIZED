@@ -1,0 +1,127 @@
+.flc [hidden] { display: none !important; }
+.flc {
+  --bg: #f4f2ee;
+  --panel: #ffffff;
+  --ink: #1d1b19;
+  --muted: #6f6a63;
+  --line: #e4e0d9;
+  --accent: #f2b705;
+  --accent-ink: #1d1b19;
+  --stage: #e9e6e0;
+  --stage-lit: #15171c;
+  --radius: 12px;
+}
+/* Pagina autonoma (index.html) */
+html.flc-page, html.flc-page body { margin: 0; height: 100%; }
+html.flc-page .flc { height: 100%; }
+/* Dentro WordPress */
+.flc.flc-embedded { height: min(920px, 94vh); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+
+.flc, .flc * { box-sizing: border-box; }
+.flc {
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex; flex-direction: column;
+}
+.flc button, .flc input { font: inherit; color: inherit; }
+
+.flc .top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px; border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.flc .brand { font-weight: 800; font-size: 16px; }
+.flc .brand span { font-weight: 400; color: var(--muted); }
+
+.flc .lit-toggle, .flc .tabs { display: inline-flex; background: var(--bg); border-radius: 999px; padding: 3px; gap: 2px; }
+.flc .lit-toggle button, .flc .tabs button {
+  border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--muted);
+}
+.flc .lit-toggle button.active, .flc .tabs button.active { background: var(--ink); color: #fff; }
+
+.flc .layout {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 330px 1fr 280px; gap: 0;
+}
+.flc .panel { background: var(--panel); overflow: auto; padding: 6px 16px 20px; border-right: 1px solid var(--line); }
+.flc .panel.right { border-right: 0; border-left: 1px solid var(--line); }
+.flc section + section { border-top: 1px solid var(--line); }
+.flc section { padding: 12px 0; }
+.flc h2 { font-size: 14px; margin: 4px 0 10px; display: flex; align-items: center; gap: 8px; }
+.flc h2 span {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+  display: inline-grid; place-items: center; font-size: 12px;
+}
+.flc .hint { color: var(--muted); font-size: 12px; margin: 6px 0; }
+
+.flc .upload { display: block; cursor: pointer; }
+.flc .upload input { display: none; }
+.flc .upload span {
+  display: block; text-align: center; padding: 10px; border: 1.5px dashed var(--line); border-radius: var(--radius);
+  font-weight: 600;
+}
+.flc .upload:hover span { border-color: var(--accent); }
+
+.flc .crop-wrap { margin-top: 10px; text-align: center; }
+.flc #crop { width: 100%; max-width: 300px; aspect-ratio: 1; border-radius: var(--radius); background: #ddd; cursor: grab; touch-action: none; }
+.flc #crop:active { cursor: grabbing; }
+
+.flc .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; margin: 10px 0; }
+.flc .row input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--ink); }
+.flc .row output { font-variant-numeric: tabular-nums; color: var(--muted); }
+.flc .row input[type=color] { width: 44px; height: 28px; border: 1px solid var(--line); border-radius: 6px; padding: 0; background: none; }
+
+.flc .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.flc .seg button {
+  border: 1.5px solid var(--line); background: var(--panel); border-radius: 10px; padding: 8px; cursor: pointer;
+  font-weight: 600; text-align: left;
+}
+.flc .seg button small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.flc .seg button.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+
+.flc details summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
+.flc .texts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.flc .texts input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+
+.flc button#dlSvg, .flc button#dlPng, .flc button.ghost {
+  display: block; width: 100%; margin: 6px 0; padding: 10px; border-radius: 10px; cursor: pointer;
+  border: 0; background: var(--ink); color: #fff; font-weight: 600;
+}
+.flc button.ghost, .flc button#dlPng { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.flc button:disabled { opacity: .4; cursor: not-allowed; }
+
+.flc .stage { display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 14px; background: var(--stage); transition: background .3s; }
+.flc.lit .stage { background: var(--stage-lit); }
+.flc .view { flex: 1; width: 100%; min-height: 0; display: grid; place-items: center; }
+.flc #svgHost { width: min(100%, 70vh); aspect-ratio: 1; }
+.flc #svgHost svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 6px 14px rgba(0,0,0,.25)); transition: filter .3s; }
+.flc.lit #svgHost svg { filter: brightness(1.12) saturate(1.25) drop-shadow(0 0 22px rgba(255,236,190,.35)); }
+.flc #view3d canvas { width: 100% !important; height: 100% !important; display: block; border-radius: var(--radius); }
+.flc .status { color: var(--muted); font-size: 12px; padding-top: 8px; min-height: 20px; }
+.flc.lit .status { color: #aaa; }
+
+.flc .palette { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.flc .palette li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; }
+.flc .palette input[type=color] { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 0; cursor: pointer; }
+.flc .palette .area { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.flc .count { font-weight: 600; }
+
+@media (max-width: 980px) {
+.flc .layout { grid-template-columns: 1fr; }
+.flc .stage { order: -1; min-height: 70vh; }
+.flc .panel { border: 0; }
+}
+@media (max-width: 980px) {
+  .flc.flc-embedded { height: auto; }
+  .flc .panel { overflow: visible; }
+}
+
+/* Ridisegno con IA */
+.flc .ai-box { margin-top: 10px; padding: 10px; border-radius: var(--radius); background: var(--bg); }
+.flc .ai-box button {
+  display: block; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer; font-weight: 700;
+  border: 0; background: var(--accent); color: var(--accent-ink);
+}
+.flc .ai-box button.ghost { margin-top: 6px; background: transparent; color: var(--ink); border: 1.5px solid var(--line); font-weight: 600; }
+.flc .ai-box .hint { margin: 6px 0 0; }
+.flc .ai-box.busy button#aiBtn { opacity: .6; cursor: progress; }

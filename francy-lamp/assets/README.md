@@ -1,14 +1,15 @@
 # Configuratore lampada – prototipo
 
-Pagina statica che gira tutta nel browser: la foto del cliente non viene mai caricata sul server.
+Pagina statica che gira tutta nel browser: la foto del cliente non viene mai salvata sul server
+(passa dal server solo se il cliente usa il ridisegno IA, e anche lì non viene salvata).
 Il cliente carica l'immagine e ottiene il disco Ø200 mm ridotto a max 12 colori pieni e
 vettorializzato, con cornice fissa e scritte sulla fascia. Vede l'anteprima 2D/3D spenta e accesa
 e scarica l'SVG per la stampa.
 
-## Avvio in locale
+## Avvio in locale (senza WordPress)
 
 ```bash
-cd configurator
+cd francy-lamp/assets
 python3 -m http.server 8765
 # poi apri http://localhost:8765
 ```
@@ -52,4 +53,4 @@ In `js/frame.js` → `FRAME`.
 - `vendor/` – imagetracerjs (Unlicense), opentype.js (MIT), three.js (MIT)
 - `fonts/` – M PLUS Rounded 1c (SIL OFL)
 
-Parametri utili per i test: `?img=percorso.jpg&zoom=1.4&mode=keep`.
+Parametri utili per i test: `?img=percorso.jpg&zoom=1.4&mode=keep&ai=/url-endpoint-finto`.
