@@ -28,7 +28,7 @@ function flc_http_error($res, $who) {
 			$msg = wp_json_encode($msg);
 		}
 	}
-	return new WP_Error('flc_http', sprintf('%s: HTTP %d %s', $who, $code, substr((string) $msg, 0, 300)));
+	return new WP_Error('flc_http', sprintf('%s: HTTP %d %s', $who, $code, substr((string) $msg, 0, 1200)));
 }
 
 // --- Google Gemini (API generateContent con immagine in input e in output) ---
