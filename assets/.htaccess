@@ -4,3 +4,9 @@
 		Header set Cache-Control "no-cache"
 	</FilesMatch>
 </IfModule>
+
+# Riconoscimento del volto: il motore WebAssembly deve arrivare col tipo giusto
+<IfModule mod_mime.c>
+	AddType application/wasm .wasm
+	AddType application/octet-stream .task
+</IfModule>

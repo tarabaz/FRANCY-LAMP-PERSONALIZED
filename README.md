@@ -119,6 +119,14 @@ dell'immagine si divide gli altri colori), non disegna linee nere tra i toni del
 assorbe le macchioline di pelle e protegge i dettagli circondati dalla pelle (occhi, sopracciglia, narici, bocca)
 anche se piccoli. Si accende da solo dopo un ridisegno IA in stile **Ritratto**.
 
+Con lo switch acceso il configuratore **riconosce il volto** (MediaPipe Face Landmarker, gira nel browser del
+cliente, la foto non esce dal dispositivo; ~17 MB scaricati solo la prima volta che si accende lo switch) e
+disegna sempre: **occhi** con il bianco, l'iride nera e il riflesso (la palpebra viene aperta fino a un'altezza
+stampabile), **denti** bianchi dentro le labbra. Se il volto non viene trovato (animali, cartoni) restano le
+altre regole del ritratto. Per la **pelle** si usano solo bobine color pelle del catalogo (pesca, beige, caramello,
+marroni: mai grigi, rosa o colori freddi); se due toni finiscono sulla stessa bobina diventano una zona sola.
+Consiglio: tieni in catalogo 3 bobine pelle (chiara, media, ombra).
+
 Sotto lo zoom c'è **Regola immagine** (luminosità, contrasto, saturazione da -100 a +100, pulsante Ripristina):
 si applica prima della riduzione dei colori, all'immagine mandata all'IA e al "ritaglio usato" nello zip; i valori
 finiscono nel riepilogo del progetto. Con un'immagine nuova o un risultato IA si riparte da zero.

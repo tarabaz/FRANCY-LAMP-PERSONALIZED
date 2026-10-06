@@ -3,6 +3,7 @@ import { Preview3D } from './preview3d.js';
 import { stlFiles, stlReadme, zipAsync } from './export-stl.js';
 import { buildEps } from './export-eps.js';
 import { build3mf } from './export-3mf.js';
+import { detectFace, faceFeatures } from './face.js';
 
 const $ = (s) => document.querySelector(s);
 const root = $('#flc-root');
@@ -523,11 +524,57 @@ function isNearWhite(hex) { const { r, g, b } = hexToRgb(hex); return Math.min(r
 let timer;
 function schedule() { clearTimeout(timer); timer = setTimeout(run, 350); }
 
+// ---------------- riconoscimento del volto (modalità ritratto) ----------------
+// Punti del volto per ogni immagine (in coordinate 0..1 dell'immagine), calcolati una volta sola
+const faceCache = new WeakMap();
+let faceJob = null;
+function coverFor(img) { return Math.max(crop.width / img.width, crop.height / img.height); }
+// punto 0..1 dell'immagine -> pixel del quadrato di lavoro (stesso calcolo di drawImageTo)
+function toCanvas(p, img, zoom, ox, oy, size) {
+  const k = size / crop.width, s = coverFor(img) * zoom * k;
+  const w = img.width * s, h = img.height * s;
+  return [size / 2 - w / 2 + ox * k + p[0] * w, size / 2 - h / 2 + oy * k + p[1] * h];
+}
+async function findFace(img) {
+  let pts = await detectFace(img);
+  // sul ridisegno IA a volte non trova il volto: lo cerco sulla foto originale e riporto i punti
+  // (l'IA ha ricevuto proprio quel ritaglio a 1024 px, e Fedele/Ritratto mantengono la composizione)
+  if (!pts && originalImg && img === state.img && state.aiImageSrc) {
+    const o = originalImg;
+    const op = await detectFace(o.img);
+    if (op) pts = op.map((p) => toCanvas(p, o.img, o.zoom, o.ox, o.oy, 1024).map((v) => v / 1024));
+  }
+  return pts;
+}
+function faceStatus(text) { const el = $('#portraitHint'); el.hidden = false; el.textContent = text; }
+
 function run() {
   if (!state.img) return;
   const g = geometry();
   const ppmm = +$('#ppmm').value;
   const size = Math.round(2 * g.rImgArt * ppmm);
+  // ritratto: prima cerco il volto (la prima volta scarica il riconoscimento, ~17 MB), poi converto
+  let face = null;
+  if ($('#portrait').checked) {
+    const img = state.img;
+    if (!faceCache.has(img)) {
+      if (faceJob !== img) {
+        faceJob = img;
+        setStatus('Cerco il volto…');
+        faceStatus('Cerco il volto (la prima volta può volerci qualche secondo)…');
+        findFace(img).then((pts) => faceCache.set(img, pts)).catch((e) => { console.error(e); faceCache.set(img, null); })
+          .finally(() => { if (faceJob === img) faceJob = null; if (state.img === img) run(); });
+      }
+      return;
+    }
+    const pts = faceCache.get(img);
+    if (pts) {
+      face = faceFeatures(pts.map((p) => toCanvas(p, img, state.zoom, state.ox, state.oy, size)));
+      faceStatus('Volto trovato: pelle con 3 toni dedicati, niente linee dentro il viso, occhi (bianco + iride) e denti disegnati in automatico.');
+    } else {
+      faceStatus('Volto non trovato: pelle con 3 toni dedicati e niente linee dentro il viso, ma occhi e denti non vengono ridisegnati.');
+    }
+  }
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const ctx = c.getContext('2d');
@@ -540,6 +587,7 @@ function run() {
     lineMm: +$('#line').value,
     addOutlines: state.mode === 'keep' && $('#addOutlines').checked,
     portrait: $('#portrait').checked,
+    face,
     thickenMm: +$('#thick').value,
     smooth: +$('#smooth').value,
     minFeatureMm: +$('#feat').value,
@@ -560,6 +608,21 @@ worker.onmessage = (e) => {
   if (error) { console.error(error); return setStatus('Errore nella conversione'); }
   state.result = result;
   state.colorOverrides = {};
+  // zone finite sulla stessa bobina: le faccio unire dal worker (niente bordi interni nel disegno)
+  if (!result.merged) {
+    const first = new Map(), merge = result.palette.map((_, i) => i);
+    let any = false;
+    result.palette.forEach((p, i) => {
+      const c = artColor(i);
+      if (!first.has(c)) { first.set(c, i); return; }
+      const j = first.get(c);
+      // confluisce nella zona più grande
+      if (p.area > result.palette[j].area) { merge[j] = i; first.set(c, i); for (let q = 0; q < merge.length; q++) if (merge[q] === j) merge[q] = i; }
+      else merge[i] = j;
+      any = true;
+    });
+    if (any) worker.postMessage({ id, merge });
+  }
   renderPalette();
   updateColorLimit();
   render();
@@ -598,9 +661,20 @@ function autoColors() {
   if (!state.filaments.length) {
     for (const i of todo) out[i] = rgbToHex(pal[i]);
   } else {
+    // pelle: ogni tono prende la bobina color pelle più vicina (anche la stessa di un altro tono della pelle:
+    // tra i toni della pelle non ci sono linee, al massimo due toni si uniscono). Le altre zone non la usano.
+    const skinFils = state.filaments.filter(isSkinFilament);
+    if (skinFils.length) {
+      for (const i of todo) {
+        if (!pal[i].skin) continue;
+        out[i] = nearestIn(skinFils, rgbToHex(pal[i])).hex;
+        used.add(out[i]);
+      }
+    }
     // abbinamento colore → bobina: prima le coppie più vicine, ogni bobina una sola volta
     const pairs = [];
     for (const i of todo) {
+      if (out[i]) continue;
       const lab = hexToLab(rgbToHex(pal[i]));
       for (const f of state.filaments) {
         pairs.push([(f.lab[0] - lab[0]) ** 2 + (f.lab[1] - lab[1]) ** 2 + (f.lab[2] - lab[2]) ** 2, i, f.hex]);
@@ -616,6 +690,20 @@ function autoColors() {
   }
   autoCache = { r, f: state.filaments, ov, k: BLACK + WHITE, list: out };
   return out;
+}
+// Bobine "da pelle": tinte calde tra il pesca e il marrone (niente grigi, rosa, gialli o colori freddi)
+function isSkinFilament(f) {
+  const [L, A, B] = f.lab, h = (Math.atan2(B, A) * 180) / Math.PI;
+  return L > 25 && L < 92 && Math.hypot(A, B) > 8 && Math.hypot(A, B) < 55 && h > 28 && h < 78;
+}
+function nearestIn(list, hex) {
+  const lab = hexToLab(hex);
+  let best = list[0], bd = Infinity;
+  for (const f of list) {
+    const d = (f.lab[0] - lab[0]) ** 2 + 1.5 * ((f.lab[1] - lab[1]) ** 2 + (f.lab[2] - lab[2]) ** 2);
+    if (d < bd) { bd = d; best = f; }
+  }
+  return best;
 }
 // colori già usati dalle altre zone del disegno (per non sceglierne uno uguale)
 function otherDrawingColors(i) {

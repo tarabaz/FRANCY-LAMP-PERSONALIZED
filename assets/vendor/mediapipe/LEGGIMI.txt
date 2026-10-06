@@ -1,0 +1,7 @@
+MediaPipe Tasks Vision 1.1.0 (@mediapipe/tasks-vision) + modello face_landmarker.task (float16)
+Copyright Google LLC - Licenza Apache 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker
+
+Usato da assets/js/face.js per trovare occhi, iride e bocca nella modalità ritratto.
+Gira nel browser del cliente; i file si scaricano solo quando si accende "È un ritratto".
+Inclusa solo la versione WebAssembly con SIMD (tutti i browser dal 2021 in poi).

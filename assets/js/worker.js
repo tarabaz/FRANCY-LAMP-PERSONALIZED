@@ -5,10 +5,13 @@
 
 const NONE = 255; // pixel fuori dal cerchio
 
+let last = null; // ultima conversione, per riunire le zone senza rifare tutto
+
 self.onmessage = (e) => {
-  const { id, imageData, size, ppmm, opts } = e.data;
+  const { id, imageData, size, ppmm, opts, merge } = e.data;
   try {
-    const result = convert(imageData, size, ppmm, opts, (msg) => self.postMessage({ id, progress: msg }));
+    const result = merge ? mergeColors(merge) : convert(imageData, size, ppmm, opts, (msg) => self.postMessage({ id, progress: msg }));
+    last = { labels: result.labels.slice(), palette: result.palette, size: result.size, ppmm: result.ppmm, opts: merge ? last.opts : opts };
     self.postMessage({ id, result }, [result.labels.buffer]);
   } catch (err) {
     self.postMessage({ id, error: String(err && err.stack || err) });
@@ -132,12 +135,20 @@ function convert(rgba, size, ppmm, opts, progress) {
     killSmallColored(labels, size, minAreaPx, blackIdx, whiteIdx, skinSet);
   }
 
+  // Volto riconosciuto (modalità ritratto): occhi e denti disegnati sempre, dopo tutti i filtri
+  if (opts.face) {
+    progress('Occhi e denti');
+    if (whiteIdx < 0) { whiteIdx = palette.length; palette.push({ r: 250, g: 250, b: 250 }); }
+    if (blackIdx < 0) { blackIdx = palette.length; palette.push({ r: 20, g: 20, b: 20 }); }
+    drawFace(labels, lab, inside, size, ppmm, opts, whiteIdx, blackIdx);
+  }
+
   // Compatta la palette togliendo colori spariti
   const counts = new Uint32Array(palette.length);
   for (let i = 0; i < n; i++) if (labels[i] !== NONE) counts[labels[i]]++;
   const remap = new Uint8Array(256).fill(NONE);
   const newPal = [];
-  palette.forEach((p, i) => { if (counts[i] > 0) { remap[i] = newPal.length; newPal.push({ ...p, area: counts[i] / (ppmm * ppmm), black: i === blackIdx, white: i === whiteIdx }); } });
+  palette.forEach((p, i) => { if (counts[i] > 0) { remap[i] = newPal.length; newPal.push({ ...p, area: counts[i] / (ppmm * ppmm), black: i === blackIdx, white: i === whiteIdx, skin: skinSet.has(i) }); } });
   for (let i = 0; i < n; i++) labels[i] = remap[labels[i]];
   palette = newPal;
 
@@ -172,6 +183,24 @@ function lab2rgb(L, a, b) {
 }
 
 function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+
+// Zone diverse finite sulla stessa bobina (es. due toni di pelle): diventano una zona sola e si ritraccia,
+// così non restano bordi interni. merge[i] = indice della zona in cui confluisce la zona i.
+function mergeColors(merge) {
+  const { labels: src, palette: pal, size, ppmm, opts } = last;
+  const labels = new Uint8Array(src);
+  const remap = new Uint8Array(256).fill(NONE), newPal = [];
+  pal.forEach((p, i) => { if (merge[i] === i) { remap[i] = newPal.length; newPal.push({ ...p }); } });
+  pal.forEach((p, i) => {
+    if (merge[i] === i) return;
+    const t = newPal[remap[merge[i]]];
+    remap[i] = remap[merge[i]];
+    t.area += p.area; t.skin = t.skin || p.skin;
+  });
+  for (let i = 0; i < labels.length; i++) if (labels[i] !== NONE) labels[i] = remap[labels[i]];
+  const layers = trace(labels, size, newPal.length, opts);
+  return { labels, palette: newPal, layers, size, ppmm, merged: true };
+}
 
 function kmeans(lab, inside, n, k, seed) {
   const rand = rng(seed);
@@ -335,6 +364,91 @@ function components(labels, size) {
     comps.push({ label: l, area });
   }
   return { comp, comps };
+}
+
+// ---------- occhi e denti dal riconoscimento del volto ----------
+// opts.face: { eyes: [{ poly, corners: [a, b], iris: { x, y, r } }], mouth: poly } in pixel dell'immagine di lavoro.
+// Occhio: la palpebra viene un po' aperta (altezza minima stampabile), dentro bianco, iride nera, contorno nero.
+// Bocca: dentro le labbra i pixel chiari diventano denti bianchi, quelli molto scuri nero.
+function drawFace(labels, lab, inside, size, ppmm, opts, whiteIdx, blackIdx) {
+  const set = (i, l) => { if (inside[i]) labels[i] = l; };
+  for (const eye of opts.face.eyes || []) {
+    const [A, B] = eye.corners;
+    const cx = (A[0] + B[0]) / 2, cy = (A[1] + B[1]) / 2;
+    const len = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1;
+    const u = [(B[0] - A[0]) / len, (B[1] - A[1]) / len], v = [-u[1], u[0]];
+    let bmin = 0, bmax = 0;
+    for (const p of eye.poly) { const bb = (p[0] - cx) * v[0] + (p[1] - cy) * v[1]; bmin = Math.min(bmin, bb); bmax = Math.max(bmax, bb); }
+    const h = bmax - bmin, minH = 2.2 * ppmm;                     // occhio alto almeno 2,2 mm
+    const fy = Math.max(1.25, minH / Math.max(h, 0.5)), fx = 1.08;
+    const poly = eye.poly.map((p) => {
+      const a = (p[0] - cx) * u[0] + (p[1] - cy) * u[1], bb = (p[1] - cy) * v[1] + (p[0] - cx) * v[0];
+      return [cx + u[0] * a * fx + v[0] * bb * fy, cy + u[1] * a * fx + v[1] * bb * fy];
+    });
+    const lw = Math.max(1, (opts.lineMm * ppmm) * 0.35);           // contorno dell'occhio
+    const inEye = polyMask(poly, size);
+    const ring = distanceFrom(inEye, size);
+    for (let i = 0; i < ring.length; i++) if (!inEye[i] && ring[i] <= lw) set(i, blackIdx);
+    // iride: cerchio nero (dentro l'occhio), con un riflesso bianco se è abbastanza grande
+    const ir = eye.iris;
+    const R = Math.max(ir ? ir.r : 0, 0.42 * Math.max(h * fy, minH));
+    const ix = ir ? ir.x : cx, iy = ir ? ir.y : cy;
+    const hl = R * 0.32, hx = ix + R * 0.35, hy = iy - R * 0.35;
+    const showHl = hl >= 0.35 * ppmm;
+    for (let i = 0; i < inEye.length; i++) {
+      if (!inEye[i]) continue;
+      const x = (i % size) + 0.5, y = ((i / size) | 0) + 0.5;
+      const inIris = (x - ix) ** 2 + (y - iy) ** 2 <= R * R;
+      const inHl = showHl && (x - hx) ** 2 + (y - hy) ** 2 <= hl * hl;
+      set(i, inIris && !inHl ? blackIdx : whiteIdx);
+    }
+  }
+  const mouth = opts.face.mouth;
+  if (mouth && mouth.length > 2) {
+    const inM = polyMask(mouth, size);
+    const Ls = [];
+    for (let i = 0; i < inM.length; i++) if (inM[i]) Ls.push(lab[i * 3]);
+    if (Ls.length > 2 * ppmm * ppmm) {                             // bocca aperta (almeno ~2 mm²)
+      const thr = otsu(Ls);
+      for (let i = 0; i < inM.length; i++) {
+        if (!inM[i]) continue;
+        const L = lab[i * 3];
+        if (L > thr && L > 45) set(i, whiteIdx);
+        else if (L < 35) set(i, blackIdx);
+      }
+    }
+  }
+}
+function polyMask(poly, size) {
+  const m = new Uint8Array(size * size);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of poly) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+  x0 = Math.max(0, Math.floor(x0)); x1 = Math.min(size - 1, Math.ceil(x1)); y0 = Math.max(0, Math.floor(y0)); y1 = Math.min(size - 1, Math.ceil(y1));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const px = x + 0.5, py = y + 0.5;
+    let c = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) c = !c;
+    }
+    if (c) m[y * size + x] = 1;
+  }
+  return m;
+}
+function otsu(vals) {
+  const hist = new Float64Array(101);
+  for (const v of vals) hist[Math.max(0, Math.min(100, Math.round(v)))]++;
+  const tot = vals.length;
+  let sum = 0; for (let t = 0; t <= 100; t++) sum += t * hist[t];
+  let sB = 0, wB = 0, best = 0, thr = 50;
+  for (let t = 0; t <= 100; t++) {
+    wB += hist[t]; if (!wB) continue;
+    const wF = tot - wB; if (!wF) break;
+    sB += t * hist[t];
+    const mB = sB / wB, mF = (sum - sB) / wF, between = wB * wF * (mB - mF) ** 2;
+    if (between > best) { best = between; thr = t; }
+  }
+  return thr;
 }
 
 // Soglia di area minima per ogni regione:
