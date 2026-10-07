@@ -180,12 +180,19 @@ finiscono nel riepilogo del progetto. Con un'immagine nuova o un risultato IA si
 
 Sotto gli stili c'è l'interruttore **Rimuovi lo sfondo**: se acceso compare il menu **Nuovo sfondo** (Bianco,
 Cielo stile anime, Raggi di luce, Onde giapponesi, Tinta unita) e all'IA viene chiesto di
-togliere lo sfondo della foto e metterci quello scelto. L'elenco si modifica in Impostazioni → Stili e prompt →
-Nuovo sfondo, con una tabella: nome per il cliente, descrizione per l'IA (in inglese), casella *Attivo* (uno spento
-resta salvato ma il cliente non lo vede), frecce per l'ordine (il primo attivo è quello proposto), ✕ per eliminarlo e
-**+ Aggiungi sfondo**. Sotto c'è la scelta **Personalizza…** (nome modificabile): il cliente scrive lui lo sfondo
+togliere lo sfondo della foto e metterci quello scelto. Gli sfondi si gestiscono in Impostazioni → Stili e prompt →
+Nuovo sfondo, in una tabella come quella dei filamenti: nome per il cliente, categoria (solo per te, con filtro),
+descrizione per l'IA (in inglese), *Attivo* (uno spento resta salvato ma il cliente non lo vede), frecce per l'ordine
+del menu (il primo attivo è quello proposto), ricerca, filtri "Solo spenti" / "Senza prova", **+ Aggiungi sfondo** e
+**+ Aggiungi i suggeriti** (una libreria di sfondi pronti: cielo stellato, tramonto, galassia, fiamme, pixel art…,
+aggiunti spenti). Ogni riga ha **✨ Genera prova**: Gemini disegna solo lo sfondo, senza soggetto, in formato quadrato,
+così vedi che tipo di immagine esce (costa come un ridisegno; le miniature stanno in `uploads/francy-lamp-sfondi`).
+La tabella ha il suo **Salva sfondi**, ma se ci sono modifiche le salva anche il "Salva" generale.
+
+Nella scheda c'è anche la scelta **Personalizza…** (nome modificabile): il cliente scrive lui lo sfondo
 (max 160 caratteri, anche in italiano) e il testo entra nel prompt solo come descrizione dello sfondo, ignorando altre
-richieste e mantenendo le regole di stampa. Lo sfondo scelto (o "Personalizzato: …") finisce nel riepilogo del progetto.
+richieste e mantenendo le regole di stampa. Con **Prova come un cliente** scrivi un testo, generi la prova e, se ti
+piace, lo aggiungi alla tabella. Lo sfondo scelto (o "Personalizzato: …") finisce nel riepilogo del progetto.
 
 Se Gemini risponde senza immagine (es. `IMAGE_OTHER`, un rifiuto senza motivo) il plugin riprova da solo fino a 3 volte
 con impostazioni diverse; i tentativi a vuoto non generano immagini e costano pochissimo. Se il principale dà errore si passa da soli al fornitore di riserva. Per aggiungere un fornitore:

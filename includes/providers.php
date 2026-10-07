@@ -108,17 +108,23 @@ function flc_run_gemini($image, $mime, $prompt, $s) {
 	// Gemini a volte rifiuta senza motivo (finishReason IMAGE_OTHER / NO_IMAGE / solo testo): spesso basta
 	// riprovare. 2° tentativo: un po' più di libertà; 3°: prima l'immagine e poi un comando corto e diretto.
 	// I tentativi falliti non producono immagini, quindi costano pochissimo.
+	// Senza immagine ($image vuoto) genera da solo testo: serve per le prove degli sfondi.
 	$attempts = array(
 		array('temp' => 0.3, 'image_first' => false, 'prompt' => $prompt),
 		array('temp' => 0.7, 'image_first' => false, 'prompt' => $prompt),
-		array('temp' => 0.9, 'image_first' => true, 'prompt' => 'Generate a new image from the attached picture following these instructions. ' . $prompt),
+		array('temp' => 0.9, 'image_first' => true, 'prompt' => ($image ? 'Generate a new image from the attached picture following these instructions. ' : 'Generate an image following these instructions. ') . $prompt),
 	);
 	$reasons = array();
 	foreach ($attempts as $a) {
-		$img_part  = array('inline_data' => array('mime_type' => $mime, 'data' => base64_encode($image)));
 		$text_part = array('text' => $a['prompt']);
+		if ($image) {
+			$img_part = array('inline_data' => array('mime_type' => $mime, 'data' => base64_encode($image)));
+			$parts    = $a['image_first'] ? array($img_part, $text_part) : array($text_part, $img_part);
+		} else {
+			$parts = array($text_part);
+		}
 		$body = array(
-			'contents'         => array(array('parts' => $a['image_first'] ? array($img_part, $text_part) : array($text_part, $img_part))),
+			'contents'         => array(array('parts' => $parts)),
 			'generationConfig' => array(
 				'temperature'        => $a['temp'], // più basso = meno libertà creativa, più fedele all'originale
 				'responseModalities' => array('TEXT', 'IMAGE'),

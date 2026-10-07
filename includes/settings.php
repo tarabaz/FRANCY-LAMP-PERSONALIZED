@@ -64,23 +64,9 @@ function flc_backgrounds($s = null) {
 	return $out;
 }
 
-// Tutti gli sfondi, anche quelli spenti (riga che inizia con "#"), per la tabella delle impostazioni
+// Tutti gli sfondi, anche quelli spenti: ora stanno nella tabella (vedi backgrounds.php)
 function flc_backgrounds_all($s = null) {
-	$s   = $s ?: flc_settings();
-	$out = array();
-	foreach (preg_split('/\r?\n/', (string) $s['backgrounds']) as $line) {
-		$line = trim($line);
-		$on   = true;
-		if (strpos($line, '#') === 0) {
-			$on   = false;
-			$line = ltrim(substr($line, 1));
-		}
-		$parts = array_map('trim', explode('|', $line, 2));
-		if (count($parts) === 2 && $parts[0] !== '' && $parts[1] !== '') {
-			$out[] = array('label' => $parts[0], 'prompt' => $parts[1], 'on' => $on);
-		}
-	}
-	return $out;
+	return flc_bg_list();
 }
 
 // Sfondo scritto dal cliente ("Personalizza…"): il testo entra nel prompt solo come descrizione dello sfondo
@@ -240,7 +226,7 @@ function flc_sanitize_settings($in) {
 		'prompt_stylized' => sanitize_textarea_field($in['prompt_stylized'] ?? ''),
 		'prompt_anime' => sanitize_textarea_field($in['prompt_anime'] ?? ''),
 		'prompt_ritratto' => sanitize_textarea_field($in['prompt_ritratto'] ?? ''),
-		'backgrounds'  => sanitize_textarea_field($in['backgrounds'] ?? ''),
+		'backgrounds'  => sanitize_textarea_field($in['backgrounds'] ?? $old['backgrounds']), // vecchio elenco di testo, serve solo per passare alla tabella
 		'bg_enabled'   => empty($in['bg_enabled']) ? 0 : 1,
 		'bg_custom'    => empty($in['bg_custom']) ? 0 : 1,
 		'bg_custom_label' => mb_substr(sanitize_text_field($in['bg_custom_label'] ?? ''), 0, 30) ?: 'Personalizza…',
@@ -576,52 +562,25 @@ function flc_settings_page() {
 				<div class="flc-card">
 					<h2><span class="dashicons dashicons-cover-image"></span> Nuovo sfondo</h2>
 					<p><label><input type="checkbox" name="<?php echo $n('bg_enabled'); ?>" value="1" <?php checked($s['bg_enabled'], 1); ?>> Mostra ai clienti l'interruttore <strong>Rimuovi lo sfondo</strong> con la scelta del nuovo sfondo</label></p>
-					<p class="intro">Gli sfondi tra cui sceglie il cliente. <strong>Nome</strong>: quello che vede il cliente; <strong>Descrizione per l'IA</strong>: in inglese, cosa disegnare.
-						Il primo attivo è quello proposto in partenza; con le frecce cambi l'ordine.</p>
-					<table class="widefat striped" id="flcBgTable" style="width:100%;max-width:1040px">
-						<thead><tr><th style="width:190px">Nome per il cliente</th><th>Descrizione per l'IA (inglese)</th><th style="width:60px">Attivo</th><th style="width:96px"></th></tr></thead>
-						<tbody></tbody>
-					</table>
-					<p><button type="button" class="button" id="flcBgAdd">+ Aggiungi sfondo</button></p>
-					<textarea name="<?php echo $n('backgrounds'); ?>" id="flcBgText" hidden><?php echo esc_textarea($s['backgrounds']); ?></textarea>
-					<p style="margin-top:14px"><label><input type="checkbox" name="<?php echo $n('bg_custom'); ?>" value="1" <?php checked($s['bg_custom'], 1); ?>> Aggiungi la scelta
+					<p class="intro">Gli sfondi tra cui sceglie il cliente. <strong>Nome</strong>: quello che vede il cliente; <strong>categoria</strong>: solo per te, per tenerli in ordine e filtrarli;
+						<strong>descrizione per l'IA</strong>: in inglese, cosa disegnare. Il primo attivo è quello proposto in partenza; con le frecce cambi l'ordine del menu.</p>
+					<?php flc_bg_table_html($s); ?>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-edit"></span> Sfondo scritto dal cliente</h2>
+					<p><label><input type="checkbox" name="<?php echo $n('bg_custom'); ?>" value="1" <?php checked($s['bg_custom'], 1); ?>> Aggiungi in fondo al menu la scelta
 						<input type="text" name="<?php echo $n('bg_custom_label'); ?>" value="<?php echo esc_attr($s['bg_custom_label']); ?>" style="width:150px"> con cui il cliente scrive lo sfondo che vuole</label></p>
 					<p class="description">Massimo 160 caratteri. Il testo del cliente entra nel prompt solo come descrizione dello sfondo: eventuali altre richieste vengono ignorate e restano le regole di stampa (colori piatti, contorni, niente scritte).</p>
-					<script>
-					(function () {
-						const rows = <?php echo wp_json_encode(flc_backgrounds_all($s)); ?>;
-						const tb = document.querySelector('#flcBgTable tbody'), out = document.getElementById('flcBgText');
-						const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-						function sync() {
-							out.value = rows.filter((r) => r.label.trim() && r.prompt.trim())
-								.map((r) => (r.on ? '' : '# ') + r.label.replace(/\|/g, '/').trim() + ' | ' + r.prompt.replace(/[\r\n]+/g, ' ').trim()).join('\n');
-						}
-						function render() {
-							tb.innerHTML = rows.map((r, i) => '<tr data-i="' + i + '"' + (r.on ? '' : ' style="opacity:.55"') + '>' +
-								'<td><input type="text" class="l" value="' + esc(r.label) + '" style="width:100%" placeholder="es. Cielo stellato"></td>' +
-								'<td><textarea class="p" rows="3" style="width:100%" placeholder="es. a starry night sky with a big full moon, flat colors">' + esc(r.prompt) + '</textarea></td>' +
-								'<td style="text-align:center"><input type="checkbox" class="o"' + (r.on ? ' checked' : '') + '></td>' +
-								'<td><button type="button" class="button-link up" title="Su">▲</button> <button type="button" class="button-link dn" title="Giù">▼</button> <button type="button" class="button-link-delete del" title="Elimina">✕</button></td></tr>').join('');
-							sync();
-						}
-						tb.addEventListener('input', (e) => {
-							const i = +e.target.closest('tr').dataset.i;
-							if (e.target.classList.contains('l')) rows[i].label = e.target.value;
-							if (e.target.classList.contains('p')) rows[i].prompt = e.target.value;
-							sync();
-						});
-						tb.addEventListener('change', (e) => { if (e.target.classList.contains('o')) { rows[+e.target.closest('tr').dataset.i].on = e.target.checked; render(); } });
-						tb.addEventListener('click', (e) => {
-							const tr = e.target.closest('tr'); if (!tr) return;
-							const i = +tr.dataset.i;
-							if (e.target.classList.contains('del')) { if (confirm('Eliminare questo sfondo?')) { rows.splice(i, 1); render(); } }
-							else if (e.target.classList.contains('up') && i > 0) { [rows[i - 1], rows[i]] = [rows[i], rows[i - 1]]; render(); }
-							else if (e.target.classList.contains('dn') && i < rows.length - 1) { [rows[i + 1], rows[i]] = [rows[i], rows[i + 1]]; render(); }
-						});
-						document.getElementById('flcBgAdd').addEventListener('click', () => { rows.push({ label: '', prompt: '', on: true }); render(); tb.querySelector('tr:last-child .l').focus(); });
-						render();
-					})();
-					</script>
+					<div class="flc-bg"><div class="try">
+						<a class="thumb" id="flcBgTryImg" target="_blank">nessuna<br>prova</a>
+						<div style="flex:1;min-width:260px">
+							<p style="margin-top:0"><strong>Prova come un cliente</strong> – scrivi un testo (anche in italiano) e guarda che sfondo esce.</p>
+							<input type="text" id="flcBgTryText" maxlength="160" class="large-text" placeholder="es. cielo stellato con la luna piena">
+							<p><button type="button" class="button" id="flcBgTryBtn">✨ Genera prova</button>
+								<button type="button" class="button-link" id="flcBgTryAdd" hidden>+ Aggiungilo alla tabella degli sfondi</button>
+								<span id="flcBgTryMsg" class="err"></span></p>
+						</div>
+					</div></div>
 				</div>
 				<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nei prompt chiedi "no text". Per tornare al testo predefinito svuota il campo e salva.</p>
 			</section>
