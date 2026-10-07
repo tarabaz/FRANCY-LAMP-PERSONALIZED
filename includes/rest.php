@@ -97,8 +97,7 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	}
 	// carta da gioco: via cornice, testi e simboli; si lavora in formato quadrato
 	if ($req->get_param('card') && !empty($s['card_enabled'])) {
-		$s['card']   = true;
-		$s['aspect'] = '1:1';
+		$s['card'] = true; // stesso formato della carta (arriva in "aspect" come per le foto)
 	}
 	// sfondo scritto dal cliente ("Personalizza…")
 	if ($bg === 'custom' && !empty($s['bg_enabled']) && !empty($s['bg_custom'])) {
@@ -156,7 +155,7 @@ function flc_generate($bin, $mime, $style, $s, $bg = -1) {
 	}
 	// carta da gioco: prima si pulisce la carta (via cornice e scritte), poi si applica lo stile all'illustrazione
 	if (!empty($s['card'])) {
-		$prompt = $s['prompt_card'] . "\n\nThen redraw that cleaned artwork following these instructions (where they talk about the framing of the input, use the cleaned artwork filling the square):\n\n" . $prompt;
+		$prompt = $s['prompt_card'] . "\n\nThen redraw that cleaned artwork following these instructions (keep the same framing and aspect ratio as the card: the cleaned illustration fills the whole image):\n\n" . $prompt;
 	}
 	$bgs       = flc_backgrounds($s);
 	if (!empty($s['bg_enabled']) && $bg >= 0 && isset($bgs[$bg])) {

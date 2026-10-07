@@ -224,7 +224,7 @@ function loadImage(src, zoom = 1) {
 
 function setImage(img, zoom, ox, oy) {
   state.img = img; state.zoom = zoom; state.ox = ox; state.oy = oy;
-  state.ovSeeds = []; // immagine nuova: le parti sopra la fascia si scelgono di nuovo
+  state.ovSeeds = []; state.paints = []; // immagine nuova: parti sopra la fascia e colorazioni a mano da capo
   setAdjust({ b: 0, c: 0, s: 0 }); // immagine nuova (o risultato IA, che ha già le regolazioni): si riparte da zero
   $('#zoom').value = zoom;
   $('#aiBtn').disabled = !!state.aiExhausted;
@@ -358,15 +358,13 @@ $('#aiBtn').addEventListener('click', async () => {
   // sa restituire: così il risultato si rimette con lo stesso zoom e spostamento e si può ancora spostare.
   const src = aiSource(), o = src.img;
   const ratio = o.width / o.height;
-  // carta da gioco: si manda la carta intera e torna un quadrato con solo l'illustrazione (inquadratura nuova)
+  // Si manda SEMPRE l'immagine intera con le sue proporzioni (anche la carta completa: così l'IA capisce bene cosa
+  // è testo da togliere); il formato chiesto all'IA è il più vicino tra quelli che sa restituire. Il risultato
+  // copre tutta l'immagine e viene rimesso con la stessa inquadratura che c'era.
   const card = !!CFG.aiCard && $('#aiCard').checked;
-  const [rw, rh] = card ? [1, 1] : AI_RATIOS.reduce((best, r) => (Math.abs(Math.log(ratio * r[1] / r[0])) < Math.abs(Math.log(ratio * best[1] / best[0])) ? r : best));
-  let cw = o.width, ch = (cw * rh) / rw;
-  if (ch > o.height) { ch = o.height; cw = (ch * rw) / rh; }
+  const [rw, rh] = AI_RATIOS.reduce((best, r) => (Math.abs(Math.log(ratio * r[1] / r[0])) < Math.abs(Math.log(ratio * best[1] / best[0])) ? r : best));
+  const cx0 = 0, cy0 = 0, cw = o.width, ch = o.height;
   const s0 = coverFor(o) * src.zoom;
-  const vcx = o.width / 2 - src.ox / s0, vcy = o.height / 2 - src.oy / s0;    // centro inquadrato, in pixel della foto
-  let cx0 = Math.min(Math.max(0, vcx - cw / 2), o.width - cw), cy0 = Math.min(Math.max(0, vcy - ch / 2), o.height - ch);
-  if (card) { cx0 = 0; cy0 = 0; cw = o.width; ch = o.height; }
   const k = Math.min(1, 1536 / Math.max(cw, ch));
   const c = document.createElement('canvas');
   c.width = Math.round(cw * k); c.height = Math.round(ch * k);
@@ -406,14 +404,10 @@ $('#aiBtn').addEventListener('click', async () => {
     selectMode('keep');
     if (aiStyle === 'ritratto') setPortrait(true); // il ritratto IA ha già la pelle in 3 toni
     // stessa inquadratura di prima: il ridisegno copre la zona [cx0, cy0, cw, ch] della foto originale
-    if (card) {
-      state.aiCrop = null; // illustrazione nuova, centrata: niente da riallineare con la foto
-      setImage(img, 1, 0, 0);
-    } else {
-      const s1 = (s0 * cw) / img.width;
-      state.aiCrop = { cx0, cy0, cw, ch };
-      setImage(img, Math.min(4, Math.max(1, s1 / coverFor(img))), src.ox + s0 * (cx0 + cw / 2 - o.width / 2), src.oy + s0 * (cy0 + ch / 2 - o.height / 2));
-    }
+    // il ridisegno copre tutta l'immagine originale: stessa scala e stesso spostamento di prima
+    const s1 = (s0 * cw) / img.width;
+    state.aiCrop = { cx0, cy0, cw, ch };
+    setImage(img, Math.min(4, Math.max(1, s1 / coverFor(img))), src.ox + s0 * (cx0 + cw / 2 - o.width / 2), src.oy + s0 * (cy0 + ch / 2 - o.height / 2));
     aiMessage(`Ridisegno fatto${j.provider ? ' con ' + j.provider : ''}: ora il disco parte dall'immagine dell'IA.`, 'ok');
   } catch (err) {
     console.error(err);
@@ -770,7 +764,6 @@ function run() {
   };
   const id = ++jobId;
   state.pendingOv = state.overflow;
-  state.paints = []; // nuova conversione: si ricolora da capo
   setStatus('Elaborazione…');
   worker.postMessage({ id, imageData, size, ppmm, opts }, [imageData.buffer]);
 }
@@ -781,11 +774,17 @@ worker.onmessage = (e) => {
   if (progress) return setStatus(progress + '…');
   if (error) { console.error(error); return setStatus('Errore nella conversione'); }
   state.result = result;
-  if (!result.keep) { state.colorOverrides = {}; state.resultOv = !!state.pendingOv; state.baseLayers = result.layers; applyLocks(result.palette); }
-  state.ovSeeds = result.ovSeeds || [];
+  if (!result.keep) {
+    state.colorOverrides = {}; state.resultOv = !!state.pendingOv; state.baseLayers = result.layers; applyLocks(result.palette);
+    state.autoFrozen = null;
+    state.autoFrozen = { r: result, list: autoColors().slice() }; // da qui in poi le bobine automatiche restano queste
+  }
+  // le parti sopra la fascia scelte dal cliente restano sue: cambiano solo con i suoi tocchi o "Togli tutte"
+  if (result.keep && result.ovSeeds && state.overflow) state.ovSeeds = result.ovSeeds;
   state.ovNote = result.ovTooBig ? 'Quella zona è sfondo: riempirebbe tutta la fascia, quindi resta dentro il cerchio.'
     : result.ovNoOut ? 'Quella parte non arriva al bordo del cerchio: allarga un po\' lo zoom o sposta l\'immagine perché sporga.' : '';
   // zone finite sulla stessa bobina: le faccio unire dal worker (niente bordi interni nel disegno)
+  let mergeSent = false;
   if (!result.merged) {
     const first = new Map(), merge = result.palette.map((_, i) => i);
     let any = false;
@@ -798,7 +797,13 @@ worker.onmessage = (e) => {
       else merge[i] = j;
       any = true;
     });
-    if (any) worker.postMessage({ id, merge });
+    if (any) { worker.postMessage({ id, merge }); mergeSent = true; }
+  }
+  // colorazioni a mano: dopo ogni nuova conversione si rifanno da sole (stessi punti, stesse bobine)
+  if (!result.keep && !mergeSent && state.paints.length) {
+    resolvePaints();
+    worker.postMessage({ id, paints: state.paints });
+    setTimeout(() => setStatus('Coloro…'), 0);
   }
   renderPalette();
   updateColorLimit();
@@ -827,6 +832,9 @@ function autoColors() {
   const pal = r.palette, out = new Array(pal.length).fill(null);
   const used = new Set([BLACK, WHITE]);
   for (const k in state.colorOverrides) used.add(state.colorOverrides[k].toLowerCase());
+  // abbinamento congelato dall'ultima conversione: toccare parti, colorare a mano o annullare non rimescola le bobine
+  const frozen = state.autoFrozen && r !== state.autoFrozen.r ? state.autoFrozen.list : null;
+  if (frozen) pal.forEach((p, i) => { if (frozen[i] && !state.colorOverrides[i] && !p.black) { out[i] = frozen[i]; used.add(frozen[i]); } });
   pal.forEach((p, i) => { if (p.black) out[i] = BLACK; }); // linee sempre nere, nessun adattamento
   // il bianco protetto (denti, occhi) usa sempre la bobina della base
   let wi = pal.findIndex((p, i) => p.white && !state.colorOverrides[i]), wl = wi >= 0 ? Infinity : -1;
@@ -1146,6 +1154,17 @@ function paintIndexFor(hex) {
   // colore nuovo: voce in più (anche se ce n'è già una in attesa nei tocchi non ancora tornati)
   return Math.max(pal.length, ...state.paints.map((x) => x.to + 1));
 }
+// dopo una nuova conversione gli indici della palette cambiano: ogni tocco ritrova l'indice dalla sua bobina
+function resolvePaints() {
+  const pal = state.result.palette, fresh = new Map();
+  let next = pal.length;
+  state.paints = state.paints.map((pt) => {
+    const hex = pt.hex.toLowerCase();
+    let to = pal.findIndex((p, i) => p.area > 0 && !(p.black && hex !== BLACK) && artColor(i) === hex);
+    if (to < 0) { if (!fresh.has(hex)) fresh.set(hex, next++); to = fresh.get(hex); state.colorOverrides[to] = hex; }
+    return { ...pt, to };
+  });
+}
 function renderPaintSwatches() {
   const host = $('#paintSwatches');
   host.innerHTML = '';
@@ -1209,8 +1228,7 @@ function updateOvUi() {
   $('#ovWarn').textContent = state.ovNote || "Una parte copre una scritta: sposta l'immagine, accorcia il testo o togli quella parte.";
 }
 $('#ovOn').addEventListener('change', () => {
-  state.overflow = $('#ovOn').checked;
-  state.ovSeeds = [];
+  state.overflow = $('#ovOn').checked; // le parti già scelte restano (si rivedono riaccendendo)
   if (state.overflow && state.view === '3d') document.querySelector('.tabs button[data-view="2d"]').click(); // si sceglie sulla vista 2D
   updateOvUi();
   run();

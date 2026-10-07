@@ -319,7 +319,7 @@ function repaint(paints) {
     const seeds = opts.ov.seeds || [];
     const o = applyOverflow(lastFull, palette, size, ppmm, last.opts, seeds);
     const tr = traceWithFrame(o.labels, o.frameLabels, size, palette.length, last.opts);
-    return { labels: o.labels, palette, layers: tr.layers, size, ppmm, framePath: tr.framePath, ovSeeds: o.seeds, merged: true, keep: true };
+    return { labels: o.labels, palette, layers: tr.layers, size, ppmm, framePath: tr.framePath, ovSeeds: seeds, merged: true, keep: true };
   }
   const counts = new Uint32Array(palette.length);
   for (let i = 0; i < labs.length; i++) if (labs[i] !== NONE) counts[labs[i]]++;

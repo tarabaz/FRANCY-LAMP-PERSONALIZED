@@ -72,6 +72,11 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
 
+**Le modifiche restano**: le parti sopra la fascia e le colorazioni a mano sono salvate come "punto toccato +
+bobina" e vengono riapplicate da sole dopo ogni nuova conversione (accendere/spegnere "Fai uscire", numero di colori,
+contorni, zoom…); si tolgono solo con Annulla, un nuovo tocco, "Togli tutte" o un'immagine nuova. Anche le bobine
+assegnate in automatico restano ferme dopo ogni conversione: toccare parti o colorare a mano non le rimescola.
+
 **Bobine bloccate**: quando il cliente sceglie a mano la bobina di un colore (tocco sul colore nell'elenco), la
 scelta resta 🔒 anche se la conversione si rifà (numero di colori, contorni, zoom…): nella nuova palette si ritrova
 la zona con il colore originale più simile e le si rimette quella bobina; le altre zone si adattano senza usarla.
@@ -228,6 +233,10 @@ Il cliente sceglie tra quattro stili:
 In tutti gli stili l'IA deve togliere ogni scritta in qualsiasi lingua (anche giapponese e cinese, insegne,
 loghi): le scritte le mette il configuratore sulla fascia. Ritratto, Tombino e Anime si possono nascondere. I prompt si modificano in Impostazioni → Stili IA; se il testo è
 quello predefinito non viene salvato, così gli aggiornamenti del plugin migliorano anche il tuo prompt.
+
+**Ridisegno con IA**: a Gemini va sempre **l'immagine intera** con le sue proporzioni (formato più vicino tra quelli
+che Gemini sa restituire), non solo la parte inquadrata; il risultato copre tutta l'immagine e viene rimesso con la
+stessa inquadratura, quindi si può ancora spostare e zoomare.
 
 **È una carta da gioco**: interruttore nel riquadro IA, da accendere solo quando il cliente carica una carta (es.
 Pokémon). Viene mandata la carta intera e l'IA tiene solo l'illustrazione: toglie cornice, nome, PS, testi degli

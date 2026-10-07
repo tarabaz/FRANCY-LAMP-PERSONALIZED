@@ -99,7 +99,7 @@ function flc_default_prompt_tombino() {
 		. 'and inside every outline ONE single flat solid color, filled evenly from edge to edge. Absolutely no gradients, no shading, no shadows, no highlights, no textures, no grain, no noise, no dithering, no halftone, no metal or stone texture. '
 		. 'Use a cheerful palette of at most 10 to 12 clean colors close to the original colors (white stays pure white, dark areas a clean dark color). '
 		. 'Simplify small details into a few large clean shapes (for example bricks, leaves or waves as simple outlined shapes), the way a manhole cover is painted. '
-		. 'The artwork fills the whole square image edge to edge. No circular frame, no ring, no border (they are added later). '
+		. 'The artwork fills the whole image edge to edge, with the same aspect ratio as the input. No circular frame, no ring, no border (they are added later). '
 		. 'No text of any kind in any language: remove every letter, word, number, sign text, logo, Japanese or Chinese character (kanji, kana); a sign or label stays as a blank flat shape.';
 }
 
@@ -110,7 +110,7 @@ function flc_default_prompt_card() {
 		. 'the main character with its pose and the scene behind it. Ignore and remove everything that belongs to the card layout: frame and border, card name, HP, type and energy symbols, '
 		. 'attack and ability text boxes, weakness and retreat bar, numbers, rarity and set marks, logos and badges (for example anniversary logos), illustrator and copyright lines, '
 		. 'and any other text in any language (including Japanese and Chinese characters). Where these elements covered the illustration, continue the illustration behind them. '
-		. 'Do not invent a new scene: keep the character and the background elements of the illustration. Make the result square, with the main character large and centered.';
+		. 'Do not invent a new scene: keep the character and the background elements of the illustration. Keep the same aspect ratio and framing as the whole card: the illustration is extended to fill the areas where the frame and the text boxes were, so the result has no frame and no text.';
 }
 
 // Regola comune a tutti gli stili: niente scritte in nessuna lingua (le scritte le mette il configuratore sulla fascia)
@@ -267,6 +267,9 @@ function flc_settings() {
 		$raw['sl_ppmm'] = 10;
 	}
 	$s = wp_parse_args($raw, flc_defaults());
+	// i prompt incollati dalla versione di prima chiedevano un risultato quadrato: quella frase diventa "stesso formato"
+	$s['prompt_tombino'] = str_replace('The artwork fills the whole square image edge to edge.', 'The artwork fills the whole image edge to edge, with the same aspect ratio as the input.', (string) $s['prompt_tombino']);
+	$s['prompt_card']    = str_replace('Make the result square, with the main character large and centered.', 'Keep the same aspect ratio and framing as the whole card: the illustration is extended to fill the areas where the frame and the text boxes were, so the result has no frame and no text.', (string) $s['prompt_card']);
 	if (trim((string) $s['prompt']) === '' || in_array(trim((string) $s['prompt']), flc_old_default_prompts(), true)) {
 		$s['prompt'] = flc_default_prompt();
 	}
