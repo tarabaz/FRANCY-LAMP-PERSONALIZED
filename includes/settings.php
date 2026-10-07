@@ -617,6 +617,9 @@ function flc_settings_page() {
 		<?php
 		$lp   = function_exists('flc_parts') ? flc_parts() : array('parts' => array(), 'ref' => array());
 		$fils = flc_filaments();
+		$spec = function_exists('flc_filaments_special') ? flc_filaments_special() : array();
+		// griglia delle bobine ammesse per il cliente: prima le speciali (silk, metal), poi il catalogo del disco
+		$grids = array_filter(array('Speciali (silk, metal…)' => $spec, 'Catalogo del disco' => $fils));
 		?>
 		<section class="flc-tab" data-tab="lampada">
 			<div class="flc-card">
@@ -645,17 +648,23 @@ function flc_settings_page() {
 						<tr data-id="<?php echo esc_attr($part['id']); ?>">
 							<td><input type="text" class="flc-p-name" value="<?php echo esc_attr($part['name']); ?>" style="width:150px"><br><span class="description"><?php echo number_format_i18n((int) $part['tris']); ?> triangoli</span></td>
 							<td><input type="color" class="flc-p-color" value="<?php echo esc_attr($part['color']); ?>">
-								<?php if ($fils) : ?><br><select class="flc-p-fil" style="max-width:190px"><option value="">dal catalogo…</option>
-									<?php foreach ($fils as $f) : ?><option value="<?php echo esc_attr($f['hex']); ?>" <?php selected(strtolower($part['color']), $f['hex']); ?>><?php echo esc_html($f['name']); ?></option><?php endforeach; ?>
+								<?php if ($grids) : ?><br><select class="flc-p-fil" style="max-width:190px"><option value="">dal catalogo…</option>
+									<?php foreach ($grids as $glabel => $glist) : ?><optgroup label="<?php echo esc_attr($glabel); ?>">
+										<?php foreach ($glist as $f) : ?><option value="<?php echo esc_attr($f['hex']); ?>" <?php selected(strtolower($part['color']), $f['hex']); ?>><?php echo esc_html($f['name']); ?></option><?php endforeach; ?>
+									</optgroup><?php endforeach; ?>
 								</select><?php endif; ?></td>
 							<td><select class="flc-p-mat"><?php foreach (FLC_PART_MATERIALS as $k => $label) : ?><option value="<?php echo esc_attr($k); ?>" <?php selected($part['material'], $k); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></td>
 							<td><label><input type="checkbox" class="flc-p-choice" <?php checked(!empty($part['choice'])); ?>> sì, tra questi colori:</label>
-								<div class="flc-p-choices" style="display:flex;flex-wrap:wrap;gap:4px;max-width:420px;margin-top:6px">
-								<?php foreach ($fils as $f) : $on = in_array($f['hex'], (array) $part['choices'], true); ?>
-									<label title="<?php echo esc_attr($f['name']); ?>" style="display:inline-flex"><input type="checkbox" value="<?php echo esc_attr($f['hex']); ?>" <?php checked($on); ?> style="display:none"><span class="flc-sw<?php echo $on ? ' on' : ''; ?>" style="background:<?php echo esc_attr($f['hex']); ?>"></span></label>
+								<div class="flc-p-choices" style="flex-direction:column;gap:6px;max-width:420px;margin-top:6px">
+								<?php foreach ($grids as $glabel => $glist) : ?>
+									<div><span class="description"><?php echo esc_html($glabel); ?></span><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">
+									<?php foreach ($glist as $f) : $on = in_array($f['hex'], (array) $part['choices'], true); ?>
+										<label title="<?php echo esc_attr($f['name']); ?>" style="display:inline-flex"><input type="checkbox" value="<?php echo esc_attr($f['hex']); ?>" <?php checked($on); ?> style="display:none"><span class="flc-sw<?php echo $on ? ' on' : ''; ?>" style="background:<?php echo esc_attr($f['hex']); ?>"></span></label>
+									<?php endforeach; ?>
+									</div></div>
 								<?php endforeach; ?>
 								</div>
-								<?php if (!$fils) : ?><p class="description">Carica il catalogo filamenti per scegliere i colori ammessi.</p><?php endif; ?></td>
+								<?php if (!$grids) : ?><p class="description">Carica il catalogo filamenti (o le bobine speciali) per scegliere i colori ammessi.</p><?php endif; ?></td>
 							<td><button type="button" class="button-link-delete flc-p-del">Elimina</button></td>
 						</tr>
 					<?php endforeach; ?>

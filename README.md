@@ -131,6 +131,10 @@ metallico) e, se vuoi, i colori tra cui il cliente può scegliere; la scelta fin
 LEGGIMI dello zip. Consiglio: carica modelli "vetrina" (solo forma esterna, senza tolleranze e dettagli interni).
 Il plugin non contiene più STL e blocca il download di file 3D dalla sua cartella.
 
+**Bobine speciali** (Filamenti → secondo elenco): silk, metal e simili per i pezzi della lampada (es. cilindri in PLA
+Metal). Non entrano mai nel calcolo dei colori del disco (disegno, fascia, scritte): compaiono solo in Lampada 3D,
+nel colore dei pezzi e tra le scelte del cliente, e il loro nome finisce nel progetto convalidato.
+
 **Sfondo dell'anteprima**: un colore solo (Pagina e aspetto), uguale da spenta e da accesa, in 2D, 3D e nelle
 immagini PNG; predefinito un grigio scuro che fa risaltare la luce senza nascondere il nero della cornice.
 

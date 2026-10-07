@@ -1241,7 +1241,7 @@ function renderLampPickers() {
       b.type = 'button';
       b.className = 'swatch' + (c.toLowerCase() === current ? ' active' : '');
       b.style.background = c;
-      b.title = (CFG.isAdmin && filamentName(c)) || c;
+      b.title = (CFG.isAdmin && lampFilamentName(c.toLowerCase())) || c;
       b.addEventListener('click', () => {
         state.lampColors[p.id] = c.toLowerCase();
         if (preview3d) preview3d.setLampColors(state.lampColors);
@@ -1252,11 +1252,17 @@ function renderLampPickers() {
     host.append(box);
   }
 }
+// nome della bobina di un pezzo: prima le bobine speciali (silk, metal), poi il catalogo del disco
+function lampFilamentName(hex) {
+  const sp = (CFG.filamentsSpecial || []).find((f) => f.hex.toLowerCase() === hex);
+  if (sp) return sp.name;
+  return state.filaments.length ? nearestFilament(hex).name : '';
+}
 // riepilogo dei pezzi della lampada con il colore da stampare
 function lampSummary() {
   return ((CFG.lamp && CFG.lamp.parts) || []).map((p) => {
     const c = (state.lampColors[p.id] || p.color).toLowerCase();
-    return { parte: p.name, colore: c, filamento: state.filaments.length ? nearestFilament(c).name : '', materiale: p.material, scelto_dal_cliente: !!state.lampColors[p.id] };
+    return { parte: p.name, colore: c, filamento: lampFilamentName(c), materiale: p.material, scelto_dal_cliente: !!state.lampColors[p.id] };
   });
 }
 if (qp.get('lampada')) fetch(qp.get('lampada')).then((r) => r.json()).then((l) => { CFG.lamp = l; renderLampPickers(); }).catch(console.error);

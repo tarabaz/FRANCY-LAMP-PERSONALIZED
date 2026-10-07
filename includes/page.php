@@ -19,6 +19,7 @@ function flc_frontend_config() {
 		// i download diretti dei file restano solo agli amministratori
 		'isAdmin'   => current_user_can('manage_options'),
 		'filaments' => flc_filaments(),
+		'filamentsSpecial' => function_exists('flc_filaments_special') ? flc_filaments_special() : array(), // solo pezzi della lampada
 		'templates' => flc_templates_for_frontend(),
 		'homeUrl'   => home_url('/'),
 		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,

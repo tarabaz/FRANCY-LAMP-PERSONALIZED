@@ -9,6 +9,13 @@ if (!defined('ABSPATH')) {
 }
 
 const FLC_FIL_OPTION = 'flc_filaments';
+// Bobine speciali (silk, metal…) solo per i pezzi della lampada: NON entrano nel calcolo dei colori del disco
+const FLC_FIL_SPECIAL_OPTION = 'flc_filaments_special';
+
+function flc_filaments_special() {
+	$list = get_option(FLC_FIL_SPECIAL_OPTION, array());
+	return is_array($list) ? array_values($list) : array();
+}
 
 // Lista [{ name, hex }] già pulita.
 // Finché il catalogo non è mai stato salvato si usano le bobine di FrancyStore3D (includes/filamenti-predefiniti.txt).
@@ -52,6 +59,18 @@ function flc_parse_filaments($text, &$errors = null) {
 }
 
 add_action('admin_init', function () {
+	register_setting('flc_fil', FLC_FIL_SPECIAL_OPTION, array(
+		'sanitize_callback' => function ($in) {
+			if (is_array($in)) {
+				return $in;
+			}
+			$list = flc_parse_filaments($in, $errors);
+			foreach ($errors as $e) {
+				add_settings_error(FLC_FIL_SPECIAL_OPTION, 'flc_fils_' . md5($e), 'Bobine speciali – ' . $e, 'warning');
+			}
+			return $list;
+		},
+	));
 	register_setting('flc_fil', FLC_FIL_OPTION, array(
 		'sanitize_callback' => function ($in) {
 			if (is_array($in)) {
@@ -74,14 +93,16 @@ function flc_filaments_page() {
 	if (!current_user_can('manage_options')) {
 		return;
 	}
-	$list = flc_filaments();
+	$list    = flc_filaments();
+	$special = flc_filaments_special();
+	$stext   = implode("\n", array_map(function ($f) { return $f['name'] . ' | ' . strtoupper($f['hex']); }, $special));
 	$text = implode("\n", array_map(function ($f) { return $f['name'] . ' | ' . strtoupper($f['hex']) . (isset($f['td']) ? ' | ' . $f['td'] : ''); }, $list));
 	?>
 	<div class="wrap">
 		<h1>Catalogo filamenti</h1>
 		<p>Le bobine che hai in laboratorio. Quando c'è almeno un filamento, il configuratore usa <strong>solo questi colori</strong>
 			(sceglie il più vicino a ogni colore del disegno) e lo zip di ogni progetto dice quali bobine montare.</p>
-		<?php settings_errors(FLC_FIL_OPTION); ?>
+		<?php settings_errors(FLC_FIL_OPTION); settings_errors(FLC_FIL_SPECIAL_OPTION); ?>
 		<form method="post" action="options.php">
 			<?php settings_fields('flc_fil'); ?>
 			<p><strong>Una riga per bobina</strong>, nel formato <code>Nome | #rrggbb</code>, facoltativo il TD in fondo: <code>Nome | #rrggbb | 1.6</code>. Esempio:</p>
@@ -94,9 +115,25 @@ Sunlu PLA Azzurro Cielo | #5B9BD5 | 4.2</pre>
 				della bobina alla luce del giorno. Includi sempre un nero e un bianco: servono per contorni e base.<br>
 				<strong>TD</strong> (Transmission Distance, come in HueForge): quanta luce attraversa il filamento. Basso (0,5–2) = coprente, da acceso diventa
 				più scuro; alto (4–10) = traslucido. Lo trovi su filamentcolors.xyz, nel wiki Polymaker o lo misuri con un TD1S.</p>
+			<h2 style="margin-top:28px">Bobine speciali per i pezzi della lampada</h2>
+			<p>Silk, metal, sparkle… <strong>Non vengono mai usate per i colori del disco</strong> (disegno, fascia, scritte): compaiono solo in
+				<a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=francy-lamp#lampada')); ?>">Impostazioni → Lampada 3D</a>,
+				per il colore dei pezzi (es. i cilindri) e per le scelte del cliente. Stesso formato: <code>Nome | #rrggbb</code>.</p>
+			<p><textarea name="<?php echo esc_attr(FLC_FIL_SPECIAL_OPTION); ?>" rows="6" class="large-text code" placeholder="Bambu PLA Metal Cobalt Blue Metallic | #5F8192"><?php echo esc_textarea($stext); ?></textarea></p>
 			<?php submit_button('Salva catalogo'); ?>
 		</form>
 
+		<?php if ($special) : ?>
+			<h2><?php echo count($special); ?> bobine speciali (solo pezzi della lampada)</h2>
+			<div style="display:flex;flex-wrap:wrap;gap:10px;max-width:960px;margin-bottom:10px">
+				<?php foreach ($special as $f) : ?>
+					<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px dashed #8c8f94;border-radius:8px;padding:6px 10px">
+						<span style="width:26px;height:26px;border-radius:50%;background:<?php echo esc_attr($f['hex']); ?>;border:1px solid #c3c4c7"></span>
+						<span><?php echo esc_html($f['name']); ?><br><code><?php echo esc_html(strtoupper($f['hex'])); ?></code></span>
+					</div>
+				<?php endforeach; ?>
+			</div>
+		<?php endif; ?>
 		<?php if ($list) : ?>
 			<h2><?php echo count($list); ?> filamenti</h2>
 			<div style="display:flex;flex-wrap:wrap;gap:10px;max-width:960px">
