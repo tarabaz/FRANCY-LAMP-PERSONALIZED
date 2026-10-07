@@ -166,6 +166,8 @@ add_action('template_redirect', function () {
 		}
 		if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tidy); else tidy();
 		window.addEventListener('load', tidy);
+		// anche quello che il tema o altri script aggiungono dopo (es. al primo clic)
+		new MutationObserver(tidy).observe(document.body, { childList: true });
 	})();
 	</script>
 </body>
