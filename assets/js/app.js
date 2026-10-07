@@ -268,13 +268,31 @@ document.querySelectorAll('#aiStyle button').forEach((b) => b.addEventListener('
 
 // Rimuovi lo sfondo: l'IA toglie lo sfondo della foto e lo sostituisce con quello scelto nel menu
 const aiBackgrounds = Array.isArray(CFG.aiBackgrounds) ? CFG.aiBackgrounds : [];
-if (aiBackgrounds.length) {
+// "Personalizza…": il cliente scrive lui lo sfondo (max 160 caratteri)
+const aiBgCustom = CFG.aiBgCustom || '';
+if (aiBackgrounds.length || aiBgCustom) {
   $('#aiBgRow').hidden = false;
   aiBackgrounds.forEach((label, i) => $('#aiBg').append(new Option(label, String(i))));
-  $('#aiBgRemove').addEventListener('change', () => { $('#aiBgPick').hidden = !$('#aiBgRemove').checked; });
+  if (aiBgCustom) $('#aiBg').append(new Option(aiBgCustom, 'custom'));
+  const syncBg = () => {
+    const on = $('#aiBgRemove').checked;
+    $('#aiBgPick').hidden = !on;
+    $('#aiBgText').hidden = !on || $('#aiBg').value !== 'custom';
+  };
+  $('#aiBgRemove').addEventListener('change', syncBg);
+  $('#aiBg').addEventListener('change', () => { syncBg(); if (!$('#aiBgText').hidden) $('#aiBgText').focus(); });
 }
+// indice dello sfondo scelto, 'custom' per quello scritto dal cliente, -1 = tieni lo sfondo della foto
 function aiBackground() {
-  return aiBackgrounds.length && $('#aiBgRemove').checked ? +$('#aiBg').value : -1;
+  if (!$('#aiBgRemove').checked) return -1;
+  const v = $('#aiBg').value;
+  if (v === 'custom') return $('#aiBgText').value.trim() ? 'custom' : -1;
+  return v === '' ? -1 : +v;
+}
+function aiBackgroundLabel() {
+  const b = aiBackground();
+  if (b === 'custom') return 'Personalizzato: ' + $('#aiBgText').value.trim();
+  return b >= 0 ? aiBackgrounds[b] : null;
 }
 
 // Modalità ritratto (convertitore): pelle a parte, niente linee dentro il viso
@@ -288,6 +306,11 @@ function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).
 
 $('#aiBtn').addEventListener('click', async () => {
   if (!state.img || $('#aiBox').classList.contains('busy')) return;
+  if ($('#aiBgRemove').checked && $('#aiBg').value === 'custom' && !$('#aiBgText').value.trim()) {
+    aiMessage('Scrivi lo sfondo che vuoi (es. "cielo stellato con la luna") oppure scegline uno dal menu.');
+    $('#aiBgText').focus();
+    return;
+  }
   // Mando all'IA la FOTO ORIGINALE intera (non il ritaglio), nel formato più vicino tra quelli che l'IA
   // sa restituire: così il risultato si rimette con lo stesso zoom e spostamento e si può ancora spostare.
   const src = aiSource(), o = src.img;
@@ -317,7 +340,7 @@ $('#aiBtn').addEventListener('click', async () => {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', ...(CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}) },
-      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground(), aspect: `${rw}:${rh}` }),
+      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground(), bg_text: aiBackground() === 'custom' ? $('#aiBgText').value.trim().slice(0, 160) : '', aspect: `${rw}:${rh}` }),
     });
     const raw = await r.text();
     let j = {};
@@ -331,7 +354,7 @@ $('#aiBtn').addEventListener('click', async () => {
     if (!originalImg) originalImg = { img: o, zoom: src.zoom, ox: src.ox, oy: src.oy, mode: state.mode };
     state.aiImageSrc = j.image;
     state.aiProvider = j.provider || '';
-    state.aiBackground = aiBackground() >= 0 ? aiBackgrounds[aiBackground()] : null;
+    state.aiBackground = aiBackgroundLabel();
     $('#aiUndo').hidden = false;
     selectMode('keep');
     if (aiStyle === 'ritratto') setPortrait(true); // il ritratto IA ha già la pelle in 3 toni

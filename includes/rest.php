@@ -95,6 +95,10 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	if (in_array($aspect, array('1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'), true)) {
 		$s['aspect'] = $aspect;
 	}
+	// sfondo scritto dal cliente ("Personalizza…")
+	if ($bg === 'custom' && !empty($s['bg_enabled']) && !empty($s['bg_custom'])) {
+		$s['bg_custom_text'] = (string) $req->get_param('bg_text');
+	}
 	$gen = flc_generate($bin, $mime, (string) $req->get_param('style'), $s, is_numeric($bg) ? (int) $bg : -1);
 	if (!is_wp_error($gen)) {
 		$quota = flc_quota_status();
@@ -136,6 +140,8 @@ function flc_generate($bin, $mime, $style, $s, $bg = -1) {
 	$bgs       = flc_backgrounds($s);
 	if (!empty($s['bg_enabled']) && $bg >= 0 && isset($bgs[$bg])) {
 		$prompt .= flc_background_instruction($bgs[$bg]);
+	} elseif (!empty($s['bg_custom_text'])) {
+		$prompt .= flc_background_custom_instruction($s['bg_custom_text']);
 	}
 	$providers = flc_providers();
 	$order     = array($s['primary']);
