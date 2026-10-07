@@ -45,6 +45,24 @@ oppure si carica a mano (**Carica risultato**). Nel configuratore, sotto i pulsa
 "originale → risultato" dello stile selezionato senza spendere ridisegni. Si nasconde da Impostazioni → Prompt.
 File pubblici in `uploads/francy-lamp-esempi/`.
 
+## Il configuratore (lato cliente)
+
+Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla volta, con un indicatore in alto
+(numeri, ✓ per i passi fatti; si tocca per saltare a un passo):
+1. **La tua immagine**: disegni pronti, caricamento, inquadratura, zoom, "Regola immagine", "È un volto".
+2. **Ridisegno con IA** (facoltativo): stili, "È una carta da gioco", cambio sfondo, esempi. Il pulsante dice lo stile
+   scelto ("Ridisegna in stile Tombino") e dopo il primo ridisegno diventa "Ridisegna di nuovo".
+3. **Colori e contorni**: "Foto o disegno" / "Grafica con contorni", numero di colori, spessore, regolazioni avanzate.
+4. **Cornice e scritte**: colori di fascia, scritte e pezzi della lampada; i 4 testi hanno l'etichetta sopra.
+5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
+
+I passi chiusi mostrano un riassunto di una riga (es. "✓ Ridisegnata in stile Tombino") e ognuno ha **Avanti →**.
+I colori senza nome pubblico della bobina prendono un nome generico italiano ("Verde lime", "Blu scuro"…) invece
+di "Colore 3". Sotto l'anteprima c'è un messaggio che invita ad accendere la lampada.
+
+**Su telefono** l'anteprima resta fissa in alto (metà schermo) mentre si scorrono i passi, l'indicatore resta
+agganciato sotto e i colori del disco stanno dentro il passo "Colori e contorni".
+
 ## Il flusso
 
 1. Il cliente personalizza il disco e preme **"Convalida il mio disco"** (nome, email, telefono, note, consenso).

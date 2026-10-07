@@ -14,7 +14,7 @@
     <div class="top-right">
       <div class="lit-toggle" role="group" aria-label="Stato lampada">
         <button data-lit="0" class="active">Spenta</button>
-        <button data-lit="1">Accesa</button>
+        <button data-lit="1">💡 Accesa</button>
       </div>
       <a class="back-site" id="backSite" href="#" hidden>← Torna al sito</a>
     </div>
@@ -22,109 +22,153 @@
 
   <main class="layout">
     <aside class="panel left">
-      <section>
-        <h2><span>1</span> La tua immagine</h2>
-        <div class="tpl-box" id="tplBox" hidden>
-          <button type="button" id="tplOpen" class="tpl-open">🎨 Scegli un disegno pronto</button>
-          <div class="tpl-active" id="tplActive" hidden>
-            <img id="tplActiveImg" alt="">
-            <div class="tpl-active-txt"><strong id="tplActiveName"></strong><small>Disegno pronto, non modificabile</small></div>
+      <nav class="stepper" id="stepper" aria-label="Passi"></nav>
+      <section class="step" data-step="1">
+        <button type="button" class="step-head" aria-expanded="false"><span class="step-n">1</span><span class="step-t"><strong>La tua immagine</strong><small class="step-sum" id="sum1"></small></span><span class="step-chev" aria-hidden="true"></span></button>
+        <div class="step-body">
+          <div class="tpl-box" id="tplBox" hidden>
+            <button type="button" id="tplOpen" class="tpl-open">🎨 Scegli un disegno pronto</button>
+            <div class="tpl-active" id="tplActive" hidden>
+              <img id="tplActiveImg" alt="">
+              <div class="tpl-active-txt"><strong id="tplActiveName"></strong><small>Disegno pronto, non modificabile</small></div>
+            </div>
+            <button type="button" id="tplExit" class="ghost" hidden>Torna a personalizzare</button>
+            <p class="hint tpl-or" id="tplOr">oppure crea il tuo disco:</p>
           </div>
-          <button type="button" id="tplExit" class="ghost" hidden>Torna a personalizzare</button>
-          <p class="hint tpl-or" id="tplOr">oppure crea il tuo disco:</p>
-        </div>
-        <label class="upload lockable">
-          <input type="file" id="file" accept="image/*">
-          <span>Carica un'immagine</span>
-        </label>
-        <div class="crop-wrap lockable">
-          <canvas id="crop" width="300" height="300"></canvas>
-          <p class="hint" id="cropHint">Trascina per spostare, rotellina o cursore per lo zoom</p>
-        </div>
-        <label class="row lockable">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
-        <details class="adjust lockable" id="adjustBox">
-          <summary>Regola immagine <span id="adjBadge" hidden>· modificata</span></summary>
-          <label class="row">Luminosità <output id="adjBOut">0</output>
-            <input type="range" id="adjB" min="-100" max="100" step="1" value="0"></label>
-          <label class="row">Contrasto <output id="adjCOut">0</output>
-            <input type="range" id="adjC" min="-100" max="100" step="1" value="0"></label>
-          <label class="row">Saturazione <output id="adjSOut">0</output>
-            <input type="range" id="adjS" min="-100" max="100" step="1" value="0"></label>
-          <button type="button" class="ghost small" id="adjReset">Ripristina</button>
-          <p class="hint">Più contrasto e saturazione separano meglio i colori; più luminosità schiarisce le zone scure prima della scelta dei colori.</p>
-        </details>
-        <div class="portrait-row lockable">
-          <label class="switch portrait-switch"><input type="checkbox" id="portrait"><span class="switch-ui" aria-hidden="true"></span> È un volto (ritratto)</label>
-          <p class="hint" id="portraitHint" hidden>Pelle con 3 toni dedicati e senza linee nere dentro il viso; occhi, sopracciglia e bocca protetti anche se piccoli.</p>
-        </div>
-        <div class="ai-box lockable" id="aiBox" hidden>
-          <div class="ai-style" id="aiStyle" role="group" aria-label="Tipo di ridisegno">
-            <button type="button" data-style="fedele" class="active">Fedele<small>stessa posa ed espressione</small></button>
-            <button type="button" data-style="ritratto">Ritratto<small>per i volti, pop-art</small></button>
-            <button type="button" data-style="tombino">Tombino<small>stile Poké Lids giapponese</small></button>
-            <button type="button" data-style="anime">Anime<small>cartone animato giapponese</small></button>
+          <label class="upload lockable">
+            <input type="file" id="file" accept="image/*">
+            <span>Carica un'immagine</span>
+          </label>
+          <div class="crop-wrap lockable">
+            <canvas id="crop" width="300" height="300"></canvas>
+            <p class="hint" id="cropHint">Trascina per spostare, rotellina o cursore per lo zoom</p>
           </div>
-          <div class="ai-card" id="aiCardRow" hidden>
-            <label class="switch"><input type="checkbox" id="aiCard"><span class="switch-ui" aria-hidden="true"></span> È una carta da gioco</label>
-            <p class="hint">Accendilo solo se hai caricato una carta (es. Pokémon): l'IA tiene solo l'illustrazione e toglie cornice, nome, testi e simboli.</p>
+          <label class="row lockable">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+          <details class="adjust lockable" id="adjustBox">
+            <summary>Regola immagine <span id="adjBadge" hidden>· modificata</span></summary>
+            <label class="row">Luminosità <output id="adjBOut">0</output>
+              <input type="range" id="adjB" min="-100" max="100" step="1" value="0"></label>
+            <label class="row">Contrasto <output id="adjCOut">0</output>
+              <input type="range" id="adjC" min="-100" max="100" step="1" value="0"></label>
+            <label class="row">Saturazione <output id="adjSOut">0</output>
+              <input type="range" id="adjS" min="-100" max="100" step="1" value="0"></label>
+            <button type="button" class="ghost small" id="adjReset">Ripristina</button>
+            <p class="hint">Più contrasto e saturazione separano meglio i colori; più luminosità schiarisce le zone scure prima della scelta dei colori.</p>
+          </details>
+          <div class="portrait-row lockable">
+            <label class="switch portrait-switch"><input type="checkbox" id="portrait"><span class="switch-ui" aria-hidden="true"></span> È un volto (ritratto)</label>
+            <p class="hint" id="portraitHint" hidden>Pelle con 3 toni dedicati e senza linee nere dentro il viso; occhi, sopracciglia e bocca protetti anche se piccoli.</p>
           </div>
-          <div class="ai-bg" id="aiBgRow" hidden>
-            <label class="switch"><input type="checkbox" id="aiBgRemove"><span class="switch-ui" aria-hidden="true"></span> Rimuovi lo sfondo</label>
-            <label class="ai-bg-pick" id="aiBgPick" hidden>Nuovo sfondo <select id="aiBg"></select></label>
-            <input type="text" id="aiBgText" class="ai-bg-text" maxlength="160" placeholder="Descrivi lo sfondo, es. cielo stellato con la luna piena" hidden>
-            <figure class="ai-bg-ex" id="aiBgEx" hidden><img id="aiBgExImg" alt="Esempio dello sfondo"><figcaption><strong>Esempio</strong> di come potrebbe venire questo sfondo: nel ridisegno l'IA lo adatta alla tua foto, quindi il risultato sarà simile ma non identico.</figcaption></figure>
-          </div>
-          <div class="ai-example" id="aiExample" hidden>
-            <figure><img id="exOrig" alt="Foto d'esempio"><figcaption>Foto</figcaption></figure>
-            <span class="ai-example-arrow" aria-hidden="true">→</span>
-            <figure><img id="exStyle" alt=""><figcaption id="exLabel">Fedele</figcaption></figure>
-          </div>
-          <button id="aiBtn" disabled>✨ Ridisegna in stile tombino</button>
-          <button id="aiUndo" class="ghost" hidden>Torna all'immagine originale</button>
-          <p class="hint" id="aiHint">L'IA ridisegna la tua immagine con colori piatti e contorni neri.</p>
-          <p class="quota" id="aiQuota" hidden></p>
-          <p class="ai-msg" id="aiMsg" hidden></p>
+          <button type="button" class="step-next" data-next="2">Avanti →</button>
         </div>
       </section>
-
-      <section class="lockable">
-        <h2><span>2</span> Stile</h2>
-        <div class="seg" id="mode">
-          <button data-mode="outline" class="active">Foto / disegno<small>creo io i contorni neri</small></button>
-          <button data-mode="keep">Grafica pronta<small>contorni neri già presenti</small></button>
+      <section class="step lockable-step" data-step="2" id="stepAi" hidden>
+        <button type="button" class="step-head" aria-expanded="false"><span class="step-n">2</span><span class="step-t"><strong>Ridisegno con IA <em>facoltativo</em></strong><small class="step-sum" id="sum2"></small></span><span class="step-chev" aria-hidden="true"></span></button>
+        <div class="step-body">
+          <div class="ai-box lockable" id="aiBox">
+            <div class="ai-style" id="aiStyle" role="group" aria-label="Tipo di ridisegno">
+              <button type="button" data-style="fedele" class="active">Fedele<small>stessa posa ed espressione</small></button>
+              <button type="button" data-style="ritratto">Ritratto<small>per i volti, pop-art</small></button>
+              <button type="button" data-style="tombino">Tombino<small>stile Poké Lids giapponese</small></button>
+              <button type="button" data-style="anime">Anime<small>cartone animato giapponese</small></button>
+            </div>
+            <div class="ai-card" id="aiCardRow" hidden>
+              <label class="switch"><input type="checkbox" id="aiCard"><span class="switch-ui" aria-hidden="true"></span> È una carta da gioco</label>
+              <p class="hint">Hai caricato una carta (es. Pokémon)? L'IA tiene solo l'illustrazione e toglie cornice e scritte.</p>
+            </div>
+            <div class="ai-bg" id="aiBgRow" hidden>
+              <label class="switch"><input type="checkbox" id="aiBgRemove"><span class="switch-ui" aria-hidden="true"></span> Rimuovi lo sfondo</label>
+              <label class="ai-bg-pick" id="aiBgPick" hidden>Nuovo sfondo <select id="aiBg"></select></label>
+              <input type="text" id="aiBgText" class="ai-bg-text" maxlength="160" placeholder="Descrivi lo sfondo, es. cielo stellato con la luna piena" hidden>
+              <figure class="ai-bg-ex" id="aiBgEx" hidden><img id="aiBgExImg" alt="Esempio dello sfondo"><figcaption><strong>Esempio</strong> di come potrebbe venire questo sfondo: nel ridisegno l'IA lo adatta alla tua foto, quindi il risultato sarà simile ma non identico.</figcaption></figure>
+            </div>
+            <div class="ai-example" id="aiExample" hidden>
+              <figure><img id="exOrig" alt="Foto d'esempio"><figcaption>Foto</figcaption></figure>
+              <span class="ai-example-arrow" aria-hidden="true">→</span>
+              <figure><img id="exStyle" alt=""><figcaption id="exLabel">Fedele</figcaption></figure>
+            </div>
+            <button id="aiBtn" disabled>✨ Ridisegna in stile Fedele</button>
+            <button id="aiUndo" class="ghost" hidden>Torna all'immagine originale</button>
+            <p class="quota" id="aiQuota" hidden></p>
+            <p class="ai-msg" id="aiMsg" hidden></p>
+          </div>
+          <button type="button" class="step-next" data-next="3">Avanti →</button>
         </div>
-        <label class="row">Colori <output id="colorsOut">10</output>
-          <input type="range" id="colors" min="2" max="12" step="1" value="10"></label>
-        <label class="check" id="addRow" hidden><input type="checkbox" id="addOutlines" checked> Aggiungi i contorni neri dove mancano</label>
-        <label class="row" id="lineRow">Spessore contorni (mm) <output id="lineOut">1.2</output>
-          <input type="range" id="line" min="0.6" max="2.5" step="0.1" value="1.2"></label>
-        <label class="row" id="thickRow" hidden>Ingrossa il nero (mm) <output id="thickOut">0.15</output>
-          <input type="range" id="thick" min="0" max="1" step="0.05" value="0.15"></label>
-        <details>
-          <summary>Avanzate</summary>
-          <label class="row">Semplificazione <output id="smoothOut">2</output>
-            <input type="range" id="smooth" min="0" max="4" step="1" value="2"></label>
-          <label class="row">Dettaglio minimo (mm) <output id="featOut">0.8</output>
-            <input type="range" id="feat" min="0.4" max="2.5" step="0.1" value="0.8"></label>
-          <label class="row">Area minima zona (mm²) <output id="areaOut">4</output>
-            <input type="range" id="area" min="0.5" max="20" step="0.5" value="4"></label>
-          <label class="row">Risoluzione (px/mm) <output id="ppmmOut">5</output>
-            <input type="range" id="ppmm" min="3" max="8" step="1" value="5"></label>
-          <button class="ghost" id="reseed">Prova un'altra combinazione di colori</button>
-        </details>
       </section>
+      <section class="step" data-step="3">
+        <button type="button" class="step-head" aria-expanded="false"><span class="step-n">3</span><span class="step-t"><strong>Colori e contorni</strong><small class="step-sum" id="sum3"></small></span><span class="step-chev" aria-hidden="true"></span></button>
+        <div class="step-body">
+        <div class="lockable">
+          <div class="seg" id="mode">
+            <button data-mode="outline" class="active">Foto o disegno<small>i contorni neri li creo io</small></button>
+            <button data-mode="keep">Grafica con contorni<small>ha già i contorni neri (es. dopo l'IA)</small></button>
+          </div>
+          <label class="row">Colori <output id="colorsOut">10</output>
+            <input type="range" id="colors" min="2" max="12" step="1" value="10"></label>
+          <label class="check" id="addRow" hidden><input type="checkbox" id="addOutlines" checked> Aggiungi i contorni neri dove mancano</label>
+          <label class="row" id="lineRow">Spessore contorni (mm) <output id="lineOut">1.2</output>
+            <input type="range" id="line" min="0.6" max="2.5" step="0.1" value="1.2"></label>
+          <label class="row" id="thickRow" hidden>Ingrossa il nero (mm) <output id="thickOut">0.15</output>
+            <input type="range" id="thick" min="0" max="1" step="0.05" value="0.15"></label>
+          <details>
+            <summary>Regolazioni avanzate</summary>
+            <label class="row">Semplificazione <output id="smoothOut">2</output>
+              <input type="range" id="smooth" min="0" max="4" step="1" value="2"></label>
+            <label class="row">Dettaglio minimo (mm) <output id="featOut">0.8</output>
+              <input type="range" id="feat" min="0.4" max="2.5" step="0.1" value="0.8"></label>
+            <label class="row">Area minima zona (mm²) <output id="areaOut">4</output>
+              <input type="range" id="area" min="0.5" max="20" step="0.5" value="4"></label>
+            <label class="row">Risoluzione (px/mm) <output id="ppmmOut">5</output>
+              <input type="range" id="ppmm" min="3" max="8" step="1" value="5"></label>
+            <button class="ghost" id="reseed">Prova un'altra combinazione di colori</button>
+          </details>
 
-      <section class="lockable">
-        <h2><span>3</span> Cornice e scritte</h2>
-        <div class="picker" id="bandPicker"><span class="picker-label">Colore fascia</span><div class="swatches"></div></div>
-        <div class="picker" id="textPicker"><span class="picker-label">Colore scritte</span><div class="swatches"></div></div>
-        <div id="lampPickers"></div>
-        <p class="hint" id="pickerHint">Puoi scegliere tra i colori già usati nel disegno. Un colore nuovo si può aggiungere solo se resti entro i 13 colori totali.</p>
-        <div class="texts">
-          <input id="tTL" placeholder="Testo 1 – in alto a sinistra" value="" maxlength="14">
-          <input id="tTR" placeholder="Testo 2 – in alto a destra" value="Testo 2" maxlength="14">
-          <input id="tBL" placeholder="Testo 3 – in basso a sinistra" value="Testo 3" maxlength="10">
-          <input id="tBR" placeholder="Testo 4 – in basso a destra" value="" maxlength="10">
+        </div>
+        <div id="paletteSlot"></div>
+          <button type="button" class="step-next" data-next="4">Avanti →</button>
+        </div>
+      </section>
+      <section class="step" data-step="4">
+        <button type="button" class="step-head" aria-expanded="false"><span class="step-n">4</span><span class="step-t"><strong>Cornice e scritte</strong><small class="step-sum" id="sum4"></small></span><span class="step-chev" aria-hidden="true"></span></button>
+        <div class="step-body">
+        <div class="lockable">
+          <div class="picker" id="bandPicker"><span class="picker-label">Colore fascia</span><div class="swatches"></div></div>
+          <div class="picker" id="textPicker"><span class="picker-label">Colore scritte</span><div class="swatches"></div></div>
+          <div id="lampPickers"></div>
+          <p class="hint" id="pickerHint">Conviene usare i colori già presenti nel disegno: un colore nuovo si aggiunge solo se resti entro i 13 totali.</p>
+          <p class="picker-label">Scritte sulla fascia <small>(lascia vuoto per non metterle)</small></p>
+          <div class="texts">
+            <label>In alto a sinistra<input id="tTL" placeholder="es. il tuo nome" value="" maxlength="14"></label>
+            <label>In alto a destra<input id="tTR" placeholder="max 14 lettere" value="Testo 2" maxlength="14"></label>
+            <label>In basso a sinistra<input id="tBL" placeholder="max 10 lettere" value="Testo 3" maxlength="10"></label>
+            <label>In basso a destra<input id="tBR" placeholder="max 10 lettere" value="" maxlength="10"></label>
+          </div>
+
+        </div>
+          <button type="button" class="step-next" data-next="5">Avanti →</button>
+        </div>
+      </section>
+      <section class="step" data-step="5">
+        <button type="button" class="step-head" aria-expanded="false"><span class="step-n">5</span><span class="step-t"><strong>Conferma</strong><small class="step-sum" id="sum5"></small></span><span class="step-chev" aria-hidden="true"></span></button>
+        <div class="step-body">
+          <ul class="recap" id="recap"></ul>
+          <div id="submitBox" hidden>
+          <p class="hint">Quando il disco ti piace, invialo: lo controlliamo noi prima della stampa e ti ricontattiamo per il preventivo.</p>
+          <form id="submitForm" class="submit-form" novalidate>
+            <input name="name" placeholder="Nome e cognome" autocomplete="name" required>
+            <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+            <input name="phone" type="tel" placeholder="Telefono (facoltativo)" autocomplete="tel">
+            <textarea name="note" rows="2" placeholder="Note (facoltative)"></textarea>
+            <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <label class="check small"><input type="checkbox" name="privacy"> <span>Acconsento all'uso dell'immagine caricata solo per realizzare questo prodotto (<a id="consentPrivacy" href="https://www.francystore3d.it/privacy-policy/" target="_blank" rel="noopener">privacy policy</a>)</span></label>
+            <button id="submitBtn" type="submit" disabled>Convalida il mio disco</button>
+          </form>
+          <p class="ai-msg" id="submitMsg" hidden></p>
+          </div>
+          <div id="shareBox" hidden>
+          <button id="dlPreview" class="ghost" disabled>Scarica l'anteprima (immagine)</button>
+          <p class="hint">Un'immagine della tua lampada da condividere, con il logo del negozio.</p>
+          </div>
         </div>
       </section>
     </aside>
@@ -144,27 +188,10 @@
     <aside class="panel right">
       <section class="lockable" id="paletteSection">
         <h2>Colori del disco</h2>
-        <p class="hint">Clicca un colore per cambiarlo. Massimo 13 colori in tutto, compresi il bianco della base e il nero dei contorni.</p>
+        <p class="hint" id="paletteHint">Tocca un colore per cambiarlo. Massimo 13 colori in tutto, compresi il bianco della base e il nero dei contorni.</p>
+        <p class="hint palette-empty" id="paletteEmpty">I colori compaiono qui appena carichi un'immagine.</p>
         <ul id="palette" class="palette"></ul>
         <p class="count" id="count"></p>
-      </section>
-      <section id="submitBox" hidden>
-        <h2>Conferma il tuo disco</h2>
-        <p class="hint">Quando il disco ti piace, invialo: lo controlliamo noi prima della stampa e ti ricontattiamo.</p>
-        <form id="submitForm" class="submit-form" novalidate>
-          <input name="name" placeholder="Nome e cognome" autocomplete="name" required>
-          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
-          <input name="phone" type="tel" placeholder="Telefono (facoltativo)" autocomplete="tel">
-          <textarea name="note" rows="2" placeholder="Note (facoltative)"></textarea>
-          <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-          <label class="check small"><input type="checkbox" name="privacy"> <span>Acconsento all'uso dell'immagine caricata solo per realizzare questo prodotto (<a id="consentPrivacy" href="https://www.francystore3d.it/privacy-policy/" target="_blank" rel="noopener">privacy policy</a>)</span></label>
-          <button id="submitBtn" type="submit" disabled>Convalida il mio disco</button>
-        </form>
-        <p class="ai-msg" id="submitMsg" hidden></p>
-      </section>
-      <section id="shareBox" hidden>
-        <button id="dlPreview" class="ghost" disabled>Scarica l'anteprima (immagine)</button>
-        <p class="hint">Un'immagine della tua lampada da condividere, con il logo del negozio.</p>
       </section>
       <!-- FLC:ADMIN:START -->
       <section id="adminFiles">

@@ -76,6 +76,22 @@ function filamentLabel(hex) {
   const f = nearestFilament(hex);
   return f ? f.label : '';
 }
+// Nome generico in italiano di un colore (se la bobina non ha un nome pubblico)
+function colorNameIt(hex) {
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (sat < 0.12 || d < 0.06) return l > 0.85 ? 'Bianco' : l > 0.6 ? 'Grigio chiaro' : l > 0.3 ? 'Grigio' : l > 0.12 ? 'Grigio scuro' : 'Nero';
+  let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  let name = h < 12 || h >= 345 ? 'Rosso' : h < 40 ? (l < 0.35 ? 'Marrone' : 'Arancio') : h < 55 ? (l < 0.4 ? 'Marrone' : 'Ocra') : h < 70 ? 'Giallo'
+    : h < 95 ? 'Verde lime' : h < 165 ? 'Verde' : h < 195 ? 'Turchese' : h < 215 ? 'Azzurro' : h < 250 ? 'Blu' : h < 285 ? 'Viola' : h < 320 ? 'Magenta' : 'Rosa';
+  if (name === 'Rosso' && l > 0.7) name = 'Rosa';
+  if (name === 'Azzurro' && l < 0.4) name = 'Blu';
+  if (name === 'Arancio' && sat < 0.45 && l > 0.6) name = 'Pesca';
+  const tone = l > 0.72 ? ' chiaro' : l < 0.3 ? ' scuro' : '';
+  return name + tone;
+}
 // Nome della bobina per un colore (esatto se è un colore del catalogo, altrimenti la più vicina)
 function filamentName(hex) {
   if (!state.filaments.length) return '';
@@ -217,7 +233,7 @@ function aiSource() {
   if (originalImg) return { img: originalImg.img, zoom: originalImg.zoom, ox: originalImg.ox, oy: originalImg.oy };
   return { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy };
 }
-if (CFG.restUrl) { $('#aiBox').hidden = false; loadQuota(); }
+if (CFG.restUrl) { $('#stepAi').hidden = false; loadQuota(); }
 if (CFG.aiCard) $('#aiCardRow').hidden = false;
 
 // Contatori del giorno: quanti ridisegni restano a te e a tutto il sito
@@ -261,8 +277,13 @@ function showExample() {
 }
 // stili disponibili decisi dall'admin (l'anime si può spegnere)
 if (Array.isArray(CFG.aiStyles)) document.querySelectorAll('#aiStyle button').forEach((b) => { b.hidden = !CFG.aiStyles.includes(b.dataset.style); });
+const AI_STYLE_NAMES = { fedele: 'Fedele', ritratto: 'Ritratto', tombino: 'Tombino', anime: 'Anime' };
+function updateAiBtn() {
+  if (!$('#aiBox').classList.contains('busy')) $('#aiBtn').textContent = `✨ ${state.aiImageSrc ? 'Ridisegna di nuovo' : 'Ridisegna'} in stile ${AI_STYLE_NAMES[aiStyle] || aiStyle}`;
+}
 document.querySelectorAll('#aiStyle button').forEach((b) => b.addEventListener('click', () => {
   aiStyle = b.dataset.style;
+  updateAiBtn();
   document.querySelectorAll('#aiStyle button').forEach((x) => x.classList.toggle('active', x === b));
   // stile Ritratto: la modalità ritratto si accende da sola (si può sempre spegnere a mano)
   if (aiStyle === 'ritratto' && !$('#portrait').checked) { setPortrait(true); schedule(); }
@@ -344,7 +365,6 @@ $('#aiBtn').addEventListener('click', async () => {
   const image = c.toDataURL('image/jpeg', 0.9);
 
   $('#aiBox').classList.add('busy');
-  const btnLabel = $('#aiBtn').textContent;
   $('#aiBtn').textContent = '⏳ Ridisegno in corso… (10–30 s)';
   aiMessage('');
   setStatus("L'IA sta ridisegnando la tua immagine (di solito 10–30 secondi)…");
@@ -387,7 +407,7 @@ $('#aiBtn').addEventListener('click', async () => {
     aiMessage(err.message, 'error');
   } finally {
     $('#aiBox').classList.remove('busy');
-    $('#aiBtn').textContent = btnLabel;
+    updateAiBtn(); updateSteps();
   }
 });
 
@@ -455,6 +475,7 @@ document.querySelectorAll('.lit-toggle button').forEach((b) => b.addEventListene
   state.lit = b.dataset.lit === '1';
   root.classList.toggle('lit', state.lit);
   if (preview3d) preview3d.setLit(state.lit);
+  if (!/…$/.test($('#status').textContent)) setStatus('');
 }));
 
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
@@ -751,7 +772,9 @@ worker.onmessage = (e) => {
   setStatus('');
 };
 
-function setStatus(t) { $('#status').textContent = t || (state.result ? 'Pronto' : ''); }
+function setStatus(t) {
+  $('#status').textContent = t || (state.result || state.template ? (state.lit ? 'Ecco la tua lampada accesa' : 'Ecco il tuo disco · prova ad accenderlo con 💡 Accesa') : '');
+}
 
 // ---------------- palette ----------------
 function artColor(i) {
@@ -835,6 +858,8 @@ function otherDrawingColors(i) {
 function renderPalette() {
   const ul = $('#palette');
   ul.innerHTML = '';
+  $('#paletteEmpty').hidden = !!(state.result || state.template);
+  $('#paletteHint').hidden = !state.result;
   if (!state.result) return;
   state.result.palette.forEach((p, i) => {
     const li = document.createElement('li');
@@ -856,7 +881,7 @@ function renderPalette() {
     const name = document.createElement('span');
     // il cliente vede il nome pubblico della bobina (es. "Arancio Mandarino"); il nome vero lo vede solo l'admin
     const fil = CFG.isAdmin ? filamentName(artColor(i)) : '';
-    const label = p.black ? 'Nero contorni' : p.white && artColor(i) === WHITE ? 'Bianco' : filamentLabel(artColor(i)) || `Colore ${i + 1}`;
+    const label = p.black ? 'Nero contorni' : p.white && artColor(i) === WHITE ? 'Bianco' : filamentLabel(artColor(i)) || colorNameIt(artColor(i));
     name.textContent = label + (fil ? ` · ${fil}` : '');
     const area = document.createElement('span');
     area.className = 'area';
@@ -913,6 +938,7 @@ function render() {
     $('#submitBtn').disabled = !CFG.submitUrl;
     dirty3d = true;
     if (state.view === '3d' && preview3d) update3d();
+    updateSteps();
     return;
   }
   const { svg, colors, parts: ps } = buildSvg(false);
@@ -926,7 +952,80 @@ function render() {
   renderPickers();
   dirty3d = true;
   if (state.view === '3d' && preview3d) update3d(ps);
+  updateSteps();
 }
+
+// ---------------- passi (pannello sinistro a fisarmonica) ----------------
+// Un passo aperto alla volta; quelli chiusi mostrano un riassunto di una riga. Il cliente può aprire
+// qualsiasi passo toccandone il titolo, oppure andare avanti con "Avanti →".
+const steps = () => [...document.querySelectorAll('.flc .step')].filter((x) => !x.hidden);
+function openStep(n, scroll = true) {
+  steps().forEach((st) => {
+    const on = st.dataset.step === String(n);
+    st.classList.toggle('open', on);
+    st.querySelector('.step-head').setAttribute('aria-expanded', on ? 'true' : 'false');
+  });
+  updateSteps();
+  const st = document.querySelector(`.flc .step[data-step="${n}"]`);
+  if (scroll && st) {
+    const panel = st.closest('.panel');
+    if (panel && panel.scrollHeight > panel.clientHeight + 4 && getComputedStyle(panel).overflowY !== 'visible') panel.scrollTo({ top: st.offsetTop - panel.offsetTop - 50, behavior: 'smooth' });
+    else st.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+document.querySelectorAll('.flc .step-head').forEach((h) => h.addEventListener('click', () => {
+  const st = h.closest('.step');
+  if (st.classList.contains('open')) { st.classList.remove('open'); h.setAttribute('aria-expanded', 'false'); updateSteps(); }
+  else openStep(st.dataset.step, false);
+}));
+document.querySelectorAll('.flc .step-next').forEach((b) => b.addEventListener('click', () => {
+  const list = steps(), i = list.indexOf(b.closest('.step'));
+  if (list[i + 1]) openStep(list[i + 1].dataset.step);
+}));
+function bandLabel(hex) { return filamentLabel(hex) || colorNameIt(hex); }
+function updateSteps() {
+  const list = steps();
+  const tpl = !!state.template, img = !!state.img, res = !!state.result;
+  const t = texts(), words = [t.topLeft, t.topRight, t.bottomLeft, t.bottomRight].map((x) => x.trim()).filter(Boolean);
+  const nColors = res ? new Set(state.result.palette.map((_, i) => artColor(i))).size : 0;
+  const sum = {
+    1: tpl ? ['✓ Disegno pronto: ' + state.template.name, true] : img ? ['✓ Immagine caricata' + ($('#portrait').checked ? ' · volto' : ''), true] : ['Carica una foto o un disegno', false],
+    2: tpl ? ['Non serve con un disegno pronto', false] : state.aiImageSrc ? ['✓ Ridisegnata in stile ' + (AI_STYLE_NAMES[aiStyle] || aiStyle), true] : ['Facoltativo: fai ridisegnare la foto', false],
+    3: tpl ? ['Già scelti nel disegno pronto', false] : res ? [`✓ ${nColors} colori · ${state.mode === 'keep' ? 'grafica con contorni' : 'foto o disegno'}`, true] : ['Si sistemano dopo il caricamento', false],
+    4: ['Fascia ' + bandLabel(state.bandColor).toLowerCase() + (words.length ? ' · ' + words.join(', ') : ' · senza scritte'), img || tpl],
+    5: [state.submitted ? '✓ Inviato' : 'Invia il disco: lo controlliamo noi', !!state.submitted],
+  };
+  list.forEach((st, i) => {
+    st.querySelector('.step-n').textContent = String(i + 1);
+    const [txt, done] = sum[st.dataset.step] || ['', false];
+    st.querySelector('.step-sum').textContent = txt;
+    st.classList.toggle('done', done);
+  });
+  // indicatore in alto
+  $('#stepper').innerHTML = list.map((st, i) => `<button type="button" data-go="${st.dataset.step}" class="${st.classList.contains('open') ? 'on' : ''}${st.classList.contains('done') ? ' done' : ''}" title="${escapeAttr(st.querySelector('.step-t strong').firstChild.textContent.trim())}">${st.classList.contains('done') && !st.classList.contains('open') ? '✓' : i + 1}</button>`).join('<span></span>');
+  // riepilogo nel passo Conferma
+  const rows = [];
+  if (tpl) rows.push(['Disegno', state.template.name]);
+  else if (img) {
+    rows.push(['Immagine', state.aiImageSrc ? 'ridisegnata con IA, stile ' + (AI_STYLE_NAMES[aiStyle] || aiStyle) : 'la tua foto' + ($('#portrait').checked ? ' (ritratto)' : '')]);
+    if (state.aiImageSrc && state.aiBackground) rows.push(['Sfondo', state.aiBackground]);
+    if (res) rows.push(['Colori', `${colorSet().size} su ${MAX_FILAMENTS} (cornice compresa)`]);
+  }
+  if (img || tpl) {
+    rows.push(['Fascia', bandLabel(state.bandColor)]);
+    rows.push(['Scritte', words.length ? words.join(' · ') : 'nessuna']);
+  }
+  $('#recap').innerHTML = rows.length ? rows.map(([k, v]) => `<li><span>${escapeAttr(k)}</span><strong>${escapeAttr(v)}</strong></li>`).join('') : '<li class="empty">Carica prima un\'immagine (passo 1).</li>';
+}
+$('#stepper').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) openStep(b.dataset.go); });
+// su telefono i colori del disco stanno nel passo "Colori e contorni" (sotto l'anteprima fissa)
+{
+  const mq = window.matchMedia('(max-width: 980px)'), sec = $('#paletteSection'), home = sec.parentNode, next = sec.nextSibling;
+  const place = () => { if (mq.matches) $('#paletteSlot').append(sec); else home.insertBefore(sec, next); };
+  (mq.addEventListener ? mq.addEventListener('change', place) : mq.addListener(place));
+  place();
+}
+openStep(1, false);
 
 let t3d;
 function update3d(ps) {
@@ -1122,6 +1221,7 @@ $('#submitForm').addEventListener('submit', async (e) => {
       if (r.status === 413) throw new Error('I file sono troppo pesanti per il server (limite di upload). Avvisa il negozio.');
       throw new Error(j.message || `Invio non riuscito (HTTP ${r.status}).`);
     }
+    state.submitted = true; updateSteps();
     submitMessage(`Grazie! Il tuo disco è stato inviato con il codice ${j.code}. Ti contatteremo a ${customer.email}.`, 'ok');
     f.reset();
   } catch (err) {
