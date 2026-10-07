@@ -330,6 +330,13 @@ html.flc-page .flc { height: 100%; }
 /* modalità disegno pronto: i passi che non servono restano visibili ma spenti */
 .flc.template-mode .step[data-step="2"] .step-head, .flc.template-mode .step[data-step="3"] .step-head { opacity: .55; }
 
+/* sopra la fascia */
+.flc .ov-box { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 13px; }
+.flc .ov-box .hint { margin: 8px 0 4px; }
+.flc .ov-status { margin: 4px 0 0; font-weight: 600; }
+.flc .link-btn { background: none; border: 0; padding: 0 0 0 8px; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 12px; }
+.flc.ov-pick #view2d #svgHost { cursor: crosshair; }
+
 /* ---------- Telefono: anteprima fissa in alto, comandi sotto ---------- */
 @media (max-width: 980px) {
   .flc .stage { position: sticky; top: 0; z-index: 4; min-height: 0; height: 46vh; height: 46svh; padding: 8px; }

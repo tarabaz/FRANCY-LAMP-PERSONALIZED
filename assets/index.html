@@ -132,6 +132,14 @@
         <button type="button" class="step-head" aria-expanded="false"><span class="step-n">4</span><span class="step-t"><strong>Cornice e scritte</strong><small class="step-sum" id="sum4"></small></span><span class="step-chev" aria-hidden="true"></span></button>
         <div class="step-body">
         <div class="lockable">
+          <div class="ov-box" id="ovBox" hidden>
+            <label class="switch"><input type="checkbox" id="ovOn"><span class="switch-ui" aria-hidden="true"></span> Fai uscire parti del disegno sopra la fascia</label>
+            <div id="ovPanel" hidden>
+              <p class="hint">Tocca sull'anteprima le parti che devono uscire dal cerchio (es. una pinna o un orecchio): escono con il loro contorno nero fino all'anello esterno. Tocca di nuovo per toglierle. Con un po' più di zoom sporgono di più.</p>
+              <p class="ov-status"><span id="ovCount">Nessuna parte scelta</span> <button type="button" class="link-btn" id="ovClear" hidden>Togli tutte</button></p>
+              <p class="ai-msg" id="ovWarn" hidden>Una parte copre una scritta: sposta l'immagine, accorcia il testo o togli quella parte.</p>
+            </div>
+          </div>
           <div class="picker" id="bandPicker"><span class="picker-label">Colore fascia</span><div class="swatches"></div></div>
           <div class="picker" id="textPicker"><span class="picker-label">Colore scritte</span><div class="swatches"></div></div>
           <div id="lampPickers"></div>

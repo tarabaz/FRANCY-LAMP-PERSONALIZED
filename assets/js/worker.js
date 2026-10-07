@@ -6,12 +6,16 @@
 const NONE = 255; // pixel fuori dal cerchio
 
 let last = null; // ultima conversione, per riunire le zone senza rifare tutto
+let lastFull = null; // "sopra la fascia": etichette PRIMA del taglio al cerchio (anche fuori dal cerchio)
 
 self.onmessage = (e) => {
-  const { id, imageData, size, ppmm, opts, merge } = e.data;
+  const { id, imageData, size, ppmm, opts, merge, ovToggle, ovSeeds } = e.data;
   try {
-    const result = merge ? mergeColors(merge) : convert(imageData, size, ppmm, opts, (msg) => self.postMessage({ id, progress: msg }));
-    last = { labels: result.labels.slice(), palette: result.palette, size: result.size, ppmm: result.ppmm, opts: merge ? last.opts : opts };
+    let result;
+    if (merge) result = mergeColors(merge);
+    else if (ovToggle || ovSeeds) result = overflowAgain(ovToggle, ovSeeds);
+    else result = convert(imageData, size, ppmm, opts, (msg) => self.postMessage({ id, progress: msg }));
+    last = { labels: result.labels.slice(), palette: result.palette, size: result.size, ppmm: result.ppmm, opts: merge || ovToggle || ovSeeds ? last.opts : opts, fgPath: result.fgPath, ovSeeds: result.ovSeeds };
     self.postMessage({ id, result }, [result.labels.buffer]);
   } catch (err) {
     self.postMessage({ id, error: String(err && err.stack || err) });
@@ -22,11 +26,18 @@ function convert(rgba, size, ppmm, opts, progress) {
   const n = size * size;
   const cx = (size - 1) / 2, r = size / 2;
 
-  // Maschera del cerchio
+  // Maschera del cerchio. Con "sopra la fascia" (opts.ov) il raster arriva fino alla fascia: si elabora tutto,
+  // ma i colori si scelgono solo dal cerchio del disegno (kin), poi fuori resta solo ciò che il cliente tocca.
   const inside = new Uint8Array(n);
+  const rIn = opts.ov ? opts.ov.rArt : r;
+  const kin = opts.ov ? new Uint8Array(n) : inside;
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const dx = x - cx, dy = y - cx;
-    if (dx * dx + dy * dy <= r * r) inside[y * size + x] = 1;
+    const dx = x - cx, dy = y - cx, d2 = dx * dx + dy * dy;
+    if (d2 <= r * r) inside[y * size + x] = 1;
+    if (opts.ov && d2 <= rIn * rIn) kin[y * size + x] = 1;
+    // fuori dal cerchio del disegno conta solo dove c'è davvero l'immagine (oltre il bordo della foto non esce niente)
+    const ir = opts.ov && opts.ov.imgRect;
+    if (ir && d2 > rIn * rIn && (x < ir[0] || y < ir[1] || x >= ir[2] || y >= ir[3])) inside[y * size + x] = 0;
   }
 
   // 1. Semplificazione: filtro Kuwahara, appiattisce texture e pennellate mantenendo i bordi netti
@@ -50,15 +61,15 @@ function convert(rgba, size, ppmm, opts, progress) {
   let centers;
   // Modalità ritratto: la pelle ha una palette tutta sua (3 toni garantiti), il resto si divide gli altri colori
   let skinSet = new Set();
-  const skin = opts.portrait ? skinMask(lab, inside, n, opts.seed || 1) : null;
+  const skin = opts.portrait ? skinMask(lab, kin, n, opts.seed || 1) : null;
   if (skin && k >= 4) {
     const other = new Uint8Array(n);
-    for (let i = 0; i < n; i++) other[i] = inside[i] && !skin[i] ? 1 : 0;
+    for (let i = 0; i < n; i++) other[i] = kin[i] && !skin[i] ? 1 : 0;
     centers = kmeans(lab, other, n, k - 3, opts.seed || 1);
     const sc = kmeans(lab, skin, n, 3, (opts.seed || 1) + 7);
     for (const c of sc) { skinSet.add(centers.length); centers.push(c); }
   } else {
-    centers = kmeans(lab, inside, n, k, opts.seed || 1);
+    centers = kmeans(lab, kin, n, k, opts.seed || 1);
   }
 
   // Bianco e nero sono le bobine fisse: si usano volentieri anche come colori del disegno.
@@ -78,7 +89,7 @@ function convert(rgba, size, ppmm, opts, progress) {
     // nessun cluster bianco ma c'è del bianco (denti, occhi): aggiungo un bianco puro, è la bobina della base
     let tot = 0, wcount = 0;
     for (let i = 0; i < n; i++) {
-      if (!inside[i]) continue;
+      if (!kin[i]) continue;
       tot++;
       if (lab[i * 3] > 74 && Math.hypot(lab[i * 3 + 1], lab[i * 3 + 2]) < 15) wcount++;
     }
@@ -152,11 +163,123 @@ function convert(rgba, size, ppmm, opts, progress) {
   for (let i = 0; i < n; i++) labels[i] = remap[labels[i]];
   palette = newPal;
 
-  // 4. Vettorializzazione
+  // 4. Sopra la fascia: fuori dal cerchio restano solo le zone toccate dal cliente (con il loro contorno nero)
+  let fgPath = '', seedsOut = [];
+  lastFull = null;
+  if (opts.ov) {
+    if (!palette.some((p) => p.black)) palette.push({ r: 20, g: 20, b: 20, area: 0, black: true, white: false, skin: false });
+    lastFull = labels.slice();
+    const o = applyOverflow(lastFull, palette, size, ppmm, opts, opts.ov.seeds || []);
+    labels = o.labels; fgPath = o.fgPath; seedsOut = o.seeds;
+  }
+
+  // 5. Vettorializzazione
   progress('Vettorializzazione');
   const layers = trace(labels, size, palette.length, opts);
 
-  return { labels, palette, layers, size, ppmm };
+  return { labels, palette, layers, size, ppmm, fgPath, ovSeeds: seedsOut };
+}
+
+// ---------- sopra la fascia ----------
+// full: etichette su tutto il raster. Dentro il cerchio del disegno resta tutto; fuori (fino all'anello nero)
+// restano solo le zone toccate (seeds, in mm) e un contorno nero di spessore pari alle linee del disegno,
+// tranne la zona dell'asola in basso. Ritorna anche fgPath: la sagoma di ciò che esce, da togliere a fascia e scritte.
+function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
+  const ov = opts.ov, n = size * size, cx = (size - 1) / 2;
+  const sc = opts.scale ?? 1, off = opts.offset ?? 0;
+  const blackIdx = palette.findIndex((p) => p.black);
+  const { comp } = components(full, size);
+  const toPx = (v) => (v - off) / sc;
+  const sel = new Set(), seeds = [];
+  // zone troppo grandi fuori dal cerchio = sfondo: riempirebbero la fascia, non le faccio uscire
+  const ringPx = Math.PI * (ov.rKeep * ov.rKeep - ov.rArt * ov.rArt);
+  const outerCount = new Map();
+  {
+    const rA2 = ov.rArt * ov.rArt, rK2 = ov.rKeep * ov.rKeep;
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      if (full[i] === NONE) continue;
+      const dx = x - cx, dy = y - cx, d2 = dx * dx + dy * dy;
+      if (d2 > rA2 && d2 <= rK2) outerCount.set(comp[i], (outerCount.get(comp[i]) || 0) + 1);
+    }
+  }
+  let tooBig = false;
+  for (const [mx, my] of seedsMm) {
+    const x = Math.round(toPx(mx)), y = Math.round(toPx(my));
+    if (x < 0 || y < 0 || x >= size || y >= size) continue;
+    // tocco su una linea nera: prendo la zona colorata più vicina (entro ~1,5 mm)
+    let i = -1;
+    const R = Math.ceil(1.5 * ppmm);
+    for (let rr = 0; rr <= R && i < 0; rr++) {
+      for (let yy = y - rr; yy <= y + rr && i < 0; yy++) for (let xx = x - rr; xx <= x + rr; xx++) {
+        if (Math.max(Math.abs(xx - x), Math.abs(yy - y)) !== rr || xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
+        const j = yy * size + xx;
+        if (full[j] !== NONE && full[j] !== blackIdx) { i = j; break; }
+      }
+    }
+    if (i < 0 || sel.has(comp[i])) continue;
+    if ((outerCount.get(comp[i]) || 0) > ringPx * 0.3) { tooBig = true; continue; }
+    sel.add(comp[i]); seeds.push([mx, my]);
+  }
+  const isSel = new Uint8Array(n);
+  if (sel.size) for (let i = 0; i < n; i++) if (full[i] !== NONE && sel.has(comp[i])) isSel[i] = 1;
+  const dist = sel.size ? distanceFrom(isSel, size) : null;
+  const lineW = Math.max(1, opts.lineMm * ppmm);
+  const labels = new Uint8Array(full);
+  const fg = new Uint8Array(n).fill(NONE);
+  const rArt2 = ov.rArt * ov.rArt, rKeep2 = ov.rKeep * ov.rKeep, rImg2 = (ov.rImg - 1) * (ov.rImg - 1);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const i = y * size + x;
+    if (full[i] === NONE) continue;
+    const dx = x - cx, dy = y - cx, d2 = dx * dx + dy * dy;
+    if (d2 <= rArt2) {
+      if (isSel[i] && d2 > rImg2) fg[i] = 0;
+      continue;
+    }
+    const slot = dy > 0 && Math.abs(dx) < ov.slotHalf;
+    if (d2 > rKeep2 || slot || !sel.size) { labels[i] = NONE; continue; }
+    if (isSel[i]) { fg[i] = 0; continue; }
+    if (dist[i] <= lineW) { labels[i] = blackIdx; fg[i] = 0; continue; }
+    labels[i] = NONE;
+  }
+  // aree aggiornate (contano solo i pixel stampati)
+  const counts = new Uint32Array(palette.length);
+  for (let i = 0; i < n; i++) if (labels[i] !== NONE) counts[labels[i]]++;
+  palette.forEach((p, i) => { p.area = counts[i] / (ppmm * ppmm); });
+  const fgPath = sel.size ? trace(fg, size, 1, opts)[0] : '';
+  return { labels, fgPath, seeds, tooBig };
+}
+
+// Tocco sull'anteprima: aggiunge la zona toccata, o la toglie se era già fuori. Rifà solo il taglio.
+function overflowAgain(toggle, seedsIn) {
+  if (!lastFull || !last.opts.ov) throw new Error('sopra la fascia: manca la conversione');
+  const { palette: pal, size, ppmm, opts } = last;
+  const palette = pal.map((p) => ({ ...p }));
+  let seeds = (seedsIn || last.opts.ov.seeds || []).slice();
+  if (toggle) {
+    const sc = opts.scale ?? 1, off = opts.offset ?? 0, toPx = (v) => Math.round((v - off) / sc);
+    const { comp } = components(lastFull, size);
+    const blackIdx = palette.findIndex((p) => p.black);
+    const at = (m) => {
+      const x = toPx(m[0]), y = toPx(m[1]), R = Math.ceil(1.5 * ppmm);
+      for (let rr = 0; rr <= R; rr++) for (let yy = y - rr; yy <= y + rr; yy++) for (let xx = x - rr; xx <= x + rr; xx++) {
+        if (Math.max(Math.abs(xx - x), Math.abs(yy - y)) !== rr || xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
+        const j = yy * size + xx;
+        if (lastFull[j] !== NONE && lastFull[j] !== blackIdx) return j;
+      }
+      return -1;
+    };
+    const ti = at(toggle);
+    if (ti >= 0) {
+      const c = comp[ti], before = seeds.length;
+      seeds = seeds.filter((m) => { const i = at(m); return i < 0 || comp[i] !== c; });
+      if (seeds.length === before) seeds.push(toggle);
+    }
+  }
+  last.opts = { ...opts, ov: { ...opts.ov, seeds } };
+  const o = applyOverflow(lastFull, palette, size, ppmm, last.opts, seeds);
+  const layers = trace(o.labels, size, palette.length, last.opts);
+  return { labels: o.labels, palette, layers, size, ppmm, fgPath: o.fgPath, ovSeeds: o.seeds, ovTooBig: o.tooBig, ovNoOut: !!toggle && o.seeds.length > (seedsIn || []).length && !o.fgPath, merged: true, keep: true };
 }
 
 // ---------- colore ----------
@@ -198,8 +321,9 @@ function mergeColors(merge) {
     t.area += p.area; t.skin = t.skin || p.skin;
   });
   for (let i = 0; i < labels.length; i++) if (labels[i] !== NONE) labels[i] = remap[labels[i]];
+  if (lastFull) for (let i = 0; i < lastFull.length; i++) if (lastFull[i] !== NONE) lastFull[i] = remap[lastFull[i]];
   const layers = trace(labels, size, newPal.length, opts);
-  return { labels, palette: newPal, layers, size, ppmm, merged: true };
+  return { labels, palette: newPal, layers, size, ppmm, merged: true, fgPath: last.fgPath || '', ovSeeds: last.ovSeeds || [] };
 }
 
 function kmeans(lab, inside, n, k, seed) {

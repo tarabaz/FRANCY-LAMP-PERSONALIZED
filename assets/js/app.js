@@ -4,6 +4,8 @@ import { stlFiles, stlReadme, zipAsync } from './export-stl.js';
 import { buildEps } from './export-eps.js';
 import { build3mf } from './export-3mf.js';
 import { detectFace, faceFeatures } from './face.js';
+import { SVGLoader } from '../vendor/three/addons/SVGLoader.js';
+import polygonClipping from '../vendor/polygon-clipping/polygon-clipping.mjs';
 
 const $ = (s) => document.querySelector(s);
 const root = $('#flc-root');
@@ -25,6 +27,7 @@ const state = {
   bandColor: '#5b9bd5', textColor: BLACK,
   filaments: [], originalFile: null, originalSrc: null, aiImageSrc: null, aiProvider: '',
   templates: [], template: null, // disegno pronto scelto: { id, name, url, dataUrl }
+  overflow: false, ovSeeds: [], // "sopra la fascia": zone toccate (punti in mm) che escono dal cerchio
 };
 
 // stessa versione di app.js (?ver=...) così anche il worker non resta vecchio in cache
@@ -108,13 +111,20 @@ function coverScale() {
   return Math.max(crop.width / img.width, crop.height / img.height);
 }
 
-function drawImageTo(ctx, size) {
+// rettangolo occupato dall'immagine nel raster di lavoro (inner = lato del cerchio del disegno, shift = margine)
+function imgRect(inner, shift) {
+  const { img, zoom, ox, oy } = state;
+  const k = inner / crop.width, s = coverScale() * zoom * k, w = img.width * s, h = img.height * s;
+  const x0 = shift + inner / 2 - w / 2 + ox * k, y0 = shift + inner / 2 - h / 2 + oy * k;
+  return [Math.ceil(x0), Math.ceil(y0), Math.floor(x0 + w), Math.floor(y0 + h)];
+}
+function drawImageTo(ctx, size, withAdjust = true) {
   const { img, zoom, ox, oy } = state;
   const k = size / crop.width;
   const s = coverScale() * zoom * k;
   const w = img.width * s, h = img.height * s;
   ctx.drawImage(img, size / 2 - w / 2 + ox * k, size / 2 - h / 2 + oy * k, w, h);
-  applyAdjust(ctx, size);
+  if (withAdjust) applyAdjust(ctx, size);
 }
 
 // ---------------- luminosità / contrasto / saturazione ----------------
@@ -211,6 +221,7 @@ function loadImage(src, zoom = 1) {
 
 function setImage(img, zoom, ox, oy) {
   state.img = img; state.zoom = zoom; state.ox = ox; state.oy = oy;
+  state.ovSeeds = []; // immagine nuova: le parti sopra la fascia si scelgono di nuovo
   setAdjust({ b: 0, c: 0, s: 0 }); // immagine nuova (o risultato IA, che ha già le regolazioni): si riparte da zero
   $('#zoom').value = zoom;
   $('#aiBtn').disabled = !!state.aiExhausted;
@@ -695,7 +706,11 @@ function run() {
   if (!state.img) return;
   const g = geometry();
   const ppmm = +$('#ppmm').value;
-  const size = Math.round(2 * g.rImgArt * ppmm);
+  // con "sopra la fascia" il raster arriva oltre la fascia; l'immagine resta inquadrata sul cerchio del disegno
+  const rRaster = state.overflow ? g.rBandOut + 1 : g.rImgArt;
+  const inner = Math.round(2 * g.rImgArt * ppmm);
+  const size = state.overflow ? Math.round(2 * rRaster * ppmm) : inner;
+  const shift = (size - inner) / 2;
   // ritratto: prima cerco il volto (la prima volta scarica il riconoscimento, ~17 MB), poi converto
   let face = null;
   if ($('#portrait').checked) {
@@ -712,7 +727,7 @@ function run() {
     }
     const pts = faceCache.get(img);
     if (pts) {
-      face = faceFeatures(pts.map((p) => toCanvas(p, img, state.zoom, state.ox, state.oy, size)));
+      face = faceFeatures(pts.map((p) => toCanvas(p, img, state.zoom, state.ox, state.oy, inner).map((v) => v + shift)));
       faceStatus('Volto trovato: pelle con 3 toni dedicati, niente linee dentro il viso, occhi (bianco + iride) e denti disegnati in automatico.');
     } else {
       faceStatus('Volto non trovato: pelle con 3 toni dedicati e niente linee dentro il viso, ma occhi e denti non vengono ridisegnati.');
@@ -722,7 +737,8 @@ function run() {
   c.width = c.height = size;
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size);
-  drawImageTo(ctx, size);
+  ctx.save(); ctx.translate(shift, shift); drawImageTo(ctx, inner, false); ctx.restore();
+  applyAdjust(ctx, size); // le regolazioni (luminosità…) su tutto il raster
   const imageData = ctx.getImageData(0, 0, size, size).data;
   const opts = {
     mode: state.mode,
@@ -736,10 +752,18 @@ function run() {
     minFeatureMm: +$('#feat').value,
     minAreaMm2: +$('#area').value,
     seed: state.seed,
-    scale: (2 * g.rImgArt) / size,
-    offset: -g.rImgArt,
+    scale: (2 * rRaster) / size,
+    offset: -rRaster,
+    ov: state.overflow ? {
+      rArt: g.rImgArt * size / (2 * rRaster), rImg: g.rImg * size / (2 * rRaster),
+      rKeep: (g.rBandOut + 0.3) * size / (2 * rRaster),          // l'anello nero esterno ci va sopra
+      slotHalf: (FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder + 0.6) * size / (2 * rRaster),
+      seeds: state.ovSeeds,
+      imgRect: imgRect(inner, shift),
+    } : null,
   };
   const id = ++jobId;
+  state.pendingOv = state.overflow;
   setStatus('Elaborazione…');
   worker.postMessage({ id, imageData, size, ppmm, opts }, [imageData.buffer]);
 }
@@ -750,7 +774,10 @@ worker.onmessage = (e) => {
   if (progress) return setStatus(progress + '…');
   if (error) { console.error(error); return setStatus('Errore nella conversione'); }
   state.result = result;
-  state.colorOverrides = {};
+  if (!result.keep) { state.colorOverrides = {}; state.resultOv = !!state.pendingOv; }
+  state.ovSeeds = result.ovSeeds || [];
+  state.ovNote = result.ovTooBig ? 'Quella zona è sfondo: riempirebbe tutta la fascia, quindi resta dentro il cerchio.'
+    : result.ovNoOut ? 'Quella parte non arriva al bordo del cerchio: allarga un po\' lo zoom o sposta l\'immagine perché sporga.' : '';
   // zone finite sulla stessa bobina: le faccio unire dal worker (niente bordi interni nel disegno)
   if (!result.merged) {
     const first = new Map(), merge = result.palette.map((_, i) => i);
@@ -896,8 +923,75 @@ function texts() {
   return { topLeft: $('#tTL').value, topRight: $('#tTR').value, bottomLeft: $('#tBL').value, bottomRight: $('#tBR').value };
 }
 
+// ---------------- sopra la fascia: forme ----------------
+const areaCache = new Map();
+function svgArea(d) {
+  if (areaCache.has(d)) return areaCache.get(d);
+  let a = 0;
+  for (const poly of svgToPolys(d)) poly.forEach((r, k) => {
+    let s = 0;
+    for (let i = 0; i + 1 < r.length; i++) s += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1];
+    a += (k ? -1 : 1) * Math.abs(s / 2);
+  });
+  if (areaCache.size > 40) areaCache.clear();
+  areaCache.set(d, a);
+  return a;
+}
+// Le parti del disegno che escono dal cerchio vanno SOPRA la fascia: a fascia, linea interna, scritte e
+// contorno dell'asola si toglie esattamente la loro sagoma (negli STL niente parti sovrapposte).
+// L'anello nero esterno non si tocca: resta sempre sopra a tutto.
+const svgLoader = new SVGLoader();
+function svgToPolys(d) {
+  const data = svgLoader.parse(`<svg xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="${d}"/></svg>`);
+  const out = [];
+  for (const path of data.paths) for (const sh of SVGLoader.createShapes(path)) {
+    const { shape, holes } = sh.extractPoints(10);
+    const ring = (pts) => { const r = pts.map((p) => [p.x, p.y]); if (r.length) r.push(r[0]); return r; };
+    if (shape.length >= 3) out.push([ring(shape), ...holes.filter((h) => h.length >= 3).map(ring)]);
+  }
+  return out;
+}
+// percorso a soli segmenti (M/L/Z) del convertitore -> poligoni (pari/dispari come nel disegno)
+function tracedToPolys(d) {
+  const rings = [];
+  for (const part of d.split('Z')) {
+    const nums = part.match(/-?\d+(?:\.\d+)?/g);
+    if (!nums || nums.length < 6) continue;
+    const r = [];
+    for (let i = 0; i + 1 < nums.length; i += 2) r.push([+nums[i], +nums[i + 1]]);
+    r.push(r[0]);
+    rings.push([r]);
+  }
+  return rings.length ? polygonClipping.xor(...rings) : [];
+}
+const polysToPath = (mp) => mp.map((poly) => poly.map((r) => 'M' + r.map((p) => `${Math.round(p[0] * 1000) / 1000} ${Math.round(p[1] * 1000) / 1000}`).join('L') + 'Z').join('')).join('');
+const clipCache = new Map();
+function minusOverflow(d, fgPath) {
+  if (!d || !fgPath) return d;
+  const key = fgPath.length + ':' + fgPath.slice(0, 40) + '|' + d;
+  if (clipCache.has(key)) return clipCache.get(key);
+  let out = d;
+  try {
+    if (!clipCache.has('fg:' + fgPath)) clipCache.set('fg:' + fgPath, tracedToPolys(fgPath));
+    const fg = clipCache.get('fg:' + fgPath);
+    if (fg.length) out = polysToPath(polygonClipping.difference(svgToPolys(d), fg));
+  } catch (err) { console.error('sopra la fascia:', err); }
+  if (clipCache.size > 40) clipCache.clear();
+  clipCache.set(key, out);
+  return out;
+}
+
 function parts() {
-  const frame = buildFrame(state.font, texts());
+  let frame = buildFrame(state.font, texts());
+  const fgPath = state.overflow && state.result ? state.result.fgPath : '';
+  state.ovTextHit = false;
+  if (fgPath) {
+    const text = minusOverflow(frame.text, fgPath);
+    // la sagoma copre una scritta? (il testo "bucato" diventa più corto)
+    state.ovTextHit = !!frame.text && (!text || Math.abs(svgArea(text) - svgArea(frame.text)) > 0.5);
+    frame = { ...frame, band: minusOverflow(frame.band, fgPath), innerLine: minusOverflow(frame.innerLine, fgPath), text,
+      slotBorder: minusOverflow(frame.slotBorder, fgPath) };
+  }
   const band = state.bandColor, txt = state.textColor;
   const zArt = FRAME.baseThickness, hArt = FRAME.artThickness;
   // Struttura reale: base bianca piena 0,52 mm + motivo colorato 0,48 mm sopra (disco totale 1 mm)
@@ -952,8 +1046,43 @@ function render() {
   renderPickers();
   dirty3d = true;
   if (state.view === '3d' && preview3d) update3d(ps);
+  updateOvUi();
   updateSteps();
 }
+
+// ---------------- sopra la fascia: interfaccia ----------------
+if (CFG.overflow) $('#ovBox').hidden = false;
+function updateOvUi() {
+  const n = state.overflow ? state.ovSeeds.length : 0;
+  $('#ovPanel').hidden = !state.overflow;
+  root.classList.toggle('ov-pick', state.overflow && !state.template);
+  $('#ovCount').textContent = n ? `${n} ${n === 1 ? 'parte' : 'parti'} sopra la fascia` : 'Nessuna parte scelta: tocca il disegno';
+  $('#ovClear').hidden = !n;
+  $('#ovWarn').hidden = !(n && state.ovTextHit) && !state.ovNote;
+  $('#ovWarn').textContent = state.ovNote || "Una parte copre una scritta: sposta l'immagine, accorcia il testo o togli quella parte.";
+}
+$('#ovOn').addEventListener('change', () => {
+  state.overflow = $('#ovOn').checked;
+  state.ovSeeds = [];
+  if (state.overflow && state.view === '3d') document.querySelector('.tabs button[data-view="2d"]').click(); // si sceglie sulla vista 2D
+  updateOvUi();
+  run();
+});
+$('#ovClear').addEventListener('click', () => {
+  if (!state.resultOv) return;
+  worker.postMessage({ id: ++jobId, ovSeeds: [] });
+});
+$('#svgHost').addEventListener('click', (e) => {
+  if (!state.overflow || !state.result || state.template || !state.resultOv) return;
+  const svg = $('#svgHost svg');
+  if (!svg) return;
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const m = pt.matrixTransform(svg.getScreenCTM().inverse());
+  if (Math.hypot(m.x, m.y) > geometry().rBandOut) return;
+  setStatus('Aggiorno…');
+  worker.postMessage({ id: ++jobId, ovToggle: [Math.round(m.x * 100) / 100, Math.round(m.y * 100) / 100] });
+});
 
 // ---------------- passi (pannello sinistro a fisarmonica) ----------------
 // Un passo aperto alla volta; quelli chiusi mostrano un riassunto di una riga. Il cliente può aprire
@@ -992,7 +1121,7 @@ function updateSteps() {
     1: tpl ? ['✓ Disegno pronto: ' + state.template.name, true] : img ? ['✓ Immagine caricata' + ($('#portrait').checked ? ' · volto' : ''), true] : ['Carica una foto o un disegno', false],
     2: tpl ? ['Non serve con un disegno pronto', false] : state.aiImageSrc ? ['✓ Ridisegnata in stile ' + (AI_STYLE_NAMES[aiStyle] || aiStyle), true] : ['Facoltativo: fai ridisegnare la foto', false],
     3: tpl ? ['Già scelti nel disegno pronto', false] : res ? [`✓ ${nColors} colori · ${state.mode === 'keep' ? 'grafica con contorni' : 'foto o disegno'}`, true] : ['Si sistemano dopo il caricamento', false],
-    4: ['Fascia ' + bandLabel(state.bandColor).toLowerCase() + (words.length ? ' · ' + words.join(', ') : ' · senza scritte'), img || tpl],
+    4: ['Fascia ' + bandLabel(state.bandColor).toLowerCase() + (words.length ? ' · ' + words.join(', ') : ' · senza scritte') + (state.overflow && state.ovSeeds.length && !tpl ? ' · esce dal cerchio' : ''), img || tpl],
     5: [state.submitted ? '✓ Inviato' : 'Invia il disco: lo controlliamo noi', !!state.submitted],
   };
   list.forEach((st, i) => {
@@ -1014,6 +1143,7 @@ function updateSteps() {
   if (img || tpl) {
     rows.push(['Fascia', bandLabel(state.bandColor)]);
     rows.push(['Scritte', words.length ? words.join(' · ') : 'nessuna']);
+    if (!tpl && state.overflow && state.ovSeeds.length) rows.push(['Sopra la fascia', `${state.ovSeeds.length} ${state.ovSeeds.length === 1 ? 'parte' : 'parti'}`]);
   }
   $('#recap').innerHTML = rows.length ? rows.map(([k, v]) => `<li><span>${escapeAttr(k)}</span><strong>${escapeAttr(v)}</strong></li>`).join('') : '<li class="empty">Carica prima un\'immagine (passo 1).</li>';
 }
@@ -1161,7 +1291,7 @@ async function buildPackage(customer) {
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
     lampada: lampSummary(),
-    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
+    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
     'FrancyStore3D - disco lampada personalizzato', '',
@@ -1464,3 +1594,6 @@ render();
 // Per i test: ?img=percorso carica subito un'immagine
 if (qp.get('img')) loadImage(qp.get('img'), +qp.get('zoom') || 1);
 if (qp.get('mode') === 'keep') document.querySelector('#mode button[data-mode=keep]').click();
+
+// solo per i test automatici (window.FRANCY_LAMP.debug): accesso allo stato interno
+if (CFG.debug) window.__flc = { state, parts, svgToPolys, tracedToPolys, minusOverflow, polygonClipping, geometry };

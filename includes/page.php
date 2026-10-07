@@ -27,6 +27,7 @@ function flc_frontend_config() {
 		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,
 		'aiStyles'  => array_values(array_filter(array('fedele', !empty($s['style_ritratto']) ? 'ritratto' : '', !empty($s['style_tombino']) ? 'tombino' : '', !empty($s['style_anime']) ? 'anime' : ''))),
 		'aiCard'    => !empty($s['card_enabled']),
+		'overflow'  => !empty($s['overflow_enabled']), // "sopra la fascia": parti del disegno che escono dal cerchio
 		'aiBackgrounds' => !empty($s['bg_enabled']) ? array_column(flc_backgrounds($s), 'label') : array(),
 		// immagine di prova di ogni sfondo (Impostazioni → Nuovo sfondo), mostrata come esempio
 		'aiBgExamples' => !empty($s['bg_enabled']) && function_exists('flc_bg_test_url') ? array_map(function ($b) { return $b['id'] ? flc_bg_test_url($b['id']) : ''; }, flc_backgrounds($s)) : array(),

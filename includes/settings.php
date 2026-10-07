@@ -200,6 +200,7 @@ function flc_defaults() {
 		'style_tombino' => 1,
 		'style_ritratto' => 1,
 		'card_enabled' => 1,
+		'overflow_enabled' => 1,
 		'tombino_refs' => '',
 		'tombino_refs_default' => 1,
 		'prompts_v'    => 0,
@@ -323,6 +324,7 @@ function flc_sanitize_settings($in) {
 		'style_tombino' => empty($in['style_tombino']) ? 0 : 1,
 		'style_ritratto' => empty($in['style_ritratto']) ? 0 : 1,
 		'card_enabled' => empty($in['card_enabled']) ? 0 : 1,
+		'overflow_enabled' => empty($in['overflow_enabled']) ? 0 : 1,
 		'tombino_refs' => implode(',', array_slice(array_filter(array_map('intval', explode(',', (string) ($in['tombino_refs'] ?? '')))), 0, 3)),
 		'tombino_refs_default' => empty($in['tombino_refs_default']) ? 0 : 1,
 		'prompts_v'    => 2,
@@ -676,6 +678,11 @@ function flc_settings_page() {
 			<!-- ===================== DISCO ===================== -->
 			<section class="flc-tab" data-tab="disco">
 				<div class="flc-head"><h2>Disco</h2><p>Come si presenta il disco quando il cliente apre il configuratore.</p></div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-editor-expand"></span> Sopra la fascia</h2>
+					<p class="intro">Come nei Poké Lids veri: il cliente tocca sull'anteprima le parti del disegno che devono uscire dal cerchio (una pinna, un orecchio…). Escono con il loro contorno nero sopra la fascia, fino all'anello nero esterno, che resta sempre sopra; l'asola in basso resta libera.</p>
+					<p><label class="flc-toggle"><input type="checkbox" name="<?php echo $n('overflow_enabled'); ?>" value="1" <?php checked($s['overflow_enabled'], 1); ?>> Mostra ai clienti "Fai uscire parti del disegno sopra la fascia" (passo Cornice e scritte)</label></p>
+				</div>
 				<div class="flc-card">
 					<h2><span class="dashicons dashicons-marker"></span> Disco predefinito</h2>
 					<p class="intro">Come si presenta il disco quando un cliente apre il configuratore. Il cliente poi può cambiare tutto.</p>

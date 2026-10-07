@@ -54,6 +54,14 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    scelto ("Ridisegna in stile Tombino") e dopo il primo ridisegno diventa "Ridisegna di nuovo".
 3. **Colori e contorni**: "Foto o disegno" / "Grafica con contorni", numero di colori, spessore, regolazioni avanzate.
 4. **Cornice e scritte**: colori di fascia, scritte e pezzi della lampada; i 4 testi hanno l'etichetta sopra.
+   **Fai uscire parti del disegno sopra la fascia** (come nei Poké Lids veri): il cliente tocca sull'anteprima 2D le
+   zone che devono uscire dal cerchio (tocco su una linea nera = zona colorata più vicina; di nuovo = la toglie).
+   La zona esce fino all'anello nero esterno (che resta sempre sopra) con un contorno nero dello spessore delle linee;
+   l'asola in basso resta libera. Fascia, linea interna, scritte e contorno dell'asola vengono "bucati" esattamente
+   con la sagoma che esce (libreria polygon-clipping in `assets/vendor/`), quindi in STL/3MF non ci sono parti
+   sovrapposte. Fuori dal cerchio conta solo dove c'è davvero l'immagine: serve un po' di zoom perché qualcosa sporga.
+   Una zona che riempirebbe gran parte della fascia (sfondo) non esce; se una parte copre una scritta compare un
+   avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
 
 I passi chiusi mostrano un riassunto di una riga (es. "✓ Ridisegnata in stile Tombino") e ognuno ha **Avanti →**.
