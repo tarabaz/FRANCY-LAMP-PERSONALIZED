@@ -131,6 +131,11 @@ metallico) e, se vuoi, i colori tra cui il cliente può scegliere; la scelta fin
 LEGGIMI dello zip. Consiglio: carica modelli "vetrina" (solo forma esterna, senza tolleranze e dettagli interni).
 Il plugin non contiene più STL e blocca il download di file 3D dalla sua cartella.
 
+**Catalogo filamenti** (Francy Lamp Factory → Filamenti): tabella modificabile direttamente nelle celle (colore con
+anteprima, HEX, nome vero, nome pubblico, TD, tipo Disco/Speciale, Disponibile), con ricerca, filtro, ordinamento,
+"+ Aggiungi bobina" e un solo "Salva modifiche". Le bobine non disponibili restano in elenco ma il configuratore non
+le usa. Sotto, "Importa / esporta come testo" per caricare tante bobine in una volta.
+
 **Nome pubblico delle bobine**: formato del catalogo `Nome vero | Nome pubblico | #rrggbb | TD` (nome pubblico e TD
 facoltativi). Il cliente vede solo il nome pubblico (palette, tooltip); il nome vero con la marca non viene mai
 inviato al suo browser: al suo posto c'è un codice neutro che il server, alla convalida, sostituisce con il nome vero

@@ -616,8 +616,9 @@ function flc_settings_page() {
 		<!-- ===================== LAMPADA 3D (fuori dal modulo principale: ha i suoi pulsanti) ===================== -->
 		<?php
 		$lp   = function_exists('flc_parts') ? flc_parts() : array('parts' => array(), 'ref' => array());
-		$fils = flc_filaments();
-		$spec = function_exists('flc_filaments_special') ? flc_filaments_special() : array();
+		$avail = function ($l) { return array_values(array_filter($l, function ($f) { return empty($f['off']); })); };
+		$fils  = $avail(flc_filaments());
+		$spec  = function_exists('flc_filaments_special') ? $avail(flc_filaments_special()) : array();
 		// griglia delle bobine ammesse per il cliente: prima le speciali (silk, metal), poi il catalogo del disco
 		$grids = array_filter(array('Speciali (silk, metal…)' => $spec, 'Catalogo del disco' => $fils));
 		?>
