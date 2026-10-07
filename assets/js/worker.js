@@ -15,7 +15,7 @@ self.onmessage = (e) => {
     if (merge) result = mergeColors(merge);
     else if (ovToggle || ovSeeds) result = overflowAgain(ovToggle, ovSeeds);
     else result = convert(imageData, size, ppmm, opts, (msg) => self.postMessage({ id, progress: msg }));
-    last = { labels: result.labels.slice(), palette: result.palette, size: result.size, ppmm: result.ppmm, opts: merge || ovToggle || ovSeeds ? last.opts : opts, fgPath: result.fgPath, ovSeeds: result.ovSeeds };
+    last = { labels: result.labels.slice(), palette: result.palette, size: result.size, ppmm: result.ppmm, opts: merge || ovToggle || ovSeeds ? last.opts : opts, framePath: result.framePath, ovSeeds: result.ovSeeds };
     self.postMessage({ id, result }, [result.labels.buffer]);
   } catch (err) {
     self.postMessage({ id, error: String(err && err.stack || err) });
@@ -144,6 +144,8 @@ function convert(rgba, size, ppmm, opts, progress) {
     progress('Spessori minimi');
     openColored(labels, inside, size, blackIdx, (opts.minFeatureMm * ppmm) / 2);
     killSmallColored(labels, size, minAreaPx, blackIdx, whiteIdx, skinSet);
+    // linee nere più sottili di una passata dell'ugello (~0,45 mm): non si stamperebbero bene -> colore vicino
+    openBlack(labels, inside, size, blackIdx, 0.22 * ppmm);
   }
 
   // Volto riconosciuto (modalità ritratto): occhi e denti disegnati sempre, dopo tutti i filtri
@@ -164,26 +166,28 @@ function convert(rgba, size, ppmm, opts, progress) {
   palette = newPal;
 
   // 4. Sopra la fascia: fuori dal cerchio restano solo le zone toccate dal cliente (con il loro contorno nero)
-  let fgPath = '', seedsOut = [];
+  let framePath = '', seedsOut = [], frameLabels = null;
   lastFull = null;
   if (opts.ov) {
     if (!palette.some((p) => p.black)) palette.push({ r: 20, g: 20, b: 20, area: 0, black: true, white: false, skin: false });
     lastFull = labels.slice();
     const o = applyOverflow(lastFull, palette, size, ppmm, opts, opts.ov.seeds || []);
-    labels = o.labels; fgPath = o.fgPath; seedsOut = o.seeds;
+    labels = o.labels; frameLabels = o.frameLabels; seedsOut = o.seeds;
   }
 
   // 5. Vettorializzazione
   progress('Vettorializzazione');
-  const layers = trace(labels, size, palette.length, opts);
+  const tr = traceWithFrame(labels, frameLabels, size, palette.length, opts);
+  const layers = tr.layers;
+  framePath = tr.framePath;
 
-  return { labels, palette, layers, size, ppmm, fgPath, ovSeeds: seedsOut };
+  return { labels, palette, layers, size, ppmm, framePath, ovSeeds: seedsOut };
 }
 
 // ---------- sopra la fascia ----------
 // full: etichette su tutto il raster. Dentro il cerchio del disegno resta tutto; fuori (fino all'anello nero)
 // restano solo le zone toccate (seeds, in mm) e un contorno nero di spessore pari alle linee del disegno,
-// tranne la zona dell'asola in basso. Ritorna anche fgPath: la sagoma di ciò che esce, da togliere a fascia e scritte.
+// tranne la zona dell'asola in basso. Ritorna anche le etichette con la "zona cornice" (vedi frameLabelsOf).
 function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
   const ov = opts.ov, n = size * size, cx = (size - 1) / 2;
   const sc = opts.scale ?? 1, off = opts.offset ?? 0;
@@ -226,28 +230,43 @@ function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
   const dist = sel.size ? distanceFrom(isSel, size) : null;
   const lineW = Math.max(1, opts.lineMm * ppmm);
   const labels = new Uint8Array(full);
-  const fg = new Uint8Array(n).fill(NONE);
-  const rArt2 = ov.rArt * ov.rArt, rKeep2 = ov.rKeep * ov.rKeep, rImg2 = (ov.rImg - 1) * (ov.rImg - 1);
+  const rArt2 = ov.rArt * ov.rArt, rKeep2 = ov.rKeep * ov.rKeep;
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const i = y * size + x;
     if (full[i] === NONE) continue;
     const dx = x - cx, dy = y - cx, d2 = dx * dx + dy * dy;
-    if (d2 <= rArt2) {
-      if (isSel[i] && d2 > rImg2) fg[i] = 0;
-      continue;
-    }
+    if (d2 <= rArt2) continue;
     const slot = dy > 0 && Math.abs(dx) < ov.slotHalf;
     if (d2 > rKeep2 || slot || !sel.size) { labels[i] = NONE; continue; }
-    if (isSel[i]) { fg[i] = 0; continue; }
-    if (dist[i] <= lineW) { labels[i] = blackIdx; fg[i] = 0; continue; }
+    if (isSel[i]) continue;
+    if (dist[i] <= lineW) { labels[i] = blackIdx; continue; }
     labels[i] = NONE;
   }
   // aree aggiornate (contano solo i pixel stampati)
   const counts = new Uint32Array(palette.length);
   for (let i = 0; i < n; i++) if (labels[i] !== NONE) counts[labels[i]]++;
   palette.forEach((p, i) => { p.area = counts[i] / (ppmm * ppmm); });
-  const fgPath = sel.size ? trace(fg, size, 1, opts)[0] : '';
-  return { labels, fgPath, seeds, tooBig };
+  return { labels, fgPath: '', seeds, tooBig, frameLabels: sel.size ? frameLabelsOf(labels, size, ov, palette.length) : null };
+}
+
+// Etichette con la "zona cornice" (tutto ciò che fuori dal cerchio del disegno NON è disegno) come colore in più:
+// vettorializzata insieme al disegno, il suo bordo coincide al millesimo con quello delle parti che escono.
+// L'app usa questa zona per ritagliare fascia, linea interna, scritte e asola (niente fessure, niente sovrapposizioni).
+function frameLabelsOf(labels, size, ov, frameIdx) {
+  const cx = (size - 1) / 2, rA2 = ov.rArt * ov.rArt;
+  const out = new Uint8Array(labels);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const i = y * size + x, dx = x - cx, dy = y - cx;
+    if (out[i] === NONE && dx * dx + dy * dy > rA2) out[i] = frameIdx;
+  }
+  return out;
+}
+// layers + percorso della zona cornice, in una sola vettorializzazione (stessi bordi)
+function traceWithFrame(labels, frameLabels, size, ncolors, opts) {
+  if (!frameLabels) return { layers: trace(labels, size, ncolors, opts), framePath: '' };
+  const all = trace(frameLabels, size, ncolors + 1, opts);
+  const framePath = all.pop();
+  return { layers: all, framePath };
 }
 
 // Tocco sull'anteprima: aggiunge la zona toccata, o la toglie se era già fuori. Rifà solo il taglio.
@@ -278,8 +297,11 @@ function overflowAgain(toggle, seedsIn) {
   }
   last.opts = { ...opts, ov: { ...opts.ov, seeds } };
   const o = applyOverflow(lastFull, palette, size, ppmm, last.opts, seeds);
-  const layers = trace(o.labels, size, palette.length, last.opts);
-  return { labels: o.labels, palette, layers, size, ppmm, fgPath: o.fgPath, ovSeeds: o.seeds, ovTooBig: o.tooBig, ovNoOut: !!toggle && o.seeds.length > (seedsIn || []).length && !o.fgPath, merged: true, keep: true };
+  const tr = traceWithFrame(o.labels, o.frameLabels, size, palette.length, last.opts);
+  // la zona toccata non arriva fuori dal cerchio? (nessun pixel tenuto oltre il cerchio del disegno)
+  let out = 0;
+  if (o.frameLabels) { const cx = (size - 1) / 2, rA2 = last.opts.ov.rArt ** 2; for (let i = 0; i < o.labels.length && !out; i++) { if (o.labels[i] === NONE) continue; const x = i % size, y = (i / size) | 0; if ((x - cx) ** 2 + (y - cx) ** 2 > rA2) out = 1; } }
+  return { labels: o.labels, palette, layers: tr.layers, size, ppmm, framePath: tr.framePath, ovSeeds: o.seeds, ovTooBig: o.tooBig, ovNoOut: !!toggle && o.seeds.length > (seedsIn || []).length && !out, merged: true, keep: true };
 }
 
 // ---------- colore ----------
@@ -322,8 +344,9 @@ function mergeColors(merge) {
   });
   for (let i = 0; i < labels.length; i++) if (labels[i] !== NONE) labels[i] = remap[labels[i]];
   if (lastFull) for (let i = 0; i < lastFull.length; i++) if (lastFull[i] !== NONE) lastFull[i] = remap[lastFull[i]];
-  const layers = trace(labels, size, newPal.length, opts);
-  return { labels, palette: newPal, layers, size, ppmm, merged: true, fgPath: last.fgPath || '', ovSeeds: last.ovSeeds || [] };
+  const frameLabels = opts.ov && last.framePath ? frameLabelsOf(labels, size, opts.ov, newPal.length) : null;
+  const tr = traceWithFrame(labels, frameLabels, size, newPal.length, opts);
+  return { labels, palette: newPal, layers: tr.layers, size, ppmm, merged: true, framePath: tr.framePath, ovSeeds: last.ovSeeds || [] };
 }
 
 function kmeans(lab, inside, n, k, seed) {
@@ -750,6 +773,37 @@ function openColored(labels, inside, size, blackIdx, r) {
   for (let i = 0; i < n; i++) core[i] = !isBlack[i] && d[i] >= r ? 1 : 0;
   const d2 = distanceFrom(core, size);
   for (let i = 0; i < n; i++) if (!isBlack[i] && d2[i] > r + 0.5 && inside[i]) labels[i] = blackIdx;
+}
+
+// Nero più stretto di 2r (punte sottilissime, linee d'ombra sfumate): diventa il colore della zona accanto
+function openBlack(labels, inside, size, blackIdx, r) {
+  if (r < 0.75) return;
+  const n = labels.length;
+  const notBlack = new Uint8Array(n);
+  for (let i = 0; i < n; i++) notBlack[i] = labels[i] !== blackIdx ? 1 : 0;
+  const d = distanceFrom(notBlack, size);
+  const core = new Uint8Array(n);
+  for (let i = 0; i < n; i++) core[i] = !notBlack[i] && d[i] >= r ? 1 : 0;
+  const d2 = distanceFrom(core, size);
+  const thin = [];
+  for (let i = 0; i < n; i++) if (!notBlack[i] && inside[i] && d2[i] > r + 0.5) thin.push(i);
+  // riempio dal bordo verso l'interno con il colore vicino (mai NONE)
+  let todo = thin;
+  for (let pass = 0; pass < 2 * r + 4 && todo.length; pass++) {
+    const next = [], set = [];
+    for (const i of todo) {
+      const x = i % size;
+      let v = -1;
+      for (const j of [i - 1, i + 1, i - size, i + size]) {
+        if (j < 0 || j >= n || (j === i - 1 && x === 0) || (j === i + 1 && x === size - 1)) continue;
+        const L = labels[j];
+        if (L !== blackIdx && L !== NONE) { v = L; break; }
+      }
+      if (v >= 0) set.push(i, v); else next.push(i);
+    }
+    for (let k = 0; k < set.length; k += 2) labels[set[k]] = set[k + 1];
+    todo = next;
+  }
 }
 
 function killSmallColored(labels, size, minArea, blackIdx, whiteIdx = -1, skinSet = null) {

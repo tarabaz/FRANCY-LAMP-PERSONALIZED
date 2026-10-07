@@ -53,13 +53,17 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
 2. **Ridisegno con IA** (facoltativo): stili, "È una carta da gioco", cambio sfondo, esempi. Il pulsante dice lo stile
    scelto ("Ridisegna in stile Tombino") e dopo il primo ridisegno diventa "Ridisegna di nuovo".
 3. **Colori e contorni**: "Foto o disegno" / "Grafica con contorni", numero di colori, spessore, regolazioni avanzate.
+   La conversione lavora a **10 px/mm** (1 pixel = 0,1 mm; regolabile 4–12, Impostazioni → Disco); le linee nere più
+   sottili di ~0,45 mm (meno di una passata dell'ugello 0,4) diventano il colore accanto, così non restano filamenti
+   neri quasi invisibili.
 4. **Cornice e scritte**: colori di fascia, scritte e pezzi della lampada; i 4 testi hanno l'etichetta sopra.
    **Fai uscire parti del disegno sopra la fascia** (come nei Poké Lids veri): il cliente tocca sull'anteprima 2D le
    zone che devono uscire dal cerchio (tocco su una linea nera = zona colorata più vicina; di nuovo = la toglie).
    La zona esce fino all'anello nero esterno (che resta sempre sopra) con un contorno nero dello spessore delle linee;
-   l'asola in basso resta libera. Fascia, linea interna, scritte e contorno dell'asola vengono "bucati" esattamente
-   con la sagoma che esce (libreria polygon-clipping in `assets/vendor/`), quindi in STL/3MF non ci sono parti
-   sovrapposte. Fuori dal cerchio conta solo dove c'è davvero l'immagine: serve un po' di zoom perché qualcosa sporga.
+   l'asola in basso resta libera. Il convertitore vettorializza insieme al disegno anche la "zona cornice" (fuori dal
+   cerchio, tutto ciò che non esce): fascia, linea interna, scritte e contorno dell'asola vengono ristretti a quella
+   zona (libreria polygon-clipping in `assets/vendor/`), quindi i bordi coincidono al millesimo con le parti che
+   escono: niente fessure bianche e niente parti sovrapposte in STL/3MF. Gli archi vengono campionati ogni mezzo grado. Fuori dal cerchio conta solo dove c'è davvero l'immagine: serve un po' di zoom perché qualcosa sporga.
    Una zona che riempirebbe gran parte della fascia (sfondo) non esce; se una parte copre una scritta compare un
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".

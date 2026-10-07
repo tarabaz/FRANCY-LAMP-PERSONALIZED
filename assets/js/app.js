@@ -979,25 +979,28 @@ function tracedToPolys(d) {
   return rings.length ? polygonClipping.xor(...rings) : [];
 }
 const polysToPath = (mp) => mp.map((poly) => poly.map((r) => 'M' + r.map((p) => `${Math.round(p[0] * 1000) / 1000} ${Math.round(p[1] * 1000) / 1000}`).join('L') + 'Z').join('')).join('');
+// framePath: la "zona cornice" vettorializzata dal convertitore insieme al disegno (fuori dal cerchio, tutto ciò
+// che non è disegno). Fascia & co. vengono ristrette a questa zona: i bordi coincidono con quelli delle parti
+// che escono, quindi niente fessure bianche e niente sovrapposizioni.
 const clipCache = new Map();
-function minusOverflow(d, fgPath) {
-  if (!d || !fgPath) return d;
-  const key = fgPath.length + ':' + fgPath.slice(0, 40) + '|' + d;
+function minusOverflow(d, framePath) {
+  if (!d || !framePath) return d;
+  const key = framePath.length + ':' + framePath.slice(0, 40) + '|' + d;
   if (clipCache.has(key)) return clipCache.get(key);
   let out = d;
   try {
-    if (!clipCache.has('fg:' + fgPath)) clipCache.set('fg:' + fgPath, tracedToPolys(fgPath));
-    const fg = clipCache.get('fg:' + fgPath);
-    if (fg.length) out = polysToPath(polygonClipping.difference(svgToPolys(d), fg));
+    if (!clipCache.has('fr:' + framePath)) { clipCache.clear(); clipCache.set('fr:' + framePath, tracedToPolys(framePath)); }
+    const fr = clipCache.get('fr:' + framePath);
+    if (fr.length) out = polysToPath(polygonClipping.intersection(svgToPolys(d), fr));
   } catch (err) { console.error('sopra la fascia:', err); }
-  if (clipCache.size > 40) clipCache.clear();
+  if (clipCache.size > 40) { const fr = clipCache.get('fr:' + framePath); clipCache.clear(); clipCache.set('fr:' + framePath, fr); }
   clipCache.set(key, out);
   return out;
 }
 
 function parts() {
   let frame = buildFrame(state.font, texts());
-  const fgPath = state.overflow && state.result ? state.result.fgPath : '';
+  const fgPath = state.overflow && state.result ? state.result.framePath : '';
   state.ovTextHit = false;
   if (fgPath) {
     const text = minusOverflow(frame.text, fgPath);

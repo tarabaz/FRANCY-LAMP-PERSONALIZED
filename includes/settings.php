@@ -249,7 +249,8 @@ function flc_defaults() {
 		'sl_smooth'    => 2,
 		'sl_feat'      => 0.8,
 		'sl_area'      => 4,
-		'sl_ppmm'      => 5,
+		'sl_ppmm'      => 10,
+		'res_v'        => 0,
 	);
 }
 
@@ -260,6 +261,10 @@ function flc_settings() {
 		$raw['prompt_tombino'] = '';
 		$raw['prompt_card']    = '';
 		// (solo in memoria: il primo "Salva" lo rende definitivo, perché il modulo salva prompts_v = 2)
+	}
+	// risoluzione: le vecchie impostazioni (5 px/mm) passano a 10 px/mm (0,1 mm per pixel); salvando diventa definitivo
+	if (is_array($raw) && $raw && empty($raw['res_v']) && (int) ($raw['sl_ppmm'] ?? 0) < 10) {
+		$raw['sl_ppmm'] = 10;
 	}
 	$s = wp_parse_args($raw, flc_defaults());
 	if (trim((string) $s['prompt']) === '' || in_array(trim((string) $s['prompt']), flc_old_default_prompts(), true)) {
@@ -373,7 +378,8 @@ function flc_sanitize_settings($in) {
 		'sl_smooth'    => min(4, max(0, (int) ($in['sl_smooth'] ?? $d['sl_smooth']))),
 		'sl_feat'      => min(2.5, max(0.4, round((float) ($in['sl_feat'] ?? $d['sl_feat']), 1))),
 		'sl_area'      => min(20, max(0.5, round((float) ($in['sl_area'] ?? $d['sl_area']) * 2) / 2)),
-		'sl_ppmm'      => min(8, max(3, (int) ($in['sl_ppmm'] ?? $d['sl_ppmm']))),
+		'sl_ppmm'      => min(12, max(4, (int) ($in['sl_ppmm'] ?? $d['sl_ppmm']))),
+		'res_v'        => 1,
 	);
 	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
 	if ($out['prompt'] === flc_default_prompt()) {
@@ -714,7 +720,7 @@ function flc_settings_page() {
 						<tr><th>Semplificazione</th><td><input type="number" min="0" max="4" step="1" name="<?php echo $n('sl_smooth'); ?>" value="<?php echo esc_attr($s['sl_smooth']); ?>" style="width:90px"> <span class="description">0 = nessuna, 4 = molto forte</span></td></tr>
 						<tr><th>Dettaglio minimo (mm)</th><td><input type="number" min="0.4" max="2.5" step="0.1" name="<?php echo $n('sl_feat'); ?>" value="<?php echo esc_attr($s['sl_feat']); ?>" style="width:90px"> <span class="description">zone più strette diventano nere</span></td></tr>
 						<tr><th>Area minima zona (mm²)</th><td><input type="number" min="0.5" max="20" step="0.5" name="<?php echo $n('sl_area'); ?>" value="<?php echo esc_attr($s['sl_area']); ?>" style="width:90px"> <span class="description">zone più piccole vengono assorbite</span></td></tr>
-						<tr><th>Risoluzione (px/mm)</th><td><input type="number" min="3" max="8" step="1" name="<?php echo $n('sl_ppmm'); ?>" value="<?php echo esc_attr($s['sl_ppmm']); ?>" style="width:90px"> <span class="description">più alta = più dettaglio, più lenta</span></td></tr>
+						<tr><th>Risoluzione (px/mm)</th><td><input type="number" min="4" max="12" step="1" name="<?php echo $n('sl_ppmm'); ?>" value="<?php echo esc_attr($s['sl_ppmm']); ?>" style="width:90px"> <span class="description">più alta = più dettaglio, più lenta</span></td></tr>
 					</table>
 				</details>
 			</section>
