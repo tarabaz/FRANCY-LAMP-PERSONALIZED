@@ -105,8 +105,8 @@ function drawImageTo(ctx, size) {
 // Si applicano all'immagine PRIMA della riduzione dei colori (anteprima del ritaglio, conversione,
 // immagine mandata all'IA e "ritaglio usato" nello zip). Valori da -100 a +100, 0 = immagine originale.
 const adjust = { b: 0, c: 0, s: 0 };
-function applyAdjust(ctx, size, height = size) {
-  const { b, c, s } = adjust;
+function applyAdjust(ctx, size, height = size, a = adjust) {
+  const { b, c, s } = a;
   if (!b && !c && !s) return;
   const lut = new Uint8ClampedArray(256);
   const cc = c * 1.28, f = (259 * (cc + 255)) / (255 * (259 - cc));
@@ -274,10 +274,15 @@ if (aiBackgrounds.length || aiBgCustom) {
   $('#aiBgRow').hidden = false;
   aiBackgrounds.forEach((label, i) => $('#aiBg').append(new Option(label, String(i))));
   if (aiBgCustom) $('#aiBg').append(new Option(aiBgCustom, 'custom'));
+  const bgEx = Array.isArray(CFG.aiBgExamples) ? CFG.aiBgExamples : [];
   const syncBg = () => {
-    const on = $('#aiBgRemove').checked;
+    const on = $('#aiBgRemove').checked, v = $('#aiBg').value;
     $('#aiBgPick').hidden = !on;
-    $('#aiBgText').hidden = !on || $('#aiBg').value !== 'custom';
+    $('#aiBgText').hidden = !on || v !== 'custom';
+    // anteprima salvata in Impostazioni (la "prova" dello sfondo), mostrata come esempio
+    const ex = on && v !== 'custom' ? bgEx[+v] : '';
+    $('#aiBgEx').hidden = !ex;
+    if (ex && $('#aiBgExImg').getAttribute('src') !== ex) $('#aiBgExImg').src = ex;
   };
   $('#aiBgRemove').addEventListener('change', syncBg);
   $('#aiBg').addEventListener('change', () => { syncBg(); if (!$('#aiBgText').hidden) $('#aiBgText').focus(); });
@@ -327,7 +332,9 @@ $('#aiBtn').addEventListener('click', async () => {
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
   ctx.drawImage(o, cx0, cy0, cw, ch, 0, 0, c.width, c.height);
-  applyAdjust(ctx, c.width, c.height);
+  // con un ridisegno già fatto riparto dalla foto originale con le SUE regolazioni (quelle di adesso valgono per il ridisegno)
+  const adj = originalImg ? originalImg.adj : { ...adjust };
+  applyAdjust(ctx, c.width, c.height, adj);
   const image = c.toDataURL('image/jpeg', 0.9);
 
   $('#aiBox').classList.add('busy');
@@ -351,7 +358,7 @@ $('#aiBtn').addEventListener('click', async () => {
     }
     const img = new Image();
     await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = j.image; });
-    if (!originalImg) originalImg = { img: o, zoom: src.zoom, ox: src.ox, oy: src.oy, mode: state.mode };
+    if (!originalImg) originalImg = { img: o, zoom: src.zoom, ox: src.ox, oy: src.oy, mode: state.mode, adj };
     state.aiImageSrc = j.image;
     state.aiProvider = j.provider || '';
     state.aiBackground = aiBackgroundLabel();
@@ -381,7 +388,38 @@ $('#aiUndo').addEventListener('click', () => {
   $('#aiUndo').hidden = true;
   selectMode(o.mode);
   setImage(v.img, Math.min(4, Math.max(1, v.zoom)), v.ox, v.oy);
+  if (o.adj) { setAdjust(o.adj); schedule(); } // la foto torna con le regolazioni che aveva
 });
+
+// ---------------- pannello sinistro allargabile (desktop) ----------------
+(function () {
+  const bar = $('#panelResizer'), layout = document.querySelector('.flc .layout'), root = document.querySelector('.flc');
+  if (!bar || !layout) return;
+  const KEY = 'flcLeftWidth', MIN = 280, DEF = 330;
+  const max = () => Math.max(MIN, Math.min(640, layout.clientWidth - 280 - 360)); // lascia almeno 360 px al disco
+  const apply = (w) => { w = Math.round(Math.min(max(), Math.max(MIN, w))); layout.style.setProperty('--flc-left', w + 'px'); return w; };
+  let saved = 0;
+  try { saved = +localStorage.getItem(KEY) || 0; } catch (e) { /* storage non disponibile */ }
+  if (saved) apply(saved);
+  let start = null;
+  bar.addEventListener('pointerdown', (e) => {
+    start = { x: e.clientX, w: layout.querySelector('.panel.left').getBoundingClientRect().width };
+    bar.setPointerCapture(e.pointerId); bar.classList.add('drag'); root.classList.add('resizing');
+    e.preventDefault();
+  });
+  bar.addEventListener('pointermove', (e) => { if (start) apply(start.w + e.clientX - start.x); });
+  const end = () => {
+    if (!start) return;
+    start = null; bar.classList.remove('drag'); root.classList.remove('resizing');
+    const w = parseInt(layout.style.getPropertyValue('--flc-left'), 10);
+    try { localStorage.setItem(KEY, String(w)); } catch (e) { /* ok */ }
+    window.dispatchEvent(new Event('resize'));
+  };
+  bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+  bar.addEventListener('dblclick', () => { apply(DEF); try { localStorage.removeItem(KEY); } catch (e) { /* ok */ } window.dispatchEvent(new Event('resize')); });
+  // se la finestra si stringe, il pannello non deve mangiarsi il disco
+  window.addEventListener('resize', () => { const cur = parseInt(layout.style.getPropertyValue('--flc-left'), 10); if (cur && cur > max()) apply(cur); });
+})();
 
 // ---------------- controlli ----------------
 const sliders = { colors: 'colorsOut', line: 'lineOut', thick: 'thickOut', smooth: 'smoothOut', feat: 'featOut', area: 'areaOut', ppmm: 'ppmmOut' };

@@ -58,7 +58,7 @@ function flc_backgrounds($s = null) {
 	$out = array();
 	foreach (flc_backgrounds_all($s) as $b) {
 		if ($b['on']) {
-			$out[] = array('label' => $b['label'], 'prompt' => $b['prompt']);
+			$out[] = array('id' => $b['id'] ?? '', 'label' => $b['label'], 'prompt' => $b['prompt']);
 		}
 	}
 	return $out;

@@ -21,7 +21,7 @@
   </header>
 
   <main class="layout">
-    <aside class="panel">
+    <aside class="panel left">
       <section>
         <h2><span>1</span> La tua immagine</h2>
         <div class="tpl-box" id="tplBox" hidden>
@@ -67,6 +67,7 @@
             <label class="switch"><input type="checkbox" id="aiBgRemove"><span class="switch-ui" aria-hidden="true"></span> Rimuovi lo sfondo</label>
             <label class="ai-bg-pick" id="aiBgPick" hidden>Nuovo sfondo <select id="aiBg"></select></label>
             <input type="text" id="aiBgText" class="ai-bg-text" maxlength="160" placeholder="Descrivi lo sfondo, es. cielo stellato con la luna piena" hidden>
+            <figure class="ai-bg-ex" id="aiBgEx" hidden><img id="aiBgExImg" alt="Esempio dello sfondo"><figcaption><strong>Esempio</strong> di come potrebbe venire questo sfondo: nel ridisegno l'IA lo adatta alla tua foto, quindi il risultato sarà simile ma non identico.</figcaption></figure>
           </div>
           <div class="ai-example" id="aiExample" hidden>
             <figure><img id="exOrig" alt="Foto d'esempio"><figcaption>Foto</figcaption></figure>
@@ -123,6 +124,7 @@
       </section>
     </aside>
 
+    <div class="panel-resizer" id="panelResizer" role="separator" aria-orientation="vertical" aria-label="Allarga o stringi il pannello" title="Trascina per allargare o stringere il pannello (doppio clic: larghezza normale)"></div>
     <section class="stage">
       <div class="tabs" role="tablist">
         <button data-view="2d" class="active">Anteprima 2D</button>

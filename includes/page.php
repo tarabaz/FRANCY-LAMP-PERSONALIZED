@@ -27,6 +27,8 @@ function flc_frontend_config() {
 		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,
 		'aiStyles'  => array_values(array_filter(array('fedele', 'ritratto', !empty($s['style_anime']) ? 'anime' : ''))),
 		'aiBackgrounds' => !empty($s['bg_enabled']) ? array_column(flc_backgrounds($s), 'label') : array(),
+		// immagine di prova di ogni sfondo (Impostazioni → Nuovo sfondo), mostrata come esempio
+		'aiBgExamples' => !empty($s['bg_enabled']) && function_exists('flc_bg_test_url') ? array_map(function ($b) { return $b['id'] ? flc_bg_test_url($b['id']) : ''; }, flc_backgrounds($s)) : array(),
 		'aiBgCustom' => !empty($s['bg_enabled']) && !empty($s['bg_custom']) ? $s['bg_custom_label'] : '',
 		'privacyUrl' => esc_url_raw($s['privacy_url']),
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),

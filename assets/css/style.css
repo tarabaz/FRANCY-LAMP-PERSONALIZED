@@ -43,8 +43,19 @@ html.flc-page .flc { height: 100%; }
 
 .flc .layout {
   flex: 1; min-height: 0;
-  display: grid; grid-template-columns: 330px 1fr 280px; gap: 0;
+  display: grid; grid-template-columns: var(--flc-left, 330px) 1fr 280px; gap: 0;
+  position: relative;
 }
+/* bordo trascinabile del pannello sinistro (solo desktop) */
+.flc .panel-resizer {
+  position: absolute; top: 0; bottom: 0; left: calc(var(--flc-left, 330px) - 4px); width: 8px; z-index: 6;
+  cursor: col-resize; touch-action: none;
+}
+.flc .panel-resizer::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background .15s;
+}
+.flc .panel-resizer:hover::after, .flc .panel-resizer.drag::after { background: var(--accent); }
+.flc.resizing, .flc.resizing * { cursor: col-resize !important; user-select: none !important; }
 .flc .panel { background: var(--panel); overflow: auto; padding: 6px 16px 20px; border-right: 1px solid var(--line); }
 .flc .panel.right { border-right: 0; border-left: 1px solid var(--line); }
 .flc section + section { border-top: 1px solid var(--line); }
@@ -114,6 +125,7 @@ html.flc-page .flc { height: 100%; }
 
 @media (max-width: 980px) {
 .flc .layout { grid-template-columns: 1fr; }
+.flc .panel-resizer { display: none; }
 .flc .stage { order: -1; min-height: 70vh; }
 .flc .panel { border: 0; }
 }
@@ -174,6 +186,10 @@ html.flc-page .flc { height: 100%; }
 .flc .portrait-row { margin: 6px 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .flc .portrait-row .hint { margin: 6px 0 0; }
 .flc .ai-box .ai-bg-text { flex: 1 1 100%; font: inherit; padding: 6px 8px; border: 1px solid #c9c5bd; border-radius: 8px; }
+.flc .ai-box .ai-bg-ex { flex: 1 1 100%; margin: 2px 0 0; display: flex; gap: 10px; align-items: center; }
+.flc .ai-box .ai-bg-ex[hidden] { display: none; }
+.flc .ai-box .ai-bg-ex img { width: 88px; height: 88px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); flex: none; background: #eee; }
+.flc .ai-box .ai-bg-ex figcaption { font-size: 11.5px; line-height: 1.35; color: var(--muted); }
 .flc .ai-bg-pick { display: inline-flex; align-items: center; gap: 6px; }
 .flc .ai-bg-pick select { font: inherit; padding: 4px 6px; border-radius: 8px; border: 1px solid #c9c5bd; background: #fff; max-width: 210px; }
 .flc .ai-box .ai-style button.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
