@@ -81,6 +81,25 @@ function notchedCircle(F, r, withSideNotches) {
 }
 
 // Testo lungo un arco -> path. top=true: si legge in alto in senso orario; false: in basso, dritto.
+// Ampiezza (gradi) che occupa un testo sull'arco, già ristretto se più lungo di maxSpanDeg
+function textSpanDeg(font, text, rBaseline, size, maxSpanDeg) {
+  if (!text || !font) return 0;
+  const sc = size / font.unitsPerEm;
+  const total = font.stringToGlyphs(text).reduce((a, g) => a + (g.advanceWidth || 0) * sc, 0);
+  return Math.min(maxSpanDeg, (total / rBaseline) * 180 / Math.PI);
+}
+
+// Posizione delle scritte (centro, in gradi; 0 = destra, -90 = in alto, 90 = in basso). Le due di sopra scorrono
+// nella metà superiore, le due di sotto nella metà inferiore saltando l'asola (non ci finiscono mai sopra).
+export const TEXT_DEFAULT_POS = { topLeft: -135, topRight: -45, bottomLeft: 125, bottomRight: 55 };
+export function clampTextPos(key, deg, spanDeg, slotGapDeg = 8) {
+  const half = spanDeg / 2 + 1;
+  if (key === 'topLeft' || key === 'topRight') return Math.min(-half, Math.max(-180 + half, deg));
+  // sotto: da un lato o dall'altro dell'asola (in basso al centro, 90°)
+  const right = deg < 90;
+  return right ? Math.min(90 - slotGapDeg - half, Math.max(half, deg)) : Math.min(180 - half, Math.max(90 + slotGapDeg + half, deg));
+}
+
 function arcText(font, text, centerDeg, rBaseline, size, top, maxSpanDeg) {
   if (!text || !font) return '';
   const glyphs = font.stringToGlyphs(text);
@@ -176,11 +195,21 @@ export function buildFrame(font, texts, F = FRAME) {
   const rMid = (g.rBandOut + g.rBandIn) / 2;
   const size = F.band * F.textHeight;
   const capOffset = size * 0.36; // baseline spostata per centrare verticalmente il testo nella fascia
-  const textD =
-    arcText(font, texts.topLeft, -135, rMid - capOffset, size, true, F.textMaxSpanDeg) +
-    arcText(font, texts.topRight, -45, rMid - capOffset, size, true, F.textMaxSpanDeg) +
-    arcText(font, texts.bottomLeft, 125, rMid + capOffset, size, false, F.textMaxSpanDeg * 0.5) +
-    arcText(font, texts.bottomRight, 55, rMid + capOffset, size, false, F.textMaxSpanDeg * 0.5);
+  // ampiezza massima: sopra quasi mezzo cerchio, sotto un quarto meno l'asola
+  const slotGap = Math.asin(Math.min(1, (F.bottomSlot.diameter / 2 + F.slotBorder) / rMid)) * 180 / Math.PI + 2;
+  const maxTop = 176, maxBottom = 90 - slotGap - 2;
+  const pos = texts.pos || {};
+  const boxes = {};
+  let textD = '';
+  for (const key of ['topLeft', 'topRight', 'bottomLeft', 'bottomRight']) {
+    const top = key.startsWith('top');
+    const rB = top ? rMid - capOffset : rMid + capOffset, maxS = top ? maxTop : maxBottom;
+    const span = textSpanDeg(font, texts[key], rB, size, maxS);
+    if (!span) continue;
+    const c = clampTextPos(key, pos[key] ?? TEXT_DEFAULT_POS[key], span, slotGap);
+    boxes[key] = { from: c - span / 2, to: c + span / 2, center: c };
+    textD += arcText(font, texts[key], c, rB, size, top, maxS);
+  }
 
   const sb = F.slotBorder > 0 ? slotBorderShapes(F, g) : null;
   return {
@@ -194,6 +223,7 @@ export function buildFrame(font, texts, F = FRAME) {
     band: (sb ? sb.band : notchedCircle(F, g.rBandOut, false) + notchedCircle(F, g.rBandIn, false)) + textD,
     slotBorder: sb ? sb.border : '',
     text: textD,
+    textBoxes: boxes, // dove sono finite le scritte (gradi), per avvisare se due si sovrappongono
     innerLine: notchedCircle(F, g.rBandIn, false) + circlePath(g.rImg),
   };
 }

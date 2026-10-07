@@ -366,10 +366,10 @@ function flc_sanitize_settings($in) {
 		'dl_max'       => min(2400, max(200, (int) ($in['dl_max'] ?? $d['dl_max']))),
 		'def_band'     => sanitize_hex_color($in['def_band'] ?? '') ?: $d['def_band'],
 		'def_text_color' => sanitize_hex_color($in['def_text_color'] ?? '') ?: $d['def_text_color'],
-		'def_tl'       => mb_substr(sanitize_text_field($in['def_tl'] ?? ''), 0, 14),
-		'def_tr'       => mb_substr(sanitize_text_field($in['def_tr'] ?? ''), 0, 14),
-		'def_bl'       => mb_substr(sanitize_text_field($in['def_bl'] ?? ''), 0, 10),
-		'def_br'       => mb_substr(sanitize_text_field($in['def_br'] ?? ''), 0, 10),
+		'def_tl'       => mb_substr(sanitize_text_field($in['def_tl'] ?? ''), 0, 40),
+		'def_tr'       => mb_substr(sanitize_text_field($in['def_tr'] ?? ''), 0, 40),
+		'def_bl'       => mb_substr(sanitize_text_field($in['def_bl'] ?? ''), 0, 40),
+		'def_br'       => mb_substr(sanitize_text_field($in['def_br'] ?? ''), 0, 40),
 		'sl_mode'      => ($in['sl_mode'] ?? '') === 'keep' ? 'keep' : 'outline',
 		'sl_colors'    => min(13, max(2, (int) ($in['sl_colors'] ?? $d['sl_colors']))),
 		'sl_line'      => min(2.5, max(0.6, round((float) ($in['sl_line'] ?? $d['sl_line']), 1))),
@@ -697,10 +697,10 @@ function flc_settings_page() {
 						<tr><th>Colore delle scritte</th><td><input type="color" name="<?php echo $n('def_text_color'); ?>" value="<?php echo esc_attr($s['def_text_color']); ?>"></td></tr>
 						<tr><th>Testi sulla banda</th><td>
 							<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,240px));gap:8px">
-								<label>Testo 1 – in alto a sinistra<br><input type="text" maxlength="14" name="<?php echo $n('def_tl'); ?>" value="<?php echo esc_attr($s['def_tl']); ?>" style="width:100%"></label>
-								<label>Testo 2 – in alto a destra<br><input type="text" maxlength="14" name="<?php echo $n('def_tr'); ?>" value="<?php echo esc_attr($s['def_tr']); ?>" style="width:100%"></label>
-								<label>Testo 3 – in basso a sinistra<br><input type="text" maxlength="10" name="<?php echo $n('def_bl'); ?>" value="<?php echo esc_attr($s['def_bl']); ?>" style="width:100%"></label>
-								<label>Testo 4 – in basso a destra<br><input type="text" maxlength="10" name="<?php echo $n('def_br'); ?>" value="<?php echo esc_attr($s['def_br']); ?>" style="width:100%"></label>
+								<label>Sopra 1<br><input type="text" maxlength="40" name="<?php echo $n('def_tl'); ?>" value="<?php echo esc_attr($s['def_tl']); ?>" style="width:100%"></label>
+								<label>Sopra 2<br><input type="text" maxlength="40" name="<?php echo $n('def_tr'); ?>" value="<?php echo esc_attr($s['def_tr']); ?>" style="width:100%"></label>
+								<label>Sotto 1 (in basso a sinistra)<br><input type="text" maxlength="40" name="<?php echo $n('def_bl'); ?>" value="<?php echo esc_attr($s['def_bl']); ?>" style="width:100%"></label>
+								<label>Sotto 2 (in basso a destra)<br><input type="text" maxlength="40" name="<?php echo $n('def_br'); ?>" value="<?php echo esc_attr($s['def_br']); ?>" style="width:100%"></label>
 							</div>
 							<p class="description">Lascia vuoto un testo per non mostrarlo.</p></td></tr>
 					</table>

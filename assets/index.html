@@ -144,13 +144,18 @@
           <div class="picker" id="textPicker"><span class="picker-label">Colore scritte</span><div class="swatches"></div></div>
           <div id="lampPickers"></div>
           <p class="hint" id="pickerHint">Conviene usare i colori già presenti nel disegno: un colore nuovo si aggiunge solo se resti entro i 13 totali.</p>
-          <p class="picker-label">Scritte sulla fascia <small>(lascia vuoto per non metterle)</small></p>
+          <p class="picker-label">Scritte sulla fascia <small>(lascia vuoto per non metterle; con lo slider la fai scorrere)</small></p>
           <div class="texts">
-            <label>In alto a sinistra<input id="tTL" placeholder="es. il tuo nome" value="" maxlength="14"></label>
-            <label>In alto a destra<input id="tTR" placeholder="max 14 lettere" value="Testo 2" maxlength="14"></label>
-            <label>In basso a sinistra<input id="tBL" placeholder="max 10 lettere" value="Testo 3" maxlength="10"></label>
-            <label>In basso a destra<input id="tBR" placeholder="max 10 lettere" value="" maxlength="10"></label>
+            <div class="text-item"><label>Sopra 1<input id="tTL" placeholder="es. il tuo nome" value="" maxlength="40"></label>
+              <input type="range" class="text-pos" id="pTL" min="-180" max="0" step="1" value="-135" aria-label="Posizione della scritta Sopra 1"></div>
+            <div class="text-item"><label>Sopra 2<input id="tTR" placeholder="scrivi qui" value="Testo 2" maxlength="40"></label>
+              <input type="range" class="text-pos" id="pTR" min="-180" max="0" step="1" value="-45" aria-label="Posizione della scritta Sopra 2"></div>
+            <div class="text-item"><label>Sotto 1<input id="tBL" placeholder="scrivi qui" value="Testo 3" maxlength="40"></label>
+              <input type="range" class="text-pos" id="pBL" min="0" max="180" step="1" value="55" aria-label="Posizione della scritta Sotto 1"></div>
+            <div class="text-item"><label>Sotto 2<input id="tBR" placeholder="scrivi qui" value="" maxlength="40"></label>
+              <input type="range" class="text-pos" id="pBR" min="0" max="180" step="1" value="125" aria-label="Posizione della scritta Sotto 2"></div>
           </div>
+          <p class="ai-msg" id="textWarn" hidden></p>
 
         </div>
           <button type="button" class="step-next" data-next="5">Avanti →</button>

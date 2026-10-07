@@ -506,6 +506,8 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
 
 let textTimer;
 for (const id of ['tTL', 'tTR', 'tBL', 'tBR']) $('#' + id).addEventListener('input', () => { clearTimeout(textTimer); textTimer = setTimeout(render, 150); });
+// slider di posizione: aggiornamento leggero mentre si trascina
+for (const id of ['pTL', 'pTR', 'pBL', 'pBR']) $('#' + id).addEventListener('input', () => { clearTimeout(textTimer); textTimer = setTimeout(render, 40); });
 
 // ---------------- disegni pronti ----------------
 // PNG del disco completo caricati dall'admin: si applicano al modello solo per l'anteprima, niente modifiche.
@@ -920,7 +922,10 @@ function renderPalette() {
 
 // ---------------- composizione ----------------
 function texts() {
-  return { topLeft: $('#tTL').value, topRight: $('#tTR').value, bottomLeft: $('#tBL').value, bottomRight: $('#tBR').value };
+  // posizioni dagli slider: sopra il valore è già l'angolo (-180 sinistra … 0 destra);
+  // sotto lo slider va da sinistra a destra, l'angolo da 180 (sinistra) a 0 (destra)
+  return { topLeft: $('#tTL').value, topRight: $('#tTR').value, bottomLeft: $('#tBL').value, bottomRight: $('#tBR').value,
+    pos: { topLeft: +$('#pTL').value, topRight: +$('#pTR').value, bottomLeft: 180 - +$('#pBL').value, bottomRight: 180 - +$('#pBR').value } };
 }
 
 // ---------------- sopra la fascia: forme ----------------
@@ -1000,6 +1005,10 @@ function minusOverflow(d, framePath) {
 
 function parts() {
   let frame = buildFrame(state.font, texts());
+  // due scritte che si accavallano (stessa metà)?
+  const bx = frame.textBoxes || {};
+  const hit = (a, b) => bx[a] && bx[b] && bx[a].from < bx[b].to + 1 && bx[b].from < bx[a].to + 1;
+  state.textOverlap = hit('topLeft', 'topRight') ? 'sopra' : hit('bottomLeft', 'bottomRight') ? 'sotto' : '';
   const fgPath = state.overflow && state.result ? state.result.framePath : '';
   state.ovTextHit = false;
   if (fgPath) {
@@ -1049,6 +1058,7 @@ function render() {
     $('#submitBtn').disabled = !CFG.submitUrl;
     dirty3d = true;
     if (state.view === '3d' && preview3d) update3d();
+    $('#textWarn').hidden = true;
     updateSteps();
     return;
   }
@@ -1064,6 +1074,8 @@ function render() {
   dirty3d = true;
   if (state.view === '3d' && preview3d) update3d(ps);
   updateOvUi();
+  $('#textWarn').hidden = !state.textOverlap;
+  $('#textWarn').textContent = state.textOverlap ? `Le due scritte di ${state.textOverlap} si sovrappongono: spostane una con il suo slider.` : '';
   updateSteps();
 }
 

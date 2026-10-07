@@ -56,7 +56,11 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    La conversione lavora a **10 px/mm** (1 pixel = 0,1 mm; regolabile 4–12, Impostazioni → Disco); le linee nere più
    sottili di ~0,45 mm (meno di una passata dell'ugello 0,4) diventano il colore accanto, così non restano filamenti
    neri quasi invisibili.
-4. **Cornice e scritte**: colori di fascia, scritte e pezzi della lampada; i 4 testi hanno l'etichetta sopra.
+4. **Cornice e scritte**: colori di fascia, scritte e pezzi della lampada. 4 scritte (Sopra 1–2, Sotto 1–2, fino a
+   40 caratteri) ognuna con uno **slider di posizione**: quelle di sopra scorrono nella metà superiore (fino a quasi
+   mezzo cerchio di lunghezza), quelle di sotto nella metà inferiore fermandosi ai lati dell'asola. Se il testo è più
+   lungo dello spazio le lettere si rimpiccioliscono; se due scritte si accavallano compare un avviso. Le posizioni
+   finiscono nel riepilogo (`scritte.pos`, gradi: 0 = destra, -90 = in alto, 90 = in basso).
    **Fai uscire parti del disegno sopra la fascia** (come nei Poké Lids veri): il cliente tocca sull'anteprima 2D le
    zone che devono uscire dal cerchio (tocco su una linea nera = zona colorata più vicina; di nuovo = la toglie).
    La zona esce fino all'anello nero esterno (che resta sempre sopra) con un contorno nero dello spessore delle linee;
