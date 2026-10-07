@@ -944,10 +944,24 @@ const svgLoader = new SVGLoader();
 function svgToPolys(d) {
   const data = svgLoader.parse(`<svg xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="${d}"/></svg>`);
   const out = [];
+  // archi di cerchio campionati fitti (mezzo grado): con pochi punti i lati dritti rientrano rispetto al cerchio
+  // vero e tra fascia e anello nero spunta la base bianca. Curve delle lettere: 8 punti bastano.
+  const pathPts = (path) => {
+    const pts = [];
+    for (const c of path.curves) {
+      const n = c.isEllipseCurve ? Math.max(8, Math.ceil(Math.abs(c.aEndAngle - c.aStartAngle) / (Math.PI / 360))) : c.isLineCurve ? 1 : 8;
+      for (const q of c.getPoints(n)) {
+        const last = pts[pts.length - 1];
+        if (!last || Math.hypot(q.x - last[0], q.y - last[1]) > 1e-6) pts.push([q.x, q.y]);
+      }
+    }
+    if (pts.length > 1 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 1e-6) pts.pop();
+    if (pts.length) pts.push(pts[0]);
+    return pts;
+  };
   for (const path of data.paths) for (const sh of SVGLoader.createShapes(path)) {
-    const { shape, holes } = sh.extractPoints(10);
-    const ring = (pts) => { const r = pts.map((p) => [p.x, p.y]); if (r.length) r.push(r[0]); return r; };
-    if (shape.length >= 3) out.push([ring(shape), ...holes.filter((h) => h.length >= 3).map(ring)]);
+    const shape = pathPts(sh), holes = sh.holes.map(pathPts).filter((h) => h.length >= 4);
+    if (shape.length >= 4) out.push([shape, ...holes]);
   }
   return out;
 }
