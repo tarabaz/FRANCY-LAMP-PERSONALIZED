@@ -28,6 +28,7 @@ function flc_frontend_config() {
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),
 		'copyrightName' => $s['copyright_name'],
 		'stageBg'   => $s['stage_bg'],
+		'lamp'      => function_exists('flc_parts_for_frontend') ? flc_parts_for_frontend() : null,
 		'watermark' => array(
 			'screen'   => (bool) $s['wm_screen'],
 			'download' => (bool) $s['wm_download'],

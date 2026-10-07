@@ -238,6 +238,20 @@ function flc_rest_convalida(WP_REST_Request $req) {
 	update_post_meta($post_id, '_flc_customer', $customer);
 	update_post_meta($post_id, '_flc_colors', $colors);
 	update_post_meta($post_id, '_flc_texts', $texts);
+	// colori dei pezzi della lampada (base, perni, cover…)
+	$lamp = array();
+	foreach ((array) ($meta['lampada'] ?? array()) as $l) {
+		if (!is_array($l)) {
+			continue;
+		}
+		$lamp[] = array(
+			'parte'    => mb_substr(sanitize_text_field((string) ($l['parte'] ?? '')), 0, 40),
+			'colore'   => sanitize_hex_color((string) ($l['colore'] ?? '')) ?: '',
+			'filamento' => mb_substr(sanitize_text_field((string) ($l['filamento'] ?? '')), 0, 60),
+			'cliente'  => !empty($l['scelto_dal_cliente']),
+		);
+	}
+	update_post_meta($post_id, '_flc_lamp', array_slice($lamp, 0, 20));
 	if ($template) {
 		update_post_meta($post_id, '_flc_template', $template);
 	}
@@ -380,6 +394,21 @@ function flc_design_box($post) {
 		<p class="description">Il cliente ha scelto un disegno della galleria senza modificarlo: usa i tuoi file di quel disegno.</p>
 	<?php endif; ?>
 	<?php if ($texts && !$tpl) : ?><p>Scritte sulla banda: <?php echo esc_html(implode(' · ', $texts)); ?></p><?php endif; ?>
+	<?php $lamp = (array) get_post_meta($post->ID, '_flc_lamp', true); ?>
+	<?php if ($lamp) : ?>
+		<h3>Pezzi della lampada</h3>
+		<table class="widefat striped" style="max-width:760px;margin-bottom:12px">
+			<thead><tr><th style="width:40px"></th><th>Pezzo</th><th>Colore</th><th>Bobina</th></tr></thead>
+			<tbody>
+			<?php foreach ($lamp as $l) : ?>
+				<tr><td><span style="width:22px;height:22px;border-radius:50%;background:<?php echo esc_attr($l['colore']); ?>;border:1px solid #c3c4c7;display:inline-block"></span></td>
+					<td><?php echo esc_html($l['parte']); ?><?php echo !empty($l['cliente']) ? ' <strong>(scelto dal cliente)</strong>' : ''; ?></td>
+					<td><code><?php echo esc_html(strtoupper($l['colore'])); ?></code></td>
+					<td><?php echo esc_html($l['filamento'] ?: '–'); ?></td></tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+	<?php endif; ?>
 	<?php if (!$colors) { return; } ?>
 	<h3>Filamenti da usare (<?php echo count($colors); ?>)</h3>
 	<table class="widefat striped" style="max-width:760px">

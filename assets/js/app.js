@@ -382,7 +382,10 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
   $('#view2d').hidden = state.view !== '2d';
   $('#view3d').hidden = state.view !== '3d';
   if (state.view === '3d') {
-    if (!preview3d) preview3d = new Preview3D($('#view3d'), STAGE_BG);
+    if (!preview3d) {
+      preview3d = new Preview3D($('#view3d'), STAGE_BG, lampConfig());
+      preview3d.setLampColors(state.lampColors);
+    }
     preview3d.setLit(state.lit);
     if (dirty3d) update3d();
   }
@@ -904,7 +907,7 @@ async function buildTemplatePackage(customer) {
   const t = state.template;
   const previewOff = await svgToPng(false), previewLit = await svgToPng(true);
   const slugName = t.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'disegno';
-  const summary = { creato: new Date().toISOString(), cliente: customer, template: { id: t.id, name: t.name }, colori: [] };
+  const summary = { creato: new Date().toISOString(), cliente: customer, template: { id: t.id, name: t.name }, colori: [], lampada: lampSummary() };
   const lines = [
     'FrancyStore3D - disco lampada (disegno pronto dalla galleria)', '',
     `Cliente: ${customer.name} <${customer.email}>${customer.phone ? ' tel. ' + customer.phone : ''}`,
@@ -975,6 +978,7 @@ async function buildPackage(customer) {
     stl: stl.list.map((l) => ({ file: l.file, colore: l.color, filamento: l.filament })),
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
+    lampada: lampSummary(),
     impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
@@ -985,6 +989,7 @@ async function buildPackage(customer) {
     ...stlReadme({ baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness }),
     ...stl.list.map((l) => `  ${l.file}  ${l.color}${l.filament ? '  ' + l.filament : ''}`), '',
     ...(bambu ? ['PROGETTO BAMBU STUDIO (05_bambu/disco-lampada.3mf)', 'Apri il file con Bambu Studio: parti, colori degli slot e ugelli sono già assegnati.', ...bambu.list.map((l) => `  filamento ${l.filament}${l.filament === 1 ? ' (ugello 1, bobina fissa)' : ' (ugello 2, AMS)'}: ${l.part}`), ''] : []),
+    ...(lampSummary().length ? ['PEZZI DELLA LAMPADA', ...lampSummary().map((l) => `- ${l.parte}: ${l.colore}${l.filamento ? '  ' + l.filamento : ''}${l.scelto_dal_cliente ? '  (scelto dal cliente)' : ''}`), ''] : []),
     'Cartelle: 01_anteprime, 02_immagini (originale, eventuale ridisegno IA, ritaglio usato), 03_vettoriale (SVG, EPS), 04_stl, 05_bambu (progetto .3mf).',
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '');
   files.push({ name: 'LEGGIMI-filamenti.txt', data: enc(lines.join('\r\n') + '\r\n') });
@@ -1218,6 +1223,45 @@ setFilaments(CFG.filaments);
 setTemplates(CFG.templates);
 state.examples = CFG.examples || null;
 showExample();
+// pezzi della lampada (Impostazioni → Lampada 3D); ?lampada=manifest.json solo per le prove
+function lampConfig() { return CFG.lamp ? { ...CFG.lamp, nonce: CFG.nonce } : null; }
+state.lampColors = {};
+// colori dei pezzi che il cliente può cambiare (solo tra quelli ammessi nelle impostazioni)
+function renderLampPickers() {
+  const host = $('#lampPickers');
+  host.innerHTML = '';
+  for (const p of (CFG.lamp && CFG.lamp.parts) || []) {
+    if (!p.choice || !p.choices.length) continue;
+    const current = (state.lampColors[p.id] || p.color).toLowerCase();
+    const box = document.createElement('div');
+    box.className = 'picker';
+    box.innerHTML = `<span class="picker-label">Colore ${escapeAttr(p.name.toLowerCase())}</span><div class="swatches"></div>`;
+    for (const c of p.choices) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'swatch' + (c.toLowerCase() === current ? ' active' : '');
+      b.style.background = c;
+      b.title = (CFG.isAdmin && filamentName(c)) || c;
+      b.addEventListener('click', () => {
+        state.lampColors[p.id] = c.toLowerCase();
+        if (preview3d) preview3d.setLampColors(state.lampColors);
+        renderLampPickers();
+      });
+      box.querySelector('.swatches').append(b);
+    }
+    host.append(box);
+  }
+}
+// riepilogo dei pezzi della lampada con il colore da stampare
+function lampSummary() {
+  return ((CFG.lamp && CFG.lamp.parts) || []).map((p) => {
+    const c = (state.lampColors[p.id] || p.color).toLowerCase();
+    return { parte: p.name, colore: c, filamento: state.filaments.length ? nearestFilament(c).name : '', materiale: p.material, scelto_dal_cliente: !!state.lampColors[p.id] };
+  });
+}
+if (qp.get('lampada')) fetch(qp.get('lampada')).then((r) => r.json()).then((l) => { CFG.lamp = l; renderLampPickers(); }).catch(console.error);
+renderLampPickers();
+
 if (qp.get('esempi')) fetch(qp.get('esempi')).then((r) => r.json()).then((ex) => { state.examples = ex; showExample(); }).catch(console.error); // solo per le prove
 if (qp.get('tpl')) fetch(qp.get('tpl')).then((r) => r.json()).then(setTemplates).catch(console.error); // solo per le prove
 if (qp.get('cat')) fetch(qp.get('cat')).then((r) => r.json()).then(setFilaments).catch(console.error); // solo per le prove

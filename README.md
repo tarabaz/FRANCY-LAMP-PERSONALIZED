@@ -123,6 +123,14 @@ al browser **solo agli amministratori** (per gli altri il blocco non viene nemme
 Il watermark (logo dalla Libreria media oppure testo, colore, trasparenza, dimensione, inclinazione) si ripete
 sopra l'anteprima a schermo in 2D/3D e sull'immagine scaricata; nelle impostazioni c'è un'anteprima dal vivo.
 
+**Lampada 3D** (Impostazioni → Lampada 3D): carichi un file per pezzo (base, perni, tappo frontale, cover…) esportati
+dalla stessa composizione. Lo STL viene convertito nel browser in un formato compatto (FLM): al sito non arriva mai lo
+STL, i file stanno in `uploads/francy-lamp-parti/` (non accessibile dal web) e la pagina li riceve da un endpoint che
+richiede il token della pagina. Per ogni pezzo: nome, colore (anche dal catalogo), materiale (opaco, lucido, silk,
+metallico) e, se vuoi, i colori tra cui il cliente può scegliere; la scelta finisce nel progetto convalidato e nel
+LEGGIMI dello zip. Consiglio: carica modelli "vetrina" (solo forma esterna, senza tolleranze e dettagli interni).
+Il plugin non contiene più STL e blocca il download di file 3D dalla sua cartella.
+
 **Sfondo dell'anteprima**: un colore solo (Pagina e aspetto), uguale da spenta e da accesa, in 2D, 3D e nelle
 immagini PNG; predefinito un grigio scuro che fa risaltare la luce senza nascondere il nero della cornice.
 

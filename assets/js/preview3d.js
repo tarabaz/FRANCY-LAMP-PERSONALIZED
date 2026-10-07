@@ -2,19 +2,26 @@
 import * as THREE from '../vendor/three/three.module.js';
 import { SVGLoader } from '../vendor/three/addons/SVGLoader.js';
 import { OrbitControls } from '../vendor/three/addons/OrbitControls.js';
-import { STLLoader } from '../vendor/three/addons/STLLoader.js';
 import { cleanShapes } from './export-stl.js';
 
-// Quote ricavate da COMPOSIZIONE_COMPLETA.STL (coordinate originali del file, in mm)
-const LAMP_MODEL = {
-  url: new URL('../models/lampada.stl', import.meta.url).href,
-  discCenter: [1055.48, 1173.26], // centro della scocca Ø204,4
-  frontZ: 1056.74,                // faccia frontale della scocca
-  discRecess: 2,                  // il disco sta 2 mm dietro il frontale (il tappo lo copre in alcuni punti)
-  floorY: 1027.28 - 1173.26,      // fondo della base, rispetto al centro disco
-  baseSize: [204.4, 60],          // ingombro a terra della base (larghezza, profondità)
-  baseCenterZ: 1041.74 - 1056.74, // centro della base in profondità
+// I pezzi della lampada arrivano dal sito (Impostazioni → Lampada 3D) nel formato compatto FLM1:
+// "FLM1", n triangoli, minimo xyz, passo, coordinate a 16 bit. Coordinate del file originale in mm (Y in alto,
+// fronte verso +Z); ref dice dove sono il centro del disco e la faccia frontale.
+const DEFAULT_REF = { cx: 1055.48, cy: 1173.26, front: 1056.74, recess: 2 };
+const MATERIALS = {
+  opaco: { roughness: 0.75, metalness: 0.02 },
+  lucido: { roughness: 0.3, metalness: 0.02 },
+  silk: { roughness: 0.28, metalness: 0.45 },
+  metallico: { roughness: 0.3, metalness: 0.85 },
 };
+function decodeFlm(buf) {
+  const dv = new DataView(buf);
+  if (String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3)) !== 'FLM1') throw new Error('formato non valido');
+  const n = dv.getUint32(4, true), min = [dv.getFloat32(8, true), dv.getFloat32(12, true), dv.getFloat32(16, true)], step = dv.getFloat32(20, true);
+  const pos = new Float32Array(n * 9);
+  for (let i = 0; i < pos.length; i++) pos[i] = min[i % 3] + dv.getUint16(24 + i * 2, true) * step;
+  return pos;
+}
 
 // Ombra di contatto: impronta della base sfocata, più scura al centro
 function contactShadowTexture([w, d]) {
@@ -38,7 +45,10 @@ function contactShadowTexture([w, d]) {
 }
 
 export class Preview3D {
-  constructor(container, bg = '#ffffff') {
+  constructor(container, bg = '#ffffff', lamp = null) {
+    this.lampCfg = lamp && Array.isArray(lamp.parts) ? lamp : { parts: [] };
+    this.ref = { ...DEFAULT_REF, ...(this.lampCfg.ref || {}) };
+    this.partMats = {};
     this.container = container;
     this.bg = bg; // sfondo fisso: uguale da spenta e da accesa (colore scelto nelle impostazioni)
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -81,25 +91,64 @@ export class Preview3D {
   }
 
   buildStatic() {
-    // Modello reale della lampada (base + scocca), STL in mm, Y in alto, fronte verso +Z.
-    // Lo sposto in modo che il centro del disco sia in (0,0) e la faccia frontale della scocca in z=0.
-    const dark = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.05 });
-    new STLLoader().load(LAMP_MODEL.url, (geo) => {
-      geo.translate(-LAMP_MODEL.discCenter[0], -LAMP_MODEL.discCenter[1], -LAMP_MODEL.frontZ);
-      geo.computeVertexNormals();
-      const mesh = new THREE.Mesh(geo, dark);
-      this.lamp.add(mesh);
-    }, undefined, (err) => console.error('Modello lampada non caricato', err));
+    // Ambiente riflesso per i pezzi metallici/silk (stanza chiara con un paio di "finestre" luminose)
+    const pm = new THREE.PMREMGenerator(this.renderer), env = new THREE.Scene();
+    env.add(new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), new THREE.MeshBasicMaterial({ color: 0x6c6f75, side: THREE.BackSide })));
+    for (const [x, y, z, w] of [[0, 4.9, 0, 6], [4.9, 1, 2, 3], [-4.9, 2, -1, 3]]) {
+      const l = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 0.6), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+      l.position.set(x, y, z); l.lookAt(0, 0, 0); env.add(l);
+    }
+    this.envMap = pm.fromScene(env, 0.04).texture;
 
-    // Niente pavimento: sfondo bianco e solo un'ombra morbida dove la base tocca terra
+    // Pezzi della lampada: centro del disco in (0,0), faccia frontale della scocca in z=0
+    const { cx, cy, front } = this.ref;
+    const parts = this.lampCfg.parts || [];
+    const box = new THREE.Box3();
+    let pending = parts.length;
+    const placeShadow = () => {
+      if (box.isEmpty()) box.set(new THREE.Vector3(-102, -146, -30), new THREE.Vector3(102, 100, 0));
+      const size = new THREE.Vector3(), c = new THREE.Vector3();
+      box.getSize(size); box.getCenter(c);
+      this.placeShadow([Math.max(60, size.x), Math.max(30, size.z)], box.min.y, c.z);
+    };
+    if (!pending) placeShadow();
+    for (const p of parts) {
+      const cfg = MATERIALS[p.material] || MATERIALS.opaco;
+      const mat = new THREE.MeshStandardMaterial({ color: p.color, ...cfg, envMap: cfg.metalness > 0.2 ? this.envMap : null, envMapIntensity: 1.1 });
+      this.partMats[p.id] = mat;
+      fetch(this.lampCfg.url + p.id, { credentials: 'same-origin', headers: this.lampCfg.nonce ? { 'X-WP-Nonce': this.lampCfg.nonce } : {} })
+        .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+        .then((buf) => {
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(decodeFlm(buf), 3));
+          geo.translate(-cx, -cy, -front);
+          geo.computeVertexNormals();
+          geo.computeBoundingBox();
+          box.union(geo.boundingBox);
+          this.lamp.add(new THREE.Mesh(geo, mat));
+        })
+        .catch((e) => console.error('Pezzo della lampada non caricato: ' + p.name, e))
+        .finally(() => { if (--pending === 0) placeShadow(); });
+    }
+  }
+
+  // Ombra morbida dove la base tocca terra (niente pavimento)
+  placeShadow(size, floorY, centerZ) {
+    if (this.shadow) { this.scene.remove(this.shadow); this.shadow.geometry.dispose(); }
     const shadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(LAMP_MODEL.baseSize[0] * 1.35, LAMP_MODEL.baseSize[1] * 2.2),
-      new THREE.MeshBasicMaterial({ map: contactShadowTexture(LAMP_MODEL.baseSize), transparent: true, depthWrite: false }),
+      new THREE.PlaneGeometry(size[0] * 1.35, size[1] * 2.2),
+      new THREE.MeshBasicMaterial({ map: contactShadowTexture(size), transparent: true, depthWrite: false }),
     );
     shadow.rotation.x = -Math.PI / 2;
-    shadow.position.set(0, LAMP_MODEL.floorY + 0.05, LAMP_MODEL.baseCenterZ);
+    shadow.position.set(0, floorY + 0.05, centerZ);
     this.scene.add(shadow);
     this.shadow = shadow;
+    this.setLit(this.lit);
+  }
+
+  // colori scelti dal cliente per i pezzi: { id: '#rrggbb' }
+  setLampColors(map) {
+    for (const [id, hex] of Object.entries(map || {})) if (this.partMats[id]) this.partMats[id].color.set(hex);
   }
 
   // parts: [{ d, color, z, depth, black }]
@@ -130,7 +179,7 @@ export class Preview3D {
     }
     this.disc.scale.set(1, -1, 1); // SVG ha Y verso il basso
     // Il disco sta tra cover e tappo frontale: faccia anteriore 2 mm dietro il frontale della scocca
-    this.disc.position.z = -LAMP_MODEL.discRecess - this.discDepth;
+    this.disc.position.z = -this.ref.recess - this.discDepth;
     this.setLit(this.lit);
   }
 
@@ -156,7 +205,7 @@ export class Preview3D {
     this.colorMats.push(face);
     this.disc.add(new THREE.Mesh(geo, [face, side]));
     this.disc.scale.set(1, -1, 1);
-    this.disc.position.z = -LAMP_MODEL.discRecess - depth;
+    this.disc.position.z = -this.ref.recess - depth;
     this.setLit(this.lit);
   }
 

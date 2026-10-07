@@ -302,6 +302,7 @@ function flc_settings_page() {
 		'ia'         => array('dashicons-admin-network', 'Intelligenza artificiale'),
 		'stili'      => array('dashicons-art', 'Stili e prompt'),
 		'disco'      => array('dashicons-marker', 'Disco e regolazioni'),
+		'lampada'    => array('dashicons-lightbulb', 'Lampada 3D'),
 		'ordini'     => array('dashicons-cart', 'Ordini e limiti'),
 	);
 	$today = flc_today_count();
@@ -612,6 +613,144 @@ function flc_settings_page() {
 
 			<div class="flc-sticky"><?php submit_button('Salva impostazioni', 'primary', 'submit', false); ?></div>
 		</form>
+		<!-- ===================== LAMPADA 3D (fuori dal modulo principale: ha i suoi pulsanti) ===================== -->
+		<?php
+		$lp   = function_exists('flc_parts') ? flc_parts() : array('parts' => array(), 'ref' => array());
+		$fils = flc_filaments();
+		?>
+		<section class="flc-tab" data-tab="lampada">
+			<div class="flc-card">
+				<h2><span class="dashicons dashicons-lightbulb"></span> Parti della lampada per l'anteprima 3D</h2>
+				<p class="intro">Carica un file per ogni pezzo (base, perni, tappo frontale, cover…), tutti esportati dalla <strong>stessa composizione senza spostarli</strong>.
+					Lo STL viene convertito <strong>qui nel tuo browser</strong> in un formato compatto: al sito arriva solo quello, lo STL originale non viene caricato.
+					Consiglio: usa modelli "vetrina" (solo la forma esterna, senza tolleranze, passaggi cavi e connettori).</p>
+				<table class="form-table" role="presentation">
+					<tr><th>Nuovo pezzo</th><td>
+						<input type="file" id="flcPartFile" accept=".stl">
+						<input type="text" id="flcPartName" placeholder="Nome (es. Base, Perni, Tappo frontale, Cover)" class="regular-text">
+						<button type="button" class="button button-primary" id="flcPartUpload">Converti e carica</button>
+						<p class="description" id="flcPartMsg">Più pezzi dello stesso colore possono stare in un file solo (es. i 2 perni insieme).</p>
+					</td></tr>
+				</table>
+			</div>
+			<div class="flc-card">
+				<h2><span class="dashicons dashicons-admin-appearance"></span> Pezzi caricati</h2>
+				<?php if (!$lp['parts']) : ?>
+					<p>Nessun pezzo caricato: nell'anteprima 3D si vede solo il disco.</p>
+				<?php else : ?>
+				<table class="widefat striped" id="flcParts" style="max-width:1040px">
+					<thead><tr><th>Nome</th><th>Colore</th><th>Materiale</th><th>Il cliente può cambiarlo</th><th></th></tr></thead>
+					<tbody>
+					<?php foreach ($lp['parts'] as $part) : ?>
+						<tr data-id="<?php echo esc_attr($part['id']); ?>">
+							<td><input type="text" class="flc-p-name" value="<?php echo esc_attr($part['name']); ?>" style="width:150px"><br><span class="description"><?php echo number_format_i18n((int) $part['tris']); ?> triangoli</span></td>
+							<td><input type="color" class="flc-p-color" value="<?php echo esc_attr($part['color']); ?>">
+								<?php if ($fils) : ?><br><select class="flc-p-fil" style="max-width:190px"><option value="">dal catalogo…</option>
+									<?php foreach ($fils as $f) : ?><option value="<?php echo esc_attr($f['hex']); ?>" <?php selected(strtolower($part['color']), $f['hex']); ?>><?php echo esc_html($f['name']); ?></option><?php endforeach; ?>
+								</select><?php endif; ?></td>
+							<td><select class="flc-p-mat"><?php foreach (FLC_PART_MATERIALS as $k => $label) : ?><option value="<?php echo esc_attr($k); ?>" <?php selected($part['material'], $k); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></td>
+							<td><label><input type="checkbox" class="flc-p-choice" <?php checked(!empty($part['choice'])); ?>> sì, tra questi colori:</label>
+								<div class="flc-p-choices" style="display:flex;flex-wrap:wrap;gap:4px;max-width:420px;margin-top:6px">
+								<?php foreach ($fils as $f) : $on = in_array($f['hex'], (array) $part['choices'], true); ?>
+									<label title="<?php echo esc_attr($f['name']); ?>" style="display:inline-flex"><input type="checkbox" value="<?php echo esc_attr($f['hex']); ?>" <?php checked($on); ?> style="display:none"><span class="flc-sw<?php echo $on ? ' on' : ''; ?>" style="background:<?php echo esc_attr($f['hex']); ?>"></span></label>
+								<?php endforeach; ?>
+								</div>
+								<?php if (!$fils) : ?><p class="description">Carica il catalogo filamenti per scegliere i colori ammessi.</p><?php endif; ?></td>
+							<td><button type="button" class="button-link-delete flc-p-del">Elimina</button></td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+				<?php endif; ?>
+				<h3 style="margin-top:18px">Posizione del disco nel modello</h3>
+				<p class="description">Coordinate del file (mm). Se esporti dalla stessa composizione di sempre lascia i valori predefiniti.</p>
+				<p id="flcRef">
+					<label>Centro disco X <input type="number" step="0.01" data-k="cx" value="<?php echo esc_attr($lp['ref']['cx']); ?>" style="width:100px"></label>
+					<label>Centro disco Y <input type="number" step="0.01" data-k="cy" value="<?php echo esc_attr($lp['ref']['cy']); ?>" style="width:100px"></label>
+					<label>Faccia frontale Z <input type="number" step="0.01" data-k="front" value="<?php echo esc_attr($lp['ref']['front']); ?>" style="width:100px"></label>
+					<label>Disco rientrato di <input type="number" step="0.1" data-k="recess" value="<?php echo esc_attr($lp['ref']['recess']); ?>" style="width:70px"> mm</label>
+				</p>
+				<p><button type="button" class="button button-primary" id="flcPartsSave">Salva pezzi</button> <span id="flcPartsMsg" class="description"></span></p>
+			</div>
+		</section>
+		<style>.flc-sw{display:inline-block;width:20px;height:20px;border-radius:50%;border:1px solid #c3c4c7;cursor:pointer;opacity:.35}.flc-sw.on{opacity:1;outline:2px solid #2271b1;outline-offset:1px}</style>
+		<script>
+		(function () {
+			const api = <?php echo wp_json_encode(rest_url('francy-lamp/v1/')); ?>, nonce = <?php echo wp_json_encode(wp_create_nonce('wp_rest')); ?>;
+			const $ = (s, r = document) => r.querySelector(s);
+			// STL (binario o testo) -> formato compatto FLM1: n triangoli, minimo, passo, coordinate a 16 bit
+			function parseStl(buf) {
+				const dv = new DataView(buf);
+				if (buf.byteLength >= 84) {
+					const n = dv.getUint32(80, true);
+					if (84 + n * 50 === buf.byteLength) {
+						const pos = new Float32Array(n * 9);
+						for (let i = 0; i < n; i++) for (let j = 0; j < 9; j++) pos[i * 9 + j] = dv.getFloat32(84 + i * 50 + 12 + j * 4, true);
+						return pos;
+					}
+				}
+				const txt = new TextDecoder().decode(buf), out = [];
+				const re = /vertex\s+(\S+)\s+(\S+)\s+(\S+)/g; let m;
+				while ((m = re.exec(txt))) out.push(+m[1], +m[2], +m[3]);
+				if (!out.length || out.length % 9) throw new Error('Non sembra un file STL valido.');
+				return new Float32Array(out);
+			}
+			function encode(pos) {
+				const n = pos.length / 9, min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+				for (let i = 0; i < pos.length; i++) { const a = i % 3; if (pos[i] < min[a]) min[a] = pos[i]; if (pos[i] > max[a]) max[a] = pos[i]; }
+				const step = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2], 1e-3) / 65535;
+				const out = new ArrayBuffer(24 + n * 18), dv = new DataView(out);
+				[70, 76, 77, 49].forEach((c, i) => dv.setUint8(i, c)); // "FLM1"
+				dv.setUint32(4, n, true);
+				min.forEach((v, i) => dv.setFloat32(8 + i * 4, v, true));
+				dv.setFloat32(20, step, true);
+				for (let i = 0; i < pos.length; i++) dv.setUint16(24 + i * 2, Math.round((pos[i] - min[i % 3]) / step), true);
+				return new Blob([out], { type: 'application/octet-stream' });
+			}
+			const msg = $('#flcPartMsg');
+			$('#flcPartUpload').addEventListener('click', async () => {
+				const f = $('#flcPartFile').files[0];
+				if (!f) { msg.textContent = 'Scegli prima un file STL.'; return; }
+				msg.textContent = 'Converto nel browser…';
+				try {
+					const pos = parseStl(await f.arrayBuffer());
+					const fd = new FormData();
+					fd.append('mesh', encode(pos), 'parte.flm');
+					fd.append('name', $('#flcPartName').value || f.name.replace(/\.stl$/i, ''));
+					msg.textContent = 'Carico ' + (pos.length / 9).toLocaleString('it-IT') + ' triangoli…';
+					const r = await fetch(api + 'parti', { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce }, body: fd });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status);
+					location.hash = 'lampada'; location.reload();
+				} catch (e) { msg.textContent = 'Errore: ' + e.message; }
+			});
+			document.querySelectorAll('#flcParts tr[data-id]').forEach((tr) => {
+				const fil = $('.flc-p-fil', tr), col = $('.flc-p-color', tr), ch = $('.flc-p-choice', tr), grid = $('.flc-p-choices', tr);
+				const sync = () => { grid.style.display = ch.checked ? 'flex' : 'none'; };
+				ch.addEventListener('change', sync); sync();
+				if (fil) fil.addEventListener('change', () => { if (fil.value) col.value = fil.value; });
+				tr.querySelectorAll('.flc-p-choices label').forEach((l) => l.addEventListener('click', (e) => {
+					e.preventDefault(); const cb = $('input', l); cb.checked = !cb.checked; $('.flc-sw', l).classList.toggle('on', cb.checked);
+				}));
+				$('.flc-p-del', tr).addEventListener('click', async () => {
+					if (!confirm('Eliminare questo pezzo?')) return;
+					await fetch(api + 'parti/elimina', { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: tr.dataset.id }) });
+					location.hash = 'lampada'; location.reload();
+				});
+			});
+			$('#flcPartsSave').addEventListener('click', async () => {
+				const parts = [...document.querySelectorAll('#flcParts tr[data-id]')].map((tr) => ({
+					id: tr.dataset.id, name: $('.flc-p-name', tr).value, color: $('.flc-p-color', tr).value, material: $('.flc-p-mat', tr).value,
+					choice: $('.flc-p-choice', tr).checked, choices: [...tr.querySelectorAll('.flc-p-choices input:checked')].map((c) => c.value),
+				}));
+				const ref = {}; document.querySelectorAll('#flcRef input').forEach((i) => { ref[i.dataset.k] = i.value; });
+				const out = $('#flcPartsMsg'); out.textContent = 'Salvo…';
+				const r = await fetch(api + 'parti/salva', { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' }, body: JSON.stringify({ parts, ref }) });
+				out.textContent = r.ok ? 'Salvato.' : 'Errore nel salvataggio (HTTP ' + r.status + ').';
+			});
+		})();
+		</script>
+
 	</div>
 	<script>
 	(function () {
@@ -621,7 +760,7 @@ function flc_settings_page() {
 			if (![...panes].some((p) => p.dataset.tab === k)) k = 'panoramica';
 			tabs.forEach((t) => t.classList.toggle('nav-tab-active', t.dataset.tab === k));
 			panes.forEach((p) => p.classList.toggle('on', p.dataset.tab === k));
-			document.querySelector('.flc-sticky').style.display = k === 'panoramica' ? 'none' : '';
+			document.querySelector('.flc-sticky').style.display = k === 'panoramica' || k === 'lampada' ? 'none' : '';
 			try { localStorage.setItem('flcSettingsTab', k); } catch (e) {}
 		}
 		tabs.forEach((t) => t.addEventListener('click', (e) => { e.preventDefault(); show(t.dataset.tab); history.replaceState(null, '', '#' + t.dataset.tab); }));

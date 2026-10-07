@@ -64,7 +64,7 @@ Tutte reali (disegno quotato in [`docs/quote-disco.png`](../docs/quote-disco.png
 
 - `js/worker.js` – conversione immagine → zone di colore → tracciati a contorni condivisi (Web Worker): ogni confine tra due colori è calcolato una volta e usato identico da entrambe le zone, quindi niente fessure né sovrapposizioni
 - `js/frame.js` – cornice, fori e scritte ad arco
-- `js/preview3d.js` – anteprima Three.js: disco generato montato sul modello reale `models/lampada.stl`
+- `js/preview3d.js` – anteprima Three.js: disco generato montato sui pezzi della lampada caricati in Impostazioni → Lampada 3D (formato protetto FLM, niente STL nel plugin)
   (COMPOSIZIONE_COMPLETA). Il disco sta 2 mm dietro il frontale della scocca, sotto il tappo. Le quote di
   allineamento sono in `LAMP_MODEL`.
 - `js/app.js` – interfaccia, catalogo filamenti, pacchetto e convalida
