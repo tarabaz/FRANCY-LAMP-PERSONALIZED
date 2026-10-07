@@ -131,6 +131,11 @@ metallico) e, se vuoi, i colori tra cui il cliente può scegliere; la scelta fin
 LEGGIMI dello zip. Consiglio: carica modelli "vetrina" (solo forma esterna, senza tolleranze e dettagli interni).
 Il plugin non contiene più STL e blocca il download di file 3D dalla sua cartella.
 
+**Nome pubblico delle bobine**: formato del catalogo `Nome vero | Nome pubblico | #rrggbb | TD` (nome pubblico e TD
+facoltativi). Il cliente vede solo il nome pubblico (palette, tooltip); il nome vero con la marca non viene mai
+inviato al suo browser: al suo posto c'è un codice neutro che il server, alla convalida, sostituisce con il nome vero
+nello zip (STL, LEGGIMI, riepilogo, SVG, progetto 3MF) e nella scheda del progetto. L'admin vede sempre i nomi veri.
+
 **Bobine speciali** (Filamenti → secondo elenco): silk, metal e simili per i pezzi della lampada (es. cilindri in PLA
 Metal). Non entrano mai nel calcolo dei colori del disco (disegno, fascia, scritte): compaiono solo in Lampada 3D,
 nel colore dei pezzi e tra le scelte del cliente, e il loro nome finisce nel progetto convalidato.

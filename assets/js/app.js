@@ -46,7 +46,8 @@ let dirty3d = true;
 function setFilaments(list) {
   state.filaments = (list || [])
     .filter((f) => f && /^#[0-9a-f]{6}$/i.test(f.hex))
-    .map((f) => ({ name: String(f.name || f.hex), hex: f.hex.toLowerCase(), lab: hexToLab(f.hex) }));
+    // name: nome vero (solo admin) oppure il codice neutro che il server rimette a posto alla convalida
+    .map((f) => ({ name: String(f.name || f.tok || f.hex), label: String(f.label || ''), hex: f.hex.toLowerCase(), lab: hexToLab(f.hex) }));
   if (state.filaments.length) {
     const oldBlack = BLACK;
     BLACK = nearestFilament('#151515').hex;
@@ -66,6 +67,12 @@ function nearestFilament(hex) {
     if (d < bd) { bd = d; best = f; }
   }
   return best;
+}
+// Nome pubblico della bobina (quello che vede il cliente), vuoto se non impostato
+function filamentLabel(hex) {
+  if (!state.filaments.length) return '';
+  const f = nearestFilament(hex);
+  return f ? f.label : '';
 }
 // Nome della bobina per un colore (esatto se è un colore del catalogo, altrimenti la più vicina)
 function filamentName(hex) {
@@ -499,7 +506,7 @@ function openFilamentPopover(anchor, onPick, allowed) {
     b.type = 'button';
     b.className = 'swatch';
     b.style.background = f.hex;
-    b.title = CFG.isAdmin ? f.name : '';
+    b.title = CFG.isAdmin ? f.name : f.label;
     b.disabled = !allowed(f.hex);
     b.addEventListener('click', () => { onPick(f.hex); closePopover(); });
     popover.append(b);
@@ -521,7 +528,7 @@ function renderPickers() {
       b.type = 'button';
       b.className = 'swatch' + (c === current ? ' active' : '');
       b.style.background = c;
-      b.title = (CFG.isAdmin && filamentName(c)) || c;
+      b.title = (CFG.isAdmin ? filamentName(c) : filamentLabel(c)) || c;
       // scritte e fascia mai dello stesso colore: le scritte sparirebbero
       const other = (key === 'band' ? state.textColor : state.bandColor).toLowerCase();
       if (c === other && c !== current) { b.disabled = true; b.title = key === 'band' ? 'È il colore delle scritte' : 'È il colore della fascia'; }
@@ -773,8 +780,10 @@ function renderPalette() {
     }
     if (p.black) { ctrl.disabled = true; ctrl.title = 'Le linee sono sempre nere'; }
     const name = document.createElement('span');
-    const fil = CFG.isAdmin ? filamentName(artColor(i)) : ''; // il nome delle bobine lo vede solo l'admin
-    name.textContent = (p.black ? 'Nero contorni' : p.white && artColor(i) === WHITE ? 'Bianco' : `Colore ${i + 1}`) + (fil ? ` · ${fil}` : '');
+    // il cliente vede il nome pubblico della bobina (es. "Arancio Mandarino"); il nome vero lo vede solo l'admin
+    const fil = CFG.isAdmin ? filamentName(artColor(i)) : '';
+    const label = p.black ? 'Nero contorni' : p.white && artColor(i) === WHITE ? 'Bianco' : filamentLabel(artColor(i)) || `Colore ${i + 1}`;
+    name.textContent = label + (fil ? ` · ${fil}` : '');
     const area = document.createElement('span');
     area.className = 'area';
     area.textContent = `${Math.round(p.area)} mm²`;
@@ -1241,7 +1250,7 @@ function renderLampPickers() {
       b.type = 'button';
       b.className = 'swatch' + (c.toLowerCase() === current ? ' active' : '');
       b.style.background = c;
-      b.title = (CFG.isAdmin && lampFilamentName(c.toLowerCase())) || c;
+      b.title = (CFG.isAdmin ? lampFilamentName(c.toLowerCase()) : lampFilamentLabel(c.toLowerCase())) || c;
       b.addEventListener('click', () => {
         state.lampColors[p.id] = c.toLowerCase();
         if (preview3d) preview3d.setLampColors(state.lampColors);
@@ -1255,8 +1264,12 @@ function renderLampPickers() {
 // nome della bobina di un pezzo: prima le bobine speciali (silk, metal), poi il catalogo del disco
 function lampFilamentName(hex) {
   const sp = (CFG.filamentsSpecial || []).find((f) => f.hex.toLowerCase() === hex);
-  if (sp) return sp.name;
+  if (sp) return sp.name || sp.tok;
   return state.filaments.length ? nearestFilament(hex).name : '';
+}
+function lampFilamentLabel(hex) {
+  const sp = (CFG.filamentsSpecial || []).find((f) => f.hex.toLowerCase() === hex);
+  return sp ? sp.label || '' : filamentLabel(hex);
 }
 // riepilogo dei pezzi della lampada con il colore da stampare
 function lampSummary() {

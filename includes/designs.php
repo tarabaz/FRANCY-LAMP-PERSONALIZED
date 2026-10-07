@@ -154,6 +154,9 @@ function flc_rest_convalida(WP_REST_Request $req) {
 	if (!is_array($meta)) {
 		return new WP_Error('flc_bad', 'Dati del progetto mancanti.', array('status' => 400));
 	}
+	// il browser del cliente conosce solo i codici neutri delle bobine: qui tornano i nomi veri
+	$fil_map = function_exists('flc_filament_token_map') ? flc_filament_token_map() : array();
+	$meta    = flc_resolve_tokens_deep($meta, $fil_map);
 	$c        = is_array($meta['cliente'] ?? null) ? $meta['cliente'] : array();
 	$customer = array(
 		'name'  => sanitize_text_field($c['name'] ?? ''),
@@ -198,6 +201,7 @@ function flc_rest_convalida(WP_REST_Request $req) {
 			return new WP_Error('flc_fs', 'Impossibile salvare i file sul server.', array('status' => 500));
 		}
 	}
+	flc_resolve_zip_tokens($dir . '/progetto.zip', $fil_map);
 
 	// colori / filamenti
 	$colors = array();
@@ -455,3 +459,103 @@ add_action('save_post_flc_design', function ($post_id) {
 		update_post_meta($post_id, '_flc_stato', $stato);
 	}
 });
+
+// ---------- nomi veri delle bobine nei file del cliente ----------
+// Ai clienti il catalogo arriva senza marche: ogni bobina ha un codice neutro (es. FLCD12Q). Qui lo sostituiamo
+// con il nome vero nei dati del progetto e dentro lo zip (nomi dei file STL, LEGGIMI, riepilogo, SVG, progetto 3MF).
+function flc_resolve_tokens_deep($v, $map) {
+	if (!$map) {
+		return $v;
+	}
+	if (is_array($v)) {
+		foreach ($v as $k => $x) {
+			$v[$k] = flc_resolve_tokens_deep($x, $map);
+		}
+		return $v;
+	}
+	return is_string($v) && strpos($v, 'FLC') !== false ? strtr($v, $map) : $v;
+}
+
+// stesso "slug" usato dal configuratore per i nomi dei file
+function flc_file_slug($s) {
+	$s = function_exists('remove_accents') ? remove_accents($s) : $s;
+	return substr(trim(preg_replace('/[^A-Za-z0-9]+/', '_', $s), '_'), 0, 40);
+}
+
+function flc_resolve_zip_tokens($path, $map) {
+	if (!$map || !class_exists('ZipArchive')) {
+		return false;
+	}
+	$zip = new ZipArchive();
+	if ($zip->open($path) !== true) {
+		return false;
+	}
+	$slugs   = array_map('flc_file_slug', $map);
+	$updates = array();
+	$renames = array();
+	for ($i = 0; $i < $zip->numFiles; $i++) {
+		$name = $zip->getNameIndex($i);
+		$ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+		if (in_array($ext, array('txt', 'json', 'svg'), true)) {
+			$data = $zip->getFromIndex($i);
+			if (preg_match('/FLC[DS]\d+Q/', $data)) {
+				$updates[$name] = strtr($data, $map);
+			}
+		} elseif ($ext === '3mf') {
+			$new = flc_resolve_3mf_tokens($zip->getFromIndex($i), $map);
+			if ($new !== null) {
+				$updates[$name] = $new;
+			}
+		}
+		if (preg_match('/FLC[DS]\d+Q/', $name)) {
+			$renames[$name] = strtr($name, $slugs);
+		}
+	}
+	foreach ($updates as $name => $data) {
+		$zip->deleteName($name);
+		$zip->addFromString($name, $data);
+	}
+	foreach ($renames as $old => $new) {
+		$idx = $zip->locateName($old);
+		if ($idx !== false) {
+			$zip->renameIndex($idx, $new);
+		}
+	}
+	return $zip->close();
+}
+
+// il progetto Bambu (.3mf) è uno zip dentro lo zip: nomi delle parti nei file di configurazione
+function flc_resolve_3mf_tokens($bin, $map) {
+	if (!is_string($bin) || strpos($bin, "PK\x03\x04") !== 0) {
+		return null; // non è uno zip
+	}
+	$tmp = wp_tempnam('flc3mf');
+	file_put_contents($tmp, $bin);
+	$zip = new ZipArchive();
+	if ($zip->open($tmp) !== true) {
+		@unlink($tmp);
+		return null;
+	}
+	$changed = false;
+	$updates = array();
+	for ($i = 0; $i < $zip->numFiles; $i++) {
+		$name = $zip->getNameIndex($i);
+		if (!preg_match('/\.(config|model|json|xml)$/i', $name)) {
+			continue;
+		}
+		$data = $zip->getFromIndex($i);
+		if (preg_match('/FLC[DS]\d+Q/', $data)) {
+			$updates[$name] = strtr($data, array_map(function ($n) { return htmlspecialchars($n, ENT_QUOTES | ENT_XML1); }, $map));
+		}
+	}
+	foreach ($updates as $name => $data) {
+		$zip->deleteName($name);
+		$zip->addFromString($name, $data);
+		$changed = true;
+	}
+	$zip->close();
+	$out = $changed ? file_get_contents($tmp) : null;
+	@unlink($tmp);
+	return $out;
+}
+
