@@ -74,7 +74,9 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
 
 **Colora a mano** (pulsante 🖌️ nell'elenco "Colori del disco"): si sceglie il pennello tra tutte le bobine
 disponibili (o tra i colori del disco) e si tocca sull'anteprima 2D: la zona toccata (com'era nella conversione,
-anche dopo uno svuotamento) prende quel colore, le linee nere restano. **Svuota i colori** rende tutto bianco tranne
+anche dopo uno svuotamento: due zone vicine senza linea nera, es. il viola e la luce sul corpo di Gengar, restano
+separate) prende quel colore, le linee nere restano. Mentre si colora, i confini di tutte le zone sono tratteggiati
+in rosso sull'anteprima (solo a schermo, non nei file). **Svuota i colori** rende tutto bianco tranne
 il nero, **Annulla** toglie l'ultimo tocco. Il colore cambia nella mappa delle zone e il disegno viene
 ri-vettorializzato: in SVG, STL per colore e 3MF le zone ricolorate sono davvero forme del nuovo colore (es. la coda
 rossa finisce nello STL del rosso). Le bobine oltre il limite dei 13 colori sono disattivate. Una nuova conversione

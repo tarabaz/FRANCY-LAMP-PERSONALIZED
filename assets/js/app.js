@@ -779,7 +779,7 @@ worker.onmessage = (e) => {
   if (progress) return setStatus(progress + '…');
   if (error) { console.error(error); return setStatus('Errore nella conversione'); }
   state.result = result;
-  if (!result.keep) { state.colorOverrides = {}; state.resultOv = !!state.pendingOv; }
+  if (!result.keep) { state.colorOverrides = {}; state.resultOv = !!state.pendingOv; state.baseLayers = result.layers; }
   state.ovSeeds = result.ovSeeds || [];
   state.ovNote = result.ovTooBig ? 'Quella zona è sfondo: riempirebbe tutta la fascia, quindi resta dentro il cerchio.'
     : result.ovNoOut ? 'Quella parte non arriva al bordo del cerchio: allarga un po\' lo zoom o sposta l\'immagine perché sporga.' : '';
@@ -1073,7 +1073,11 @@ function render() {
     return;
   }
   const { svg, colors, parts: ps } = buildSvg(false);
-  $('#svgHost').innerHTML = svg;
+  // colora a mano: i confini di tutte le zone (anche tra due bianchi) tratteggiati, solo a schermo
+  const guide = state.painting && state.baseLayers
+    ? `<g id="guida-zone" fill="none" stroke="#d0342c" stroke-opacity=".75" stroke-width="0.22" stroke-dasharray="0.8 0.5" pointer-events="none">${state.baseLayers.map((d) => (d ? `<path d="${d}"/>` : '')).join('')}</g>`
+    : '';
+  $('#svgHost').innerHTML = guide ? svg.replace('</svg>', guide + '</svg>') : svg;
   const n = colors.size;
   const over = n > MAX_FILAMENTS;
   $('#count').textContent = `Colori totali: ${n} / ${MAX_FILAMENTS}` + (over ? ' – troppi, riduci i colori del disegno' : '');
@@ -1130,9 +1134,9 @@ function sendPaints() {
 $('#paintOn').addEventListener('click', () => {
   state.painting = true; state.brush = state.brush || null;
   if (state.view === '3d') document.querySelector('.tabs button[data-view="2d"]').click();
-  updatePaintUi(); renderPalette();
+  updatePaintUi(); renderPalette(); render();
 });
-$('#paintOff').addEventListener('click', () => { state.painting = false; updatePaintUi(); renderPalette(); });
+$('#paintOff').addEventListener('click', () => { state.painting = false; updatePaintUi(); renderPalette(); render(); });
 $('#paintUndo').addEventListener('click', () => { if (!state.paints.length) return; state.paints = state.paints.slice(0, -1); sendPaints(); });
 $('#paintClear').addEventListener('click', () => {
   if (!state.result) return;
