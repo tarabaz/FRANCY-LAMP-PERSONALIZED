@@ -162,7 +162,9 @@ html.flc-page .flc { height: 100%; }
 .flc .ai-box .ai-bg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; font-size: 13px; }
 .flc .ai-box .ai-bg[hidden], .flc .ai-box .ai-bg-pick[hidden] { display: none; }
 .flc .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; user-select: none; }
-.flc .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+/* il checkbox vero resta DENTRO lo switch: se "scappa" fuori dal pannello, al clic il browser fa scorrere la pagina per raggiungerlo */
+.flc .switch { position: relative; }
+.flc .switch input { position: absolute; top: 0; left: 0; opacity: 0; width: 1px; height: 1px; margin: 0; }
 .flc .switch .switch-ui { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9c5bd; transition: background .15s; flex: none; }
 .flc .switch .switch-ui::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
 .flc .switch input:checked + .switch-ui { background: var(--ink); }
@@ -178,11 +180,11 @@ html.flc-page .flc { height: 100%; }
 .flc .check { display: flex; align-items: center; gap: 8px; margin: 10px 0; cursor: pointer; }
 
 /* Convalida */
-.flc .submit-form { display: grid; gap: 6px; }
+.flc .submit-form { display: grid; gap: 6px; position: relative; }
 .flc .submit-form input, .flc .submit-form textarea {
   width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font: inherit;
 }
-.flc .submit-form .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.flc .submit-form .hp { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; clip-path: inset(50%); }
 .flc .check.small { font-size: 12px; color: var(--muted); align-items: flex-start; margin: 4px 0; }
 .flc .check.small input { margin-top: 2px; }
 .flc button#submitBtn {

@@ -134,7 +134,8 @@ add_action('template_redirect', function () {
 		html.flc-page body > .flc { height: 100vh; height: 100dvh; }
 		/* computer: la pagina è esattamente alta come lo schermo e non scorre (scorrono solo i pannelli) */
 		@media (min-width: 981px) {
-			html.flc-page, html.flc-page body { overflow: hidden !important; }
+			html.flc-page, html.flc-page body { overflow: hidden !important; overflow: clip !important; }
+			html.flc-page body > .flc { overflow: hidden; overflow: clip; } /* clip: niente scorrimenti automatici del browser (focus) */
 			<?php if (is_admin_bar_showing()) : ?>html.flc-page { margin-top: 0 !important; } html.flc-page body { padding-top: 32px !important; box-sizing: border-box; }
 			html.flc-page body > .flc { height: calc(100vh - 32px); height: calc(100dvh - 32px); }<?php endif; ?>
 		}
