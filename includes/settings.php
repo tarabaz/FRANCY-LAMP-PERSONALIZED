@@ -91,23 +91,73 @@ function flc_background_instruction($bg) {
 // Stile Poké Lids: i tombini decorati Pokémon delle città giapponesi (pokéfuta). Vale per qualsiasi soggetto,
 // non solo i volti: persone, animali, personaggi, oggetti, scene.
 function flc_default_prompt_tombino() {
-	return 'Redraw the attached image as a Japanese decorative manhole cover illustration in the style of the Poké Lids (pokéfuta), the colorful Pokémon manhole covers found in towns across Japan. '
-		. 'The subject of the image (a person, a pet, a character, an object or a whole scene) becomes the cheerful hero of the design: keep it recognisable, with the same pose, expression, main colors and key details; '
-		. 'for a real person keep the likeness (face shape, hairstyle, hair color, glasses, clothes) in a cute stylised way. '
-		. 'Drawing style: clean modern Japanese character art like official Pokémon artwork, simple rounded shapes, bold uniform black outlines around every shape, '
-		. 'bright cheerful flat solid colors (at most 10 colors), like enamel paint on cast iron. '
-		. 'Around the subject add a simple decorative scene typical of the Poké Lids: local nature or symbols (flowers, leaves, waves, clouds, stars, small sparkles) in a balanced, mostly circular composition that fills the whole image edge to edge. '
-		. 'Keep the same framing and aspect ratio as the input image, with the subject in the same position and size. '
-		. 'No gradients, no shading, no textures, no metal texture, no text, no letters, no numbers, no logos, no frame and no circular border ring (the round frame is added later).';
+	return 'Redraw the attached image as the artwork of a Japanese Pokémon manhole cover (Poké Lid / pokéfuta). '
+		. 'This is a FAITHFUL REDRAW, not a new design: keep the same characters, the same poses and expressions, the same objects and the same scene and background of the input, '
+		. 'in the same composition and framing. Do NOT invent new elements, do NOT add decorations (no extra flowers, clouds, stars, waves, symbols or patterns), do NOT replace the background with a different scene. '
+		. 'Keep the exact shapes and proportions of the characters: they must be immediately recognisable as in the input. For a real person keep the likeness (face shape, hairstyle, hair color, glasses, clothes). '
+		. 'Drawing style, exactly like a painted Poké Lid: clean vector illustration, bold black outlines of uniform thickness that close every shape, '
+		. 'and inside every outline ONE single flat solid color, filled evenly from edge to edge. Absolutely no gradients, no shading, no shadows, no highlights, no textures, no grain, no noise, no dithering, no halftone, no metal or stone texture. '
+		. 'Use a cheerful palette of at most 10 to 12 clean colors close to the original colors (white stays pure white, dark areas a clean dark color). '
+		. 'Simplify small details into a few large clean shapes (for example bricks, leaves or waves as simple outlined shapes), the way a manhole cover is painted. '
+		. 'The artwork fills the whole square image edge to edge. No circular frame, no ring, no border (they are added later). '
+		. 'No text of any kind in any language: remove every letter, word, number, sign text, logo, Japanese or Chinese character (kanji, kana); a sign or label stays as a blank flat shape.';
 }
 
-// Carta da gioco (es. carta Pokémon): si tiene solo l'illustrazione, senza cornice, scritte e simboli.
+// Carta da gioco (es. carta Pokémon): dice SOLO cosa ignorare della carta. Lo stile lo decide il prompt dello stile.
 // Viene messa PRIMA del prompt dello stile.
 function flc_default_prompt_card() {
-	return 'The attached image is a trading card (for example a Pokémon card). Use ONLY the illustration artwork printed on the card. '
-		. 'Completely remove the card frame and border, the name, HP, type and energy symbols, text boxes, attack and ability descriptions, numbers, rarity marks, set symbols, logos, copyright lines and any other printed text or overlay. '
-		. 'Where the text or the frame covered the artwork, reconstruct the missing parts naturally so the illustration continues. '
-		. 'The result is only the artwork, extended to fill the whole square image edge to edge, with the main character large and centered. No text, no letters, no numbers anywhere.';
+	return 'The image to redraw is a trading card (for example a Pokémon card). The source to redraw is ONLY the illustration printed on the card: '
+		. 'the main character with its pose and the scene behind it. Ignore and remove everything that belongs to the card layout: frame and border, card name, HP, type and energy symbols, '
+		. 'attack and ability text boxes, weakness and retreat bar, numbers, rarity and set marks, logos and badges (for example anniversary logos), illustrator and copyright lines, '
+		. 'and any other text in any language (including Japanese and Chinese characters). Where these elements covered the illustration, continue the illustration behind them. '
+		. 'Do not invent a new scene: keep the character and the background elements of the illustration. Make the result square, with the main character large and centered.';
+}
+
+// Regola comune a tutti gli stili: niente scritte in nessuna lingua (le scritte le mette il configuratore sulla fascia)
+function flc_no_text_rule() {
+	return "\n\nNever draw text: remove every letter, word and number of the input in any language, including Japanese and Chinese characters, signs and logos (a sign stays as a blank shape).";
+}
+
+// Immagini di riferimento dello stile Tombino: quelle caricate in Impostazioni (id della Libreria media) o, se non ce ne sono,
+// i due esempi inclusi nel plugin. Ritorna array di array('mime', 'data') ridotti a max 768 px.
+function flc_tombino_refs($s) {
+	$files = array();
+	foreach (array_filter(array_map('intval', explode(',', (string) ($s['tombino_refs'] ?? '')))) as $id) {
+		$f = function_exists('get_attached_file') ? get_attached_file($id) : '';
+		if ($f && is_file($f)) {
+			$files[] = $f;
+		}
+	}
+	if (!$files && !empty($s['tombino_refs_default'])) {
+		$files = glob(FLC_DIR . 'assets/ref/tombino-esempio-*.jpg') ?: array();
+	}
+	$out = array();
+	foreach (array_slice($files, 0, 3) as $f) {
+		$data = file_get_contents($f);
+		$info = @getimagesizefromstring($data);
+		if (!$info) {
+			continue;
+		}
+		// le foto grandi le riduco (meno peso nella richiesta): copia in cache nella cartella uploads
+		if (max($info[0], $info[1]) > 900 && function_exists('wp_get_image_editor')) {
+			$up    = wp_upload_dir(null, false);
+			$cache = trailingslashit($up['basedir']) . 'francy-lamp-ref/' . md5($f . filemtime($f)) . '.jpg';
+			if (!is_file($cache)) {
+				wp_mkdir_p(dirname($cache));
+				$ed = wp_get_image_editor($f);
+				if (!is_wp_error($ed)) {
+					$ed->resize(768, 768, false);
+					$ed->save($cache, 'image/jpeg');
+				}
+			}
+			if (is_file($cache)) {
+				$data = file_get_contents($cache);
+				$info = @getimagesizefromstring($data);
+			}
+		}
+		$out[] = array('mime' => $info['mime'], 'data' => $data);
+	}
+	return $out;
 }
 
 // Stile anime: atmosfera da film d'animazione giapponese classico, ma resa stampabile (colori piatti + contorni)
@@ -150,6 +200,9 @@ function flc_defaults() {
 		'style_tombino' => 1,
 		'style_ritratto' => 1,
 		'card_enabled' => 1,
+		'tombino_refs' => '',
+		'tombino_refs_default' => 1,
+		'prompts_v'    => 0,
 		'prompt_ritratto' => '',
 		'backgrounds'  => '',
 		'bg_enabled'   => 1,
@@ -200,7 +253,14 @@ function flc_defaults() {
 }
 
 function flc_settings() {
-	$s = wp_parse_args(get_option(FLC_OPTION, array()), flc_defaults());
+	$raw = get_option(FLC_OPTION, array());
+	if (is_array($raw) && $raw && (int) ($raw['prompts_v'] ?? 0) < 2) {
+		// v2: il Tombino ridisegna fedele (niente scene inventate) e la carta dice solo cosa togliere
+		$raw['prompt_tombino'] = '';
+		$raw['prompt_card']    = '';
+		// (solo in memoria: il primo "Salva" lo rende definitivo, perché il modulo salva prompts_v = 2)
+	}
+	$s = wp_parse_args($raw, flc_defaults());
 	if (trim((string) $s['prompt']) === '' || in_array(trim((string) $s['prompt']), flc_old_default_prompts(), true)) {
 		$s['prompt'] = flc_default_prompt();
 	}
@@ -263,6 +323,9 @@ function flc_sanitize_settings($in) {
 		'style_tombino' => empty($in['style_tombino']) ? 0 : 1,
 		'style_ritratto' => empty($in['style_ritratto']) ? 0 : 1,
 		'card_enabled' => empty($in['card_enabled']) ? 0 : 1,
+		'tombino_refs' => implode(',', array_slice(array_filter(array_map('intval', explode(',', (string) ($in['tombino_refs'] ?? '')))), 0, 3)),
+		'tombino_refs_default' => empty($in['tombino_refs_default']) ? 0 : 1,
+		'prompts_v'    => 2,
 		'prompt_ritratto' => sanitize_textarea_field($in['prompt_ritratto'] ?? ''),
 		'backgrounds'  => sanitize_textarea_field($in['backgrounds'] ?? $old['backgrounds']), // vecchio elenco di testo, serve solo per passare alla tabella
 		'bg_enabled'   => empty($in['bg_enabled']) ? 0 : 1,
@@ -468,6 +531,9 @@ function flc_settings_page() {
 		.flc-style-noimg { display: grid; place-items: center; background: #f0f0f1; color: #8c8f94; font-size: 20px; }
 		.flc-style-on { margin: 10px 0 6px; }
 		.flc-prompt > summary { cursor: pointer; color: #2271b1; margin: 6px 0; }
+		.flc-refs-list { display: flex; gap: 6px; flex-wrap: wrap; }
+		.flc-refs-list img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dcdcde; }
+		.flc-refs-list img.def { opacity: .8; }
 		.flc-dirty { color: #8a5a00; background: #fcf3dc; border-radius: 10px; padding: 2px 10px; margin-left: 10px; vertical-align: middle; }
 		.flc-set .flc-tab { display: none; padding-top: 6px; }
 		.flc-set .flc-tab.on { display: block; }
@@ -668,6 +734,20 @@ function flc_settings_page() {
 								<textarea name="<?php echo $n($st['field']); ?>" rows="9" class="large-text code" data-default="<?php echo esc_attr($st['default']); ?>"><?php echo esc_textarea($s[$st['field']]); ?></textarea>
 								<p><button type="button" class="button-link flc-reset">↺ Ripristina il testo originale</button></p>
 							</details>
+							<?php if ($key === 'tombino') : $ref_ids = array_filter(array_map('intval', explode(',', (string) $s['tombino_refs']))); ?>
+							<div class="flc-refs">
+								<p style="margin:8px 0 4px"><strong>Tombini di riferimento</strong> <span class="description">– 1–3 tombini finiti fatti bene: l'IA ne copia lo stile (contorni, colori pieni), non il contenuto.</span></p>
+								<div class="flc-refs-list" id="flcRefsList">
+									<?php foreach ($ref_ids as $rid) : $u = wp_get_attachment_image_url($rid, 'thumbnail'); if ($u) : ?><img src="<?php echo esc_url($u); ?>" alt="" data-id="<?php echo (int) $rid; ?>"><?php endif; endforeach; ?>
+									<?php if (!$ref_ids) : foreach (glob(FLC_DIR . 'assets/ref/tombino-esempio-*.jpg') ?: array() as $f) : ?><img src="<?php echo esc_url(FLC_URL . 'assets/ref/' . basename($f)); ?>" alt="" class="def" title="Esempio incluso nel plugin"><?php endforeach; endif; ?>
+								</div>
+								<input type="hidden" name="<?php echo $n('tombino_refs'); ?>" id="flcRefs" value="<?php echo esc_attr(implode(',', $ref_ids)); ?>">
+								<p><button type="button" class="button" id="flcRefsPick">Scegli dalla Libreria media</button>
+									<button type="button" class="button-link" id="flcRefsClear"<?php echo $ref_ids ? '' : ' hidden'; ?>>Togli i miei</button></p>
+								<p class="description" id="flcRefsNote"><?php echo $ref_ids ? 'In uso: i tuoi tombini.' : 'In uso: i 2 esempi inclusi (Cubone, Latias e Latios). Meglio solo l\'interno del tombino, senza la fascia con le scritte.'; ?></p>
+								<label><input type="checkbox" name="<?php echo $n('tombino_refs_default'); ?>" value="1" <?php checked($s['tombino_refs_default'], 1); ?>> Se non ne scegli, usa gli esempi inclusi</label>
+							</div>
+							<?php endif; ?>
 						</div>
 					<?php endforeach; ?>
 					</div>
@@ -1017,6 +1097,27 @@ function flc_settings_page() {
 
 		// watermark: scelta dalla Libreria media e anteprima dal vivo (stesso disegno del configuratore)
 		const $id = (x) => document.getElementById(x);
+		// tombini di riferimento (max 3) dalla Libreria media
+		const refPick = $id('flcRefsPick');
+		if (refPick) refPick.addEventListener('click', () => {
+			if (!window.wp || !wp.media) { alert('Libreria media non disponibile.'); return; }
+			const frame = wp.media({ title: 'Tombini di riferimento (max 3)', library: { type: 'image' }, multiple: true, button: { text: 'Usa queste immagini' } });
+			frame.on('select', () => {
+				const sel = frame.state().get('selection').toJSON().slice(0, 3);
+				$id('flcRefs').value = sel.map((x) => x.id).join(',');
+				$id('flcRefsList').innerHTML = sel.map((x) => '<img alt="" src="' + ((x.sizes && x.sizes.thumbnail && x.sizes.thumbnail.url) || x.url) + '">').join('');
+				$id('flcRefsNote').textContent = 'In uso: i tuoi tombini (salva le impostazioni).';
+				$id('flcRefsClear').hidden = false;
+				$id('flcRefs').dispatchEvent(new Event('change', { bubbles: true }));
+			});
+			frame.open();
+		});
+		if ($id('flcRefsClear')) $id('flcRefsClear').addEventListener('click', () => {
+			$id('flcRefs').value = ''; $id('flcRefsList').innerHTML = '';
+			$id('flcRefsNote').textContent = 'Tolti: dopo il salvataggio si usano gli esempi inclusi (se la casella è spuntata).';
+			$id('flcRefsClear').hidden = true;
+			$id('flcRefs').dispatchEvent(new Event('change', { bubbles: true }));
+		});
 		$id('flcWmPick').addEventListener('click', () => {
 			if (!window.wp || !wp.media) { alert('Libreria media non disponibile: incolla l\'indirizzo dell\'immagine.'); return; }
 			const frame = wp.media({ title: 'Immagine del watermark', library: { type: 'image' }, multiple: false, button: { text: 'Usa questa immagine' } });

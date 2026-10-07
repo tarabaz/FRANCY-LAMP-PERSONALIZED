@@ -144,7 +144,16 @@ function flc_prompt_for_style($style, $s) {
 // Ridisegno con il fornitore principale e, se fallisce, con quello di riserva.
 // Ritorna array(mime, data, provider) oppure WP_Error con la lista degli errori in data['errors'].
 function flc_generate($bin, $mime, $style, $s, $bg = -1) {
-	$prompt    = flc_prompt_for_style($style, $s);
+	$prompt    = flc_prompt_for_style($style, $s) . flc_no_text_rule();
+	// Tombino: insieme alla foto partono 1–3 tombini finiti come riferimento dello stile (solo stile, non contenuto)
+	if ($style === 'tombino' && !empty($s['style_tombino'])) {
+		$s['ref_images'] = flc_tombino_refs($s);
+		if ($s['ref_images']) {
+			$prompt .= "\n\nSTYLE REFERENCES: the first images attached are finished Poké Lid manhole cover artworks. Match their drawing style exactly: "
+				. 'the same bold uniform black outlines, the same flat solid color fills with no shading or texture, the same level of simplification and the same kind of cheerful colors. '
+				. 'Use them ONLY for the style: do NOT copy their characters, buildings, objects, Poké Ball or composition. The content comes only from the LAST attached image (the one to redraw).';
+		}
+	}
 	// carta da gioco: prima si pulisce la carta (via cornice e scritte), poi si applica lo stile all'illustrazione
 	if (!empty($s['card'])) {
 		$prompt = $s['prompt_card'] . "\n\nThen redraw that cleaned artwork following these instructions (where they talk about the framing of the input, use the cleaned artwork filling the square):\n\n" . $prompt;

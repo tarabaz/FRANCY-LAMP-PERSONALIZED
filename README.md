@@ -186,16 +186,22 @@ che Gemini restituisce) e viene rimesso con lo stesso zoom e spostamento, quindi
 Il cliente sceglie tra quattro stili:
 - **Fedele** (predefinito): conversione di stile che blocca posa, espressione e composizione.
 - **Ritratto**: per i volti, poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso.
-- **Tombino** (stile Poké Lids, i tombini Pokémon giapponesi): personaggio allegro con contorni neri e colori smaltati
-  dentro una scena decorativa; va bene per persone, animali, personaggi e oggetti.
+- **Tombino** (stile Poké Lids, i tombini Pokémon giapponesi): ridisegno FEDELE di personaggi, pose e scena
+  dell'originale (niente elementi inventati) con contorni neri netti e un solo colore pieno dentro ogni forma, senza
+  sfumature né texture; va bene per persone, animali, personaggi e oggetti. Insieme alla foto partono 1–3
+  **tombini di riferimento** (Impostazioni → Stili IA → Tombino, dalla Libreria media; se non ne scegli si usano i
+  2 esempi inclusi in `assets/ref/`): l'IA ne copia lo stile, non il contenuto. Meglio caricare solo l'interno
+  del tombino, senza la fascia con le scritte.
 - **Anime**: atmosfera da film d'animazione giapponese.
 
-Ritratto, Tombino e Anime si possono nascondere. I prompt si modificano in Impostazioni → Stili IA; se il testo è
+In tutti gli stili l'IA deve togliere ogni scritta in qualsiasi lingua (anche giapponese e cinese, insegne,
+loghi): le scritte le mette il configuratore sulla fascia. Ritratto, Tombino e Anime si possono nascondere. I prompt si modificano in Impostazioni → Stili IA; se il testo è
 quello predefinito non viene salvato, così gli aggiornamenti del plugin migliorano anche il tuo prompt.
 
 **È una carta da gioco**: interruttore nel riquadro IA, da accendere solo quando il cliente carica una carta (es.
 Pokémon). Viene mandata la carta intera e l'IA tiene solo l'illustrazione: toglie cornice, nome, PS, testi degli
-attacchi, simboli e copyright, ricostruisce le parti coperte e poi applica lo stile scelto. Il risultato è quadrato
+attacchi, simboli, loghi e copyright (in qualsiasi lingua), continua l'illustrazione dove era coperta e poi
+applica lo stile scelto. Il prompt della carta dice solo cosa togliere: lo stile lo decide il prompt dello stile. Il risultato è quadrato
 e centrato (inquadratura nuova). Si spegne da Impostazioni → Stili IA, dove si può modificare anche il suo prompt.
 
 Il pannello sinistro del configuratore si allarga trascinando il suo bordo destro (280–640 px; il browser se lo

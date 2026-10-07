@@ -120,6 +120,16 @@ function flc_run_gemini($image, $mime, $prompt, $s) {
 		if ($image) {
 			$img_part = array('inline_data' => array('mime_type' => $mime, 'data' => base64_encode($image)));
 			$parts    = $a['image_first'] ? array($img_part, $text_part) : array($text_part, $img_part);
+			// immagini di riferimento dello stile (es. Tombino): prima i riferimenti, per ultima la foto da ridisegnare
+			if (!empty($s['ref_images'])) {
+				$parts = array($text_part);
+				foreach ($s['ref_images'] as $k => $ref) {
+					$parts[] = array('text' => 'Style reference ' . ($k + 1) . ' (style only, do not copy its content):');
+					$parts[] = array('inline_data' => array('mime_type' => $ref['mime'], 'data' => base64_encode($ref['data'])));
+				}
+				$parts[] = array('text' => 'Image to redraw (the only source of content):');
+				$parts[] = $img_part;
+			}
 		} else {
 			$parts = array($text_part);
 		}
