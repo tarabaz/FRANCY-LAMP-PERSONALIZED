@@ -17,6 +17,10 @@ function flc_markup($embedded = true) {
 		return '';
 	}
 	$html = substr($html, $a, $b - $a);
+	// i download dei file (pacchetto, SVG, PNG senza watermark) arrivano al browser solo per l'amministratore
+	if (!current_user_can('manage_options')) {
+		$html = preg_replace('#<!-- FLC:ADMIN:START -->.*?<!-- FLC:ADMIN:END -->#s', '', $html);
+	}
 	return $embedded ? str_replace('class="flc"', 'class="flc flc-embedded"', $html) : $html;
 }
 

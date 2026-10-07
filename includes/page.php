@@ -28,6 +28,18 @@ function flc_frontend_config() {
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),
 		'copyrightName' => $s['copyright_name'],
 		'stageBg'   => $s['stage_bg'],
+		'watermark' => array(
+			'screen'   => (bool) $s['wm_screen'],
+			'download' => (bool) $s['wm_download'],
+			'image'    => esc_url_raw($s['wm_image']),
+			'text'     => $s['wm_text'] ?: $s['copyright_name'],
+			'color'    => $s['wm_color'],
+			'tint'     => (bool) $s['wm_tint'],
+			'opacity'  => $s['wm_opacity'] / 100,
+			'size'     => $s['wm_size'] / 100,
+			'angle'    => (int) $s['wm_angle'],
+			'max'      => (int) $s['dl_max'],
+		),
 		'defaults'  => array(
 			'band'      => $s['def_band'],
 			'textColor' => $s['def_text_color'],

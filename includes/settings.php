@@ -125,6 +125,16 @@ function flc_defaults() {
 		'cookie_url'   => '',
 		'copyright_name' => 'FrancyStore3D',
 		'stage_bg'     => '#3a3d44',
+		'wm_screen'    => 1,
+		'wm_download'  => 1,
+		'wm_image'     => '',
+		'wm_text'      => '',
+		'wm_color'     => '#ffffff',
+		'wm_tint'      => 0,
+		'wm_opacity'   => 18,
+		'wm_size'      => 22,
+		'wm_angle'     => -30,
+		'dl_max'       => 640,
 		'def_band'     => '#5b9bd5',
 		'def_text_color' => '#151515',
 		'def_tl'       => '',
@@ -162,6 +172,13 @@ function flc_settings() {
 	}
 	return $s;
 }
+
+// Libreria media (per scegliere l'immagine del watermark) solo nella pagina Impostazioni
+add_action('admin_enqueue_scripts', function () {
+	if (($_GET['page'] ?? '') === 'francy-lamp' && function_exists('wp_enqueue_media')) {
+		wp_enqueue_media();
+	}
+});
 
 // Le pagine stanno nel menu dedicato "Francy Lamp Factory" (vedi designs.php)
 add_action('admin_menu', function () {
@@ -208,6 +225,16 @@ function flc_sanitize_settings($in) {
 		'cookie_url'   => esc_url_raw($in['cookie_url'] ?? ''),
 		'copyright_name' => sanitize_text_field($in['copyright_name'] ?? '') ?: $d['copyright_name'],
 		'stage_bg'     => sanitize_hex_color($in['stage_bg'] ?? '') ?: $d['stage_bg'],
+		'wm_screen'    => empty($in['wm_screen']) ? 0 : 1,
+		'wm_download'  => empty($in['wm_download']) ? 0 : 1,
+		'wm_image'     => esc_url_raw($in['wm_image'] ?? ''),
+		'wm_text'      => mb_substr(sanitize_text_field($in['wm_text'] ?? ''), 0, 40),
+		'wm_color'     => sanitize_hex_color($in['wm_color'] ?? '') ?: $d['wm_color'],
+		'wm_tint'      => empty($in['wm_tint']) ? 0 : 1,
+		'wm_opacity'   => min(80, max(3, (int) ($in['wm_opacity'] ?? $d['wm_opacity']))),
+		'wm_size'      => min(60, max(8, (int) ($in['wm_size'] ?? $d['wm_size']))),
+		'wm_angle'     => min(90, max(-90, (int) ($in['wm_angle'] ?? $d['wm_angle']))),
+		'dl_max'       => min(2400, max(200, (int) ($in['dl_max'] ?? $d['dl_max']))),
 		'def_band'     => sanitize_hex_color($in['def_band'] ?? '') ?: $d['def_band'],
 		'def_text_color' => sanitize_hex_color($in['def_text_color'] ?? '') ?: $d['def_text_color'],
 		'def_tl'       => mb_substr(sanitize_text_field($in['def_tl'] ?? ''), 0, 14),
@@ -403,6 +430,27 @@ function flc_settings_page() {
 					</table>
 				</div>
 				<div class="flc-card">
+					<h2><span class="dashicons dashicons-shield-alt"></span> Watermark e anteprima scaricabile</h2>
+					<p class="intro">Protegge l'anteprima del disco: il cliente la vede (e la può scaricare) con il tuo logo ripetuto sopra. Tu da amministratore scarichi sempre senza watermark.</p>
+					<table class="form-table" role="presentation">
+						<tr><th>Dove</th><td>
+							<label><input type="checkbox" name="<?php echo $n('wm_screen'); ?>" value="1" <?php checked($s['wm_screen'], 1); ?>> Sull'anteprima a schermo (2D e 3D)</label><br>
+							<label><input type="checkbox" name="<?php echo $n('wm_download'); ?>" value="1" <?php checked($s['wm_download'], 1); ?>> Mostra ai clienti il pulsante "Scarica l'anteprima" (immagine con watermark)</label></td></tr>
+						<tr><th>Dimensione massima del download</th><td><input type="number" min="200" max="2400" step="10" name="<?php echo $n('dl_max'); ?>" value="<?php echo (int) $s['dl_max']; ?>" style="width:90px"> px <span class="description">lato lungo dell'immagine che scarica il cliente (es. 640 = bassa qualità, va bene per i social)</span></td></tr>
+						<tr><th>Immagine da ripetere</th><td>
+							<input type="url" class="regular-text" id="flcWmImage" name="<?php echo $n('wm_image'); ?>" value="<?php echo esc_attr($s['wm_image']); ?>" placeholder="vuoto = usa il testo qui sotto">
+							<button type="button" class="button" id="flcWmPick">Scegli dalla Libreria media</button>
+							<p class="description">Meglio un PNG con sfondo trasparente (il tuo logo).</p></td></tr>
+						<tr><th>Testo (se non c'è immagine)</th><td><input type="text" class="regular-text" id="flcWmText" name="<?php echo $n('wm_text'); ?>" value="<?php echo esc_attr($s['wm_text']); ?>" placeholder="<?php echo esc_attr($s['copyright_name']); ?>"></td></tr>
+						<tr><th>Colore</th><td><input type="color" id="flcWmColor" name="<?php echo $n('wm_color'); ?>" value="<?php echo esc_attr($s['wm_color']); ?>">
+							<label style="margin-left:10px"><input type="checkbox" id="flcWmTint" name="<?php echo $n('wm_tint'); ?>" value="1" <?php checked($s['wm_tint'], 1); ?>> Colora anche l'immagine con questo colore</label></td></tr>
+						<tr><th>Trasparenza</th><td><input type="range" min="3" max="80" id="flcWmOpacity" name="<?php echo $n('wm_opacity'); ?>" value="<?php echo (int) $s['wm_opacity']; ?>"> <output id="flcWmOpacityOut"><?php echo (int) $s['wm_opacity']; ?></output>% visibile</td></tr>
+						<tr><th>Dimensione del logo</th><td><input type="range" min="8" max="60" id="flcWmSize" name="<?php echo $n('wm_size'); ?>" value="<?php echo (int) $s['wm_size']; ?>"> <output id="flcWmSizeOut"><?php echo (int) $s['wm_size']; ?></output>% della larghezza</td></tr>
+						<tr><th>Inclinazione</th><td><input type="range" min="-90" max="90" id="flcWmAngle" name="<?php echo $n('wm_angle'); ?>" value="<?php echo (int) $s['wm_angle']; ?>"> <output id="flcWmAngleOut"><?php echo (int) $s['wm_angle']; ?></output>°</td></tr>
+						<tr><th>Anteprima</th><td><canvas id="flcWmPreview" width="360" height="240" style="border-radius:8px;border:1px solid #dcdcde;max-width:100%"></canvas></td></tr>
+					</table>
+				</div>
+				<div class="flc-card">
 					<h2><span class="dashicons dashicons-editor-insertmore"></span> Footer</h2>
 					<table class="form-table" role="presentation">
 						<tr><th>Privacy Policy</th><td><input type="url" class="regular-text" name="<?php echo $n('privacy_url'); ?>" value="<?php echo esc_attr($s['privacy_url']); ?>"></td></tr>
@@ -584,7 +632,47 @@ function flc_settings_page() {
 
 		// anteprima del colore dello sfondo
 		const bg = document.getElementById('flcStageBg');
-		if (bg) bg.addEventListener('input', () => { document.getElementById('flcStageSwatch').style.background = bg.value; });
+		if (bg) bg.addEventListener('input', () => { document.getElementById('flcStageSwatch').style.background = bg.value; wmPreview(); });
+
+		// watermark: scelta dalla Libreria media e anteprima dal vivo (stesso disegno del configuratore)
+		const $id = (x) => document.getElementById(x);
+		$id('flcWmPick').addEventListener('click', () => {
+			if (!window.wp || !wp.media) { alert('Libreria media non disponibile: incolla l\'indirizzo dell\'immagine.'); return; }
+			const frame = wp.media({ title: 'Immagine del watermark', library: { type: 'image' }, multiple: false, button: { text: 'Usa questa immagine' } });
+			frame.on('select', () => { $id('flcWmImage').value = frame.state().get('selection').first().toJSON().url; wmPreview(); });
+			frame.open();
+		});
+		let wmImg = null, wmImgUrl = '';
+		function wmPreview() {
+			const cv = $id('flcWmPreview'), ctx = cv.getContext('2d');
+			const url = $id('flcWmImage').value.trim();
+			if (url && url !== wmImgUrl) { wmImgUrl = url; wmImg = new Image(); wmImg.onload = wmPreview; wmImg.onerror = () => { wmImg = null; }; wmImg.src = url; return; }
+			if (!url) wmImg = null;
+			const color = $id('flcWmColor').value, tint = $id('flcWmTint').checked;
+			const op = $id('flcWmOpacity').value / 100, size = $id('flcWmSize').value / 100, ang = $id('flcWmAngle').value * Math.PI / 180;
+			['Opacity', 'Size', 'Angle'].forEach((k) => { $id('flcWm' + k + 'Out').textContent = $id('flcWm' + k).value; });
+			ctx.fillStyle = bg ? bg.value : '#3a3d44'; ctx.fillRect(0, 0, cv.width, cv.height);
+			ctx.fillStyle = '#5b9bd5'; ctx.beginPath(); ctx.arc(cv.width / 2, cv.height / 2, 95, 0, 7); ctx.fill();
+			const px = 320, t = document.createElement('canvas'); t.width = t.height = px;
+			const tc = t.getContext('2d'); tc.translate(px / 2, px / 2); tc.rotate(ang);
+			if (wmImg && wmImg.complete && wmImg.naturalWidth) {
+				const k = px * 0.62 / Math.max(wmImg.width, wmImg.height), w = wmImg.width * k, h = wmImg.height * k;
+				if (tint) { const u = document.createElement('canvas'); u.width = Math.ceil(w); u.height = Math.ceil(h); const uc = u.getContext('2d'); uc.drawImage(wmImg, 0, 0, w, h); uc.globalCompositeOperation = 'source-in'; uc.fillStyle = color; uc.fillRect(0, 0, u.width, u.height); tc.drawImage(u, -w / 2, -h / 2); }
+				else tc.drawImage(wmImg, -w / 2, -h / 2, w, h);
+			} else {
+				const text = $id('flcWmText').value || $id('flcWmText').placeholder || 'FrancyStore3D';
+				let fs = px * 0.16; tc.font = '800 ' + fs + 'px system-ui, sans-serif';
+				const tw = tc.measureText(text).width; if (tw > px * 0.92) { fs *= px * 0.92 / tw; tc.font = '800 ' + fs + 'px system-ui, sans-serif'; }
+				tc.fillStyle = color; tc.textAlign = 'center'; tc.textBaseline = 'middle'; tc.fillText(text, 0, 0);
+			}
+			const sz = Math.max(40, cv.width * size);
+			ctx.save(); ctx.globalAlpha = op;
+			for (let y = 0; y < cv.height; y += sz) for (let x = (Math.floor(y / sz) % 2) * sz / 2 - sz / 2; x < cv.width; x += sz) ctx.drawImage(t, x, y, sz, sz);
+			ctx.restore();
+		}
+		['flcWmImage', 'flcWmText', 'flcWmColor', 'flcWmTint', 'flcWmOpacity', 'flcWmSize', 'flcWmAngle'].forEach((k) => $id(k).addEventListener('input', wmPreview));
+		$id('flcWmTint').addEventListener('change', wmPreview);
+		wmPreview();
 
 		// modello Gemini: la scelta nella tabella e il campo manuale restano allineati (vince l'ultimo toccato)
 		const manual = document.getElementById('flcModelManual'), table = document.getElementById('flcModels');

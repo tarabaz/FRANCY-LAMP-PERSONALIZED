@@ -823,8 +823,7 @@ function render() {
     $('#svgHost').innerHTML = templateSvg();
     $('#count').textContent = `Disegno pronto: ${state.template.name}`;
     $('#count').style.color = '';
-    $('#dlSvg').disabled = $('#dlStl').disabled = true;
-    $('#dlPng').disabled = false;
+    setDisabled({ dlSvg: true, dlStl: true, dlPng: false, dlPreview: false });
     $('#submitBtn').disabled = !CFG.submitUrl;
     dirty3d = true;
     if (state.view === '3d' && preview3d) update3d();
@@ -836,8 +835,7 @@ function render() {
   const over = n > MAX_FILAMENTS;
   $('#count').textContent = `Colori totali: ${n} / ${MAX_FILAMENTS}` + (over ? ' – troppi, riduci i colori del disegno' : '');
   $('#count').style.color = over ? '#c0392b' : '';
-  $('#dlSvg').disabled = $('#dlStl').disabled = !state.result || over;
-  $('#dlPng').disabled = !state.result;
+  setDisabled({ dlSvg: !state.result || over, dlStl: !state.result || over, dlPng: !state.result, dlPreview: !state.result });
   $('#submitBtn').disabled = !state.result || over || !CFG.submitUrl;
   renderPickers();
   dirty3d = true;
@@ -995,7 +993,11 @@ async function buildPackage(customer) {
 }
 
 // ---------------- convalida (il cliente approva, i file vanno all'admin) ----------------
-if (!CFG.isAdmin) $('#adminFiles').hidden = true;
+// file e download diretti: solo admin (per gli altri il blocco non arriva nemmeno dal server)
+if (!CFG.isAdmin && $('#adminFiles')) $('#adminFiles').remove();
+// anteprima da scaricare per tutti (con watermark), se permesso nelle impostazioni
+$('#shareBox').hidden = !(CFG.watermark && CFG.watermark.download);
+function setDisabled(map) { for (const [id, v] of Object.entries(map)) { const el = document.getElementById(id); if (el) el.disabled = v; } }
 $('#submitBox').hidden = !CFG.submitUrl;
 
 function submitMessage(text, kind) {
@@ -1050,11 +1052,13 @@ function download(name, blob) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
-$('#dlSvg').addEventListener('click', () => {
+// --- download riservati all'admin (anche se qualcuno riattiva i pulsanti, senza permesso non fanno nulla) ---
+function onAdmin(id, fn) { const el = document.getElementById(id); if (el) el.addEventListener('click', () => { if (CFG.isAdmin) fn(el); }); }
+onAdmin('dlSvg', () => {
   download('disco-lampada-francy.svg', new Blob([buildSvg(true).svg], { type: 'image/svg+xml' }));
 });
-$('#dlStl').addEventListener('click', async () => {
-  const btn = $('#dlStl'), label = btn.textContent;
+onAdmin('dlStl', async (btn) => {
+  const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'Preparo i file…';
   try {
     const pkg = await buildPackage({ name: 'prova admin', email: '-', phone: '', note: '' });
@@ -1066,13 +1070,95 @@ $('#dlStl').addEventListener('click', async () => {
     btn.textContent = label; btn.disabled = false;
   }
 });
-$('#dlPng').addEventListener('click', async () => {
-  if (state.view === '3d' && preview3d) {
-    const r = await fetch(preview3d.snapshot());
-    return download('anteprima-lampada-3d.png', await r.blob());
-  }
-  download('anteprima-lampada.png', await svgToPng(state.lit));
+onAdmin('dlPng', async () => {
+  download(state.view === '3d' && preview3d ? 'anteprima-lampada-3d.png' : 'anteprima-lampada.png', await previewPng(false));
 });
+// --- anteprima per il cliente: sempre con watermark ---
+$('#dlPreview').addEventListener('click', async () => {
+  download('lampada-francystore3d.png', await previewPng(true));
+});
+
+// PNG dell'anteprima attuale (2D o 3D), con o senza watermark
+async function previewPng(withWatermark) {
+  let blob;
+  if (state.view === '3d' && preview3d) blob = await (await fetch(preview3d.snapshot())).blob();
+  else blob = await svgToPng(state.lit);
+  if (!withWatermark || !CFG.watermark) return blob;
+  // versione per il cliente: ridotta (lato lungo massimo dalle impostazioni) e con watermark
+  const img = await createImageBitmap(blob);
+  const k = Math.min(1, (+CFG.watermark.max || 640) / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  await paintWatermark(ctx, c.width, c.height);
+  return new Promise((ok) => c.toBlob(ok, 'image/png'));
+}
+
+// ---------------- watermark ----------------
+// Tessera ripetuta: immagine (logo) oppure testo, ruotata; trasparenza e dimensione dalle impostazioni
+let wmTileCache = null;
+async function watermarkTile() {
+  if (wmTileCache) return wmTileCache;
+  const wm = CFG.watermark, px = 320;
+  const c = document.createElement('canvas');
+  c.width = c.height = px;
+  const ctx = c.getContext('2d');
+  ctx.translate(px / 2, px / 2);
+  ctx.rotate(((+wm.angle || 0) * Math.PI) / 180);
+  let drawn = false;
+  if (wm.image) {
+    try {
+      const im = new Image();
+      im.crossOrigin = 'anonymous';
+      await new Promise((ok, ko) => { im.onload = ok; im.onerror = ko; im.src = wm.image; });
+      const k = (px * 0.62) / Math.max(im.width, im.height), w = im.width * k, h = im.height * k;
+      if (wm.tint) {
+        const t = document.createElement('canvas');
+        t.width = Math.ceil(w); t.height = Math.ceil(h);
+        const tc = t.getContext('2d');
+        tc.drawImage(im, 0, 0, w, h);
+        tc.globalCompositeOperation = 'source-in';
+        tc.fillStyle = wm.color; tc.fillRect(0, 0, t.width, t.height);
+        ctx.drawImage(t, -w / 2, -h / 2);
+      } else {
+        ctx.drawImage(im, -w / 2, -h / 2, w, h);
+      }
+      drawn = true;
+    } catch (e) { console.error('Watermark: immagine non caricata', e); }
+  }
+  if (!drawn) {
+    const text = wm.text || 'FrancyStore3D';
+    let fs = px * 0.16;
+    ctx.font = `800 ${fs}px system-ui, sans-serif`;
+    const tw = ctx.measureText(text).width;
+    if (tw > px * 0.92) { fs *= (px * 0.92) / tw; ctx.font = `800 ${fs}px system-ui, sans-serif`; }
+    ctx.fillStyle = wm.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, 0, 0);
+  }
+  wmTileCache = c;
+  return c;
+}
+async function paintWatermark(ctx, w, h) {
+  const tile = await watermarkTile(), wm = CFG.watermark;
+  const size = Math.max(40, w * (+wm.size || 0.22));
+  ctx.save();
+  ctx.globalAlpha = +wm.opacity || 0.18;
+  for (let y = 0; y < h; y += size) for (let x = (Math.floor(y / size) % 2) * size / 2 - size / 2; x < w; x += size) ctx.drawImage(tile, x, y, size, size);
+  ctx.restore();
+}
+// sopra l'anteprima a schermo (2D e 3D): strato trasparente che non blocca i clic
+async function showScreenWatermark() {
+  const wm = CFG.watermark, el = $('#wmOverlay');
+  if (!wm || !wm.screen) return;
+  const tile = await watermarkTile();
+  el.style.backgroundImage = `url(${tile.toDataURL('image/png')})`;
+  el.style.backgroundSize = `${(+wm.size || 0.22) * 100}% auto`;
+  el.style.opacity = +wm.opacity || 0.18;
+  el.hidden = false;
+}
+showScreenWatermark();
 
 // ---------------- util ----------------
 function rgbToHex({ r, g, b }) { return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join(''); }

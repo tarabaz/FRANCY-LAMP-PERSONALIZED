@@ -117,6 +117,12 @@ sfondo dell'anteprima, footer), *Intelligenza artificiale* (fornitori, chiavi, m
 "image" usabili con la tua chiave (stabili prima, anteprime dopo) e li mostra in una tabella: spunti quello che
 vuoi e salvi. Resta il campo per scriverlo a mano. L'elenco resta in memoria 12 ore.
 
+**Download e watermark** (Impostazioni → Pagina e aspetto): pacchetto completo, SVG e PNG senza watermark arrivano
+al browser **solo agli amministratori** (per gli altri il blocco non viene nemmeno inviato). I clienti hanno solo
+**"Scarica l'anteprima"**: un PNG ridotto (lato lungo massimo impostabile, predefinito 640 px) con il watermark.
+Il watermark (logo dalla Libreria media oppure testo, colore, trasparenza, dimensione, inclinazione) si ripete
+sopra l'anteprima a schermo in 2D/3D e sull'immagine scaricata; nelle impostazioni c'è un'anteprima dal vivo.
+
 **Sfondo dell'anteprima**: un colore solo (Pagina e aspetto), uguale da spenta e da accesa, in 2D, 3D e nelle
 immagini PNG; predefinito un grigio scuro che fa risaltare la luce senza nascondere il nero della cornice.
 

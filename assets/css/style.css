@@ -266,3 +266,6 @@ html.flc-page .flc { height: 100%; }
 .flc .ai-example-arrow { font-size: 18px; color: var(--muted); }
 /* nero contorni bloccato: resta nero pieno, solo senza clic */
 .flc .swatch-btn:disabled { opacity: 1; cursor: not-allowed; }
+/* watermark sopra l'anteprima a schermo: non blocca i clic (zoom/rotazione del 3D restano attivi) */
+.flc .stage { position: relative; }
+.flc .wm-overlay { position: absolute; inset: 0; pointer-events: none; background-repeat: repeat; z-index: 2; }
