@@ -11,6 +11,13 @@ if (!defined('ABSPATH')) {
 const FLC_FIL_OPTION = 'flc_filaments';
 // Bobine speciali (silk, metal…) solo per i pezzi della lampada: NON entrano nel calcolo dei colori del disco
 const FLC_FIL_SPECIAL_OPTION = 'flc_filaments_special';
+// Bobine fisse: bianco della base (ugello 1) e nero delle linee, scelte a mano (colore HEX)
+const FLC_FIL_FIXED_OPTION = 'flc_filaments_fixed';
+
+function flc_filaments_fixed() {
+	$f = get_option(FLC_FIL_FIXED_OPTION, array());
+	return array('white' => (string) ($f['white'] ?? ''), 'black' => (string) ($f['black'] ?? ''));
+}
 
 function flc_filaments_special() {
 	$list = get_option(FLC_FIL_SPECIAL_OPTION, array());
@@ -202,6 +209,12 @@ add_action('rest_api_init', function () {
 			}
 			update_option(FLC_FIL_OPTION, $out['D']);
 			update_option(FLC_FIL_SPECIAL_OPTION, $out['S'], false);
+			$fixed = (array) $req->get_param('fixed');
+			$hexes = array_column($out['D'], 'hex');
+			update_option(FLC_FIL_FIXED_OPTION, array(
+				'white' => in_array(strtolower((string) ($fixed['white'] ?? '')), $hexes, true) ? strtolower($fixed['white']) : '',
+				'black' => in_array(strtolower((string) ($fixed['black'] ?? '')), $hexes, true) ? strtolower($fixed['black']) : '',
+			), false);
 			return array('ok' => true, 'disco' => count($out['D']), 'speciali' => count($out['S']), 'errors' => $errors);
 		},
 	));
@@ -250,6 +263,12 @@ function flc_filaments_page() {
 			Le bobine <strong>non disponibili</strong> restano in elenco ma il configuratore non le usa.</p>
 		<?php settings_errors(FLC_FIL_OPTION); settings_errors(FLC_FIL_SPECIAL_OPTION); ?>
 
+		<div class="bar" style="background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:10px 12px">
+			<strong>Bobine fisse</strong>
+			<label>Bianco della base (ugello 1) <select id="flcFixWhite"></select></label>
+			<label>Nero delle linee <select id="flcFixBlack"></select></label>
+			<span class="description">Vuoto = la bobina del disco più vicina al bianco / al nero.</span>
+		</div>
 		<div class="bar">
 			<input type="search" id="flcFilSearch" placeholder="Cerca per nome o colore…" style="min-width:240px">
 			<select id="flcFilFilter">
@@ -293,6 +312,15 @@ function flc_filaments_page() {
 	(function () {
 		const api = <?php echo wp_json_encode(rest_url('francy-lamp/v1/filamenti/salva')); ?>, nonce = <?php echo wp_json_encode(wp_create_nonce('wp_rest')); ?>;
 		let rows = <?php echo wp_json_encode($rows); ?>;
+		const fixed = <?php echo wp_json_encode(flc_filaments_fixed()); ?>;
+		function fillFixed() {
+			for (const [id, key] of [['flcFixWhite', 'white'], ['flcFixBlack', 'black']]) {
+				const sel = document.getElementById(id), cur = sel.value || fixed[key];
+				const opts = rows.filter((r) => r.type === 'D' && /^#[0-9a-f]{6}$/i.test(r.hex) && r.name.trim());
+				sel.innerHTML = '<option value="">automatico</option>' + opts.map((r) => '<option value="' + esc(r.hex.toLowerCase()) + '"' + (r.hex.toLowerCase() === cur ? ' selected' : '') + '>' + esc(r.name) + ' (' + esc(r.hex.toUpperCase()) + ')</option>').join('');
+			}
+		}
+		['flcFixWhite', 'flcFixBlack'].forEach((id) => document.getElementById(id).addEventListener('change', () => { dirty = true; msg.textContent = 'Modifiche non salvate'; }));
 		const body = document.getElementById('flcFilRows'), msg = document.getElementById('flcFilMsg');
 		let dirty = false, sortKey = '', sortDir = 1;
 		const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -329,6 +357,7 @@ function flc_filaments_page() {
 				if (r._dirty) tr.classList.add('dirty');
 				if (!r.name.trim() || !/^#[0-9a-f]{6}$/i.test(r.hex) || dup[r.type + r.hex.toLowerCase()] > 1) tr.classList.add('bad');
 			});
+			fillFixed();
 			const nD = rows.filter((r) => r.type === 'D').length, nS = rows.length - nD, off = rows.filter((r) => !r.on).length;
 			document.getElementById('flcFilCount').textContent = nD + ' disco · ' + nS + ' speciali' + (off ? ' · ' + off + ' non disponibili' : '');
 		}
@@ -376,7 +405,8 @@ function flc_filaments_page() {
 			msg.textContent = 'Salvo…';
 			try {
 				const r = await fetch(api, { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
-					body: JSON.stringify({ rows: rows.map((x) => ({ type: x.type, name: x.name, label: x.label, hex: x.hex, td: x.td, on: x.on })) }) });
+					body: JSON.stringify({ rows: rows.map((x) => ({ type: x.type, name: x.name, label: x.label, hex: x.hex, td: x.td, on: x.on })),
+						fixed: { white: document.getElementById('flcFixWhite').value, black: document.getElementById('flcFixBlack').value } }) });
 				const j = await r.json().catch(() => ({}));
 				if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status);
 				rows.forEach((x) => { delete x._dirty; }); dirty = false;

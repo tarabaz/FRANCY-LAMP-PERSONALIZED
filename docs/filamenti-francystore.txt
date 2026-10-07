@@ -48,6 +48,7 @@ Poly Matte Lotus Pink | #DD76C0 | 2
 Poly Matte Sakura Pink | #EAADBD | 2.3
 Poly Matte Pastel Candy | #F0D6D9 | 2.9
 Poly Matte Pastel Watermelon | #EE474B | 2.4
+Bambu PLA Matte Ivory White | Bianco avorio | #EBEBE3 | 3.4
 Poly Matte Cotton White | #F4EFEB | 4.1
 Poly Matte Muted Green | #777E71 | 0.5
 Poly Matte Ash Grey | #485155 | 0.1

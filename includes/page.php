@@ -21,6 +21,7 @@ function flc_frontend_config() {
 		// ai clienti niente nomi veri (marche): solo nome pubblico + codice neutro; l'admin riceve anche il nome vero
 		'filaments' => flc_filaments_public(flc_filaments(), 'D'),
 		'filamentsSpecial' => flc_filaments_public(flc_filaments_special(), 'S'), // solo pezzi della lampada
+		'fixedFilaments' => flc_filaments_fixed(), // bianco della base e nero delle linee scelti a mano
 		'templates' => flc_templates_for_frontend(),
 		'homeUrl'   => home_url('/'),
 		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,

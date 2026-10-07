@@ -50,8 +50,10 @@ function setFilaments(list) {
     .map((f) => ({ name: String(f.name || f.tok || f.hex), label: String(f.label || ''), hex: f.hex.toLowerCase(), lab: hexToLab(f.hex) }));
   if (state.filaments.length) {
     const oldBlack = BLACK;
-    BLACK = nearestFilament('#151515').hex;
-    WHITE = nearestFilament('#ffffff').hex;
+    // bobine fisse scelte nel catalogo (bianco della base, nero delle linee); altrimenti le più vicine
+    const fx = CFG.fixedFilaments || {}, has = (h) => h && state.filaments.some((f) => f.hex === h.toLowerCase());
+    BLACK = has(fx.black) ? fx.black.toLowerCase() : nearestFilament('#151515').hex;
+    WHITE = has(fx.white) ? fx.white.toLowerCase() : nearestFilament('#ffffff').hex;
     if (state.textColor === oldBlack) state.textColor = BLACK;
     state.bandColor = nearestFilament(state.bandColor).hex;
   }

@@ -135,6 +135,8 @@ Il plugin non contiene più STL e blocca il download di file 3D dalla sua cartel
 anteprima, HEX, nome vero, nome pubblico, TD, tipo Disco/Speciale, Disponibile), con ricerca, filtro, ordinamento,
 "+ Aggiungi bobina" e un solo "Salva modifiche". Le bobine non disponibili restano in elenco ma il configuratore non
 le usa. Sotto, "Importa / esporta come testo" per caricare tante bobine in una volta.
+In alto si scelgono le **bobine fisse**: il bianco della base (ugello 1, es. Bambu PLA Matte Ivory White) e il nero
+delle linee; se lasciate su "automatico" si usano le bobine del disco più vicine al bianco e al nero.
 
 **Nome pubblico delle bobine**: formato del catalogo `Nome vero | Nome pubblico | #rrggbb | TD` (nome pubblico e TD
 facoltativi). Il cliente vede solo il nome pubblico (palette, tooltip); il nome vero con la marca non viene mai
