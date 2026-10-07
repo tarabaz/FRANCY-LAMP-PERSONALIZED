@@ -38,8 +38,9 @@ function contactShadowTexture([w, d]) {
 }
 
 export class Preview3D {
-  constructor(container) {
+  constructor(container, bg = '#ffffff') {
     this.container = container;
+    this.bg = bg; // sfondo fisso: uguale da spenta e da accesa (colore scelto nelle impostazioni)
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -161,7 +162,7 @@ export class Preview3D {
 
   setLit(lit) {
     this.lit = lit;
-    this.scene.background = new THREE.Color(lit ? 0x1c1f26 : 0xffffff);
+    this.scene.background = new THREE.Color(this.bg);
     if (this.shadow) this.shadow.material.opacity = lit ? 0.6 : 1;
     this.ambient.intensity = lit ? 0.25 : 0.9;
     this.key.intensity = lit ? 0.35 : 1.6;

@@ -31,6 +31,73 @@ function flc_http_error($res, $who) {
 	return new WP_Error('flc_http', sprintf('%s: HTTP %d %s', $who, $code, substr((string) $msg, 0, 1200)));
 }
 
+// --- Elenco dei modelli Gemini che generano immagini (per sceglierli dalle impostazioni) ---
+// Chiede a Google la lista aggiornata (endpoint models) e tiene solo quelli "image" che funzionano con
+// generateContent, cioè quelli che ricevono la foto e restituiscono un'immagine. Risultato in cache 12 ore.
+const FLC_MODELS_CACHE = 'flc_gemini_models';
+
+function flc_gemini_models($refresh = false) {
+	$cached = get_transient(FLC_MODELS_CACHE);
+	if (!$refresh && is_array($cached)) {
+		return $cached;
+	}
+	$s = flc_settings();
+	if (empty($s['gemini_key'])) {
+		return new WP_Error('flc_config', 'Salva prima la chiave API di Gemini.');
+	}
+	$models = array();
+	$token  = '';
+	for ($page = 0; $page < 10; $page++) {
+		$url = 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000' . ($token ? '&pageToken=' . rawurlencode($token) : '');
+		$res = wp_remote_get($url, array('timeout' => 30, 'headers' => array('x-goog-api-key' => $s['gemini_key'])));
+		if (is_wp_error($res) || wp_remote_retrieve_response_code($res) !== 200) {
+			return flc_http_error($res, 'Gemini (elenco modelli)');
+		}
+		$j = json_decode(wp_remote_retrieve_body($res), true);
+		foreach ($j['models'] ?? array() as $m) {
+			$id      = preg_replace('#^models/#', '', (string) ($m['name'] ?? ''));
+			$methods = $m['supportedGenerationMethods'] ?? array();
+			if ($id === '' || stripos($id, 'image') === false || !in_array('generateContent', $methods, true)) {
+				continue;
+			}
+			$models[] = array(
+				'id'          => $id,
+				'name'        => (string) ($m['displayName'] ?? $id),
+				'version'     => (string) ($m['version'] ?? ''),
+				'description' => wp_trim_words((string) ($m['description'] ?? ''), 30),
+				'preview'     => (bool) preg_match('/preview|exp/i', $id),
+			);
+		}
+		$token = $j['nextPageToken'] ?? '';
+		if (!$token) {
+			break;
+		}
+	}
+	// prima i modelli stabili, poi le anteprime; dentro ogni gruppo i più nuovi in alto
+	usort($models, function ($a, $b) {
+		if ($a['preview'] !== $b['preview']) {
+			return $a['preview'] ? 1 : -1;
+		}
+		return strnatcasecmp($b['id'], $a['id']);
+	});
+	$out = array('time' => current_time('Y-m-d H:i'), 'models' => $models);
+	set_transient(FLC_MODELS_CACHE, $out, 12 * HOUR_IN_SECONDS);
+	return $out;
+}
+
+add_action('rest_api_init', function () {
+	register_rest_route('francy-lamp/v1', '/modelli', array(
+		'methods'             => 'POST',
+		'callback'            => function () {
+			$r = flc_gemini_models(true);
+			return is_wp_error($r) ? new WP_Error('flc_models', $r->get_error_message(), array('status' => 400)) : $r;
+		},
+		'permission_callback' => function () {
+			return current_user_can('manage_options');
+		},
+	));
+});
+
 // --- Google Gemini (API generateContent con immagine in input e in output) ---
 function flc_run_gemini($image, $mime, $prompt, $s) {
 	if (empty($s['gemini_key'])) {

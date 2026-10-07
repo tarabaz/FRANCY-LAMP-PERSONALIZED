@@ -27,6 +27,7 @@ function flc_frontend_config() {
 		'privacyUrl' => esc_url_raw($s['privacy_url']),
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),
 		'copyrightName' => $s['copyright_name'],
+		'stageBg'   => $s['stage_bg'],
 		'defaults'  => array(
 			'band'      => $s['def_band'],
 			'textColor' => $s['def_text_color'],

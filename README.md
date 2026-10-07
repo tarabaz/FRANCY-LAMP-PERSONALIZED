@@ -108,6 +108,18 @@ Le chiavi API restano sul server e non arrivano mai al browser. Le immagini non 
 | Google Gemini | `gemini-2.5-flash-image` | Free tier di AI Studio per i test |
 | fal.ai | `fal-ai/flux-pro/kontext`, `fal-ai/qwen-image-edit`, `fal-ai/bytedance/seedream/v4/edit` … | Un'unica chiave per tanti modelli |
 
+**Impostazioni** è divisa in schede: *Panoramica* (ridisegni di oggi, fornitore e modello in uso, limiti del
+server, collegamenti rapidi, utilizzo degli ultimi 30 giorni), *Pagina e aspetto* (pagina dedicata, colore dello
+sfondo dell'anteprima, footer), *Intelligenza artificiale* (fornitori, chiavi, modello), *Stili e prompt*,
+*Disco e regolazioni*, *Ordini e limiti*. L'ultima scheda aperta viene ricordata.
+
+**Modello Gemini**: con **Controlla i modelli disponibili** il plugin chiede a Google l'elenco aggiornato dei modelli
+"image" usabili con la tua chiave (stabili prima, anteprime dopo) e li mostra in una tabella: spunti quello che
+vuoi e salvi. Resta il campo per scriverlo a mano. L'elenco resta in memoria 12 ore.
+
+**Sfondo dell'anteprima**: un colore solo (Pagina e aspetto), uguale da spenta e da accesa, in 2D, 3D e nelle
+immagini PNG; predefinito un grigio scuro che fa risaltare la luce senza nascondere il nero della cornice.
+
 Il cliente sceglie tra tre stili: **Fedele** (predefinito: conversione di stile che blocca posa, espressione e
 composizione), **Ritratto** (per i volti: poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso) e **Anime** (atmosfera da film
 d'animazione giapponese classico, sempre a colori piatti stampabili; si spegne da Impostazioni). I tre prompt
@@ -117,7 +129,7 @@ aggiornamenti del plugin migliorano anche il tuo prompt.
 Nel passo 2 c'è lo switch **È un ritratto (volto)**: il convertitore trova la pelle e le dà 3 toni dedicati (il resto
 dell'immagine si divide gli altri colori), non disegna linee nere tra i toni della pelle (niente "cicatrici" sul viso),
 assorbe le macchioline di pelle e protegge i dettagli circondati dalla pelle (occhi, sopracciglia, narici, bocca)
-anche se piccoli. Si accende da solo dopo un ridisegno IA in stile **Ritratto**.
+anche se piccoli. Si accende da solo appena il cliente sceglie lo stile IA **Ritratto** (e si può sempre spegnere).
 
 Con lo switch acceso il configuratore **riconosce il volto** (MediaPipe Face Landmarker, gira nel browser del
 cliente, la foto non esce dal dispositivo; ~17 MB scaricati solo la prima volta che si accende lo switch) e

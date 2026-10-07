@@ -125,6 +125,7 @@ function flc_defaults() {
 		'privacy_url'  => 'https://www.francystore3d.it/privacy-policy/',
 		'cookie_url'   => '',
 		'copyright_name' => 'FrancyStore3D',
+		'stage_bg'     => '#3a3d44',
 		'def_band'     => '#5b9bd5',
 		'def_text_color' => '#151515',
 		'def_tl'       => '',
@@ -207,6 +208,7 @@ function flc_sanitize_settings($in) {
 		'privacy_url'  => esc_url_raw($in['privacy_url'] ?? '') ?: $d['privacy_url'],
 		'cookie_url'   => esc_url_raw($in['cookie_url'] ?? ''),
 		'copyright_name' => sanitize_text_field($in['copyright_name'] ?? '') ?: $d['copyright_name'],
+		'stage_bg'     => sanitize_hex_color($in['stage_bg'] ?? '') ?: $d['stage_bg'],
 		'def_band'     => sanitize_hex_color($in['def_band'] ?? '') ?: $d['def_band'],
 		'def_text_color' => sanitize_hex_color($in['def_text_color'] ?? '') ?: $d['def_text_color'],
 		'def_tl'       => mb_substr(sanitize_text_field($in['def_tl'] ?? ''), 0, 14),
@@ -258,6 +260,7 @@ function flc_settings_page() {
 	$p   = flc_providers();
 	$log = flc_usage_log();
 	$opt = FLC_OPTION;
+	$n   = function ($name) use ($opt) { return esc_attr("{$opt}[{$name}]"); };
 	$sel = function ($name, $value, $choices) use ($opt) {
 		echo '<select name="' . esc_attr("{$opt}[{$name}]") . '">';
 		foreach ($choices as $k => $label) {
@@ -266,182 +269,359 @@ function flc_settings_page() {
 		echo '</select>';
 	};
 	$labels = array_map(function ($x) { return $x['label']; }, $p);
+	$models = get_transient(FLC_MODELS_CACHE);
+	$tabs   = array(
+		'panoramica' => array('dashicons-dashboard', 'Panoramica'),
+		'pagina'     => array('dashicons-admin-appearance', 'Pagina e aspetto'),
+		'ia'         => array('dashicons-admin-network', 'Intelligenza artificiale'),
+		'stili'      => array('dashicons-art', 'Stili e prompt'),
+		'disco'      => array('dashicons-marker', 'Disco e regolazioni'),
+		'ordini'     => array('dashicons-cart', 'Ordini e limiti'),
+	);
+	$today = flc_today_count();
+	$cap   = (int) $s['daily_cap'];
+	$left  = $cap > 0 ? max(0, $cap - $today) : null;
+	$pct   = $cap > 0 ? min(100, round($today / $cap * 100)) : 0;
+	$color = $cap > 0 && $left === 0 ? '#d63638' : ($pct >= 80 ? '#dba617' : '#00a32a');
+	$up    = wp_convert_hr_to_bytes(ini_get('upload_max_filesize'));
+	$post  = wp_convert_hr_to_bytes(ini_get('post_max_size'));
+	$upok  = min($up, $post) >= 32 * MB_IN_BYTES;
 	?>
-	<div class="wrap">
+	<style>
+		.flc-set { max-width: 1100px; }
+		.flc-set .nav-tab .dashicons { margin-right: 4px; vertical-align: text-bottom; }
+		.flc-set .flc-tab { display: none; padding-top: 6px; }
+		.flc-set .flc-tab.on { display: block; }
+		.flc-card { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 4px 20px 14px; margin: 16px 0; }
+		.flc-card > h2 { font-size: 15px; margin: 14px 0 4px; display: flex; align-items: center; gap: 6px; }
+		.flc-card > p.intro { color: #646970; margin: 0 0 6px; }
+		.flc-card .form-table th { width: 220px; }
+		.flc-card textarea.code { font-size: 12px; }
+		.flc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 16px 0; }
+		.flc-stat { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 14px 16px; }
+		.flc-stat .big { font-size: 26px; font-weight: 600; line-height: 1.2; }
+		.flc-stat .bar { height: 8px; background: #f0f0f1; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+		.flc-links a { display: inline-flex; align-items: center; gap: 4px; margin: 0 14px 8px 0; }
+		.flc-models td, .flc-models th { vertical-align: middle; }
+		.flc-badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: #f0f0f1; color: #50575e; }
+		.flc-badge.ok { background: #e7f6ec; color: #00692e; }
+		.flc-badge.prev { background: #fcf3dc; color: #8a5a00; }
+		.flc-swatch { display: inline-block; width: 120px; height: 34px; border-radius: 6px; border: 1px solid #c3c4c7; vertical-align: middle; margin-left: 8px; }
+		.flc-sticky { position: sticky; bottom: 0; background: #f0f0f1; padding: 10px 0; border-top: 1px solid #dcdcde; margin-top: 10px; z-index: 5; }
+	</style>
+	<div class="wrap flc-set">
 		<h1>Francy Lamp Factory – Impostazioni</h1>
-		<p>Inserisci il configuratore in una pagina con lo shortcode <code>[francy_lamp]</code>.
-			Endpoint del ridisegno IA: <code><?php echo esc_html(rest_url('francy-lamp/v1/ridisegna')); ?></code></p>
-
-		<?php
-		$today  = flc_today_count();
-		$cap    = (int) $s['daily_cap'];
-		$left   = $cap > 0 ? max(0, $cap - $today) : null;
-		$pct    = $cap > 0 ? min(100, round($today / $cap * 100)) : 0;
-		$color  = $cap > 0 && $left === 0 ? '#d63638' : ($pct >= 80 ? '#dba617' : '#00a32a');
-		?>
-		<div style="max-width:640px;background:#fff;border:1px solid #c3c4c7;border-left:4px solid <?php echo esc_attr($color); ?>;padding:12px 16px;margin:16px 0">
-			<strong style="font-size:15px">Ridisegni di oggi: <?php echo (int) $today; ?><?php echo $cap > 0 ? ' / ' . $cap : ''; ?></strong>
-			&nbsp;–&nbsp;<?php echo $cap > 0 ? 'ne restano <strong>' . (int) $left . '</strong>' : '<strong>senza limite</strong> (tetto giornaliero a 0)'; ?>
-			<?php if ($cap > 0) : ?>
-				<div style="height:8px;background:#f0f0f1;border-radius:4px;margin-top:8px;overflow:hidden"><div style="height:100%;width:<?php echo (int) $pct; ?>%;background:<?php echo esc_attr($color); ?>"></div></div>
-			<?php endif; ?>
-			<p class="description" style="margin:8px 0 0">Limite per visitatore: <?php echo $s['per_ip_day'] > 0 ? (int) $s['per_ip_day'] . ' al giorno' : 'nessuno'; ?>. Il conteggio riparte a mezzanotte (ora del sito). Contano anche i tentativi falliti.</p>
-		</div>
+		<?php settings_errors(); ?>
+		<nav class="nav-tab-wrapper" id="flcTabs">
+			<?php foreach ($tabs as $k => $t) : ?>
+				<a href="#<?php echo esc_attr($k); ?>" class="nav-tab" data-tab="<?php echo esc_attr($k); ?>"><span class="dashicons <?php echo esc_attr($t[0]); ?>"></span><?php echo esc_html($t[1]); ?></a>
+			<?php endforeach; ?>
+		</nav>
 
 		<form method="post" action="options.php">
 			<?php settings_fields('flc'); ?>
-			<h2>Pagina del configuratore</h2>
-			<table class="form-table" role="presentation">
-				<tr><th>Pagina dedicata</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[page_enabled]" value="1" <?php checked($s['page_enabled'], 1); ?>> Attiva la pagina a schermo intero (senza header e footer del tema)</label>
-					<?php if (!empty($s['page_enabled']) && function_exists('flc_page_url')) : ?><p><a href="<?php echo esc_url(flc_page_url()); ?>" target="_blank" rel="noopener"><strong><?php echo esc_html(flc_page_url()); ?></strong></a></p><?php endif; ?></td></tr>
-				<tr><th>Indirizzo</th><td><code><?php echo esc_html(home_url('/')); ?></code><input type="text" name="<?php echo esc_attr($opt); ?>[page_slug]" value="<?php echo esc_attr($s['page_slug']); ?>" class="regular-text" style="width:240px"><code>/</code>
-					<p class="description">Solo lettere minuscole, numeri e trattini (es. <code>lampade-personalizzate</code>). Non deve coincidere con una pagina esistente.</p></td></tr>
-				<tr><th>Titolo della pagina</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($opt); ?>[page_title]" value="<?php echo esc_attr($s['page_title']); ?>"><p class="description">Quello che si vede nella scheda del browser e su Google.</p></td></tr>
-				<tr><th>Descrizione</th><td><input type="text" class="large-text" name="<?php echo esc_attr($opt); ?>[page_description]" value="<?php echo esc_attr($s['page_description']); ?>" placeholder="Es. Crea la tua lampada tombino personalizzata con la tua foto: anteprima 3D accesa e spenta."><p class="description">Facoltativa, per Google e le anteprime dei link.</p></td></tr>
-				<tr><th>Script del sito</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[page_wp_head]" value="1" <?php checked($s['page_wp_head'], 1); ?>> Carica gli script degli altri plugin (Pixel di Meta, analytics, banner cookie)</label>
-					<p class="description">Lascialo attivo se usi Pixel/analytics o un banner cookie. Se il tema "sporca" la pagina, toglilo: la pagina diventa più leggera.</p></td></tr>
-				<tr><th>Footer</th><td>
-					<p><label>Privacy Policy<br><input type="url" class="regular-text" name="<?php echo esc_attr($opt); ?>[privacy_url]" value="<?php echo esc_attr($s['privacy_url']); ?>"></label></p>
-					<p><label>Cookie Policy<br><input type="url" class="regular-text" name="<?php echo esc_attr($opt); ?>[cookie_url]" value="<?php echo esc_attr($s['cookie_url']); ?>" placeholder="vuoto = stessa pagina della Privacy Policy"></label></p>
-					<p><label>Nome nel copyright<br><input type="text" class="regular-text" name="<?php echo esc_attr($opt); ?>[copyright_name]" value="<?php echo esc_attr($s['copyright_name']); ?>"></label></p>
-					<p class="description">Il footer mostra: Privacy Policy · Cookie Policy · © <?php echo esc_html(current_time('Y')); ?> nome · Tutti i diritti riservati (l'anno si aggiorna da solo).</p>
-				</td></tr>
-			</table>
 
-			<h2>Ridisegno con IA</h2>
-			<table class="form-table" role="presentation">
-				<tr><th>Attivo</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[enabled]" value="1" <?php checked($s['enabled'], 1); ?>> Mostra il pulsante "Ridisegna in stile tombino"</label></td></tr>
-				<tr><th>Fornitore principale</th><td><?php $sel('primary', $s['primary'], $labels); ?></td></tr>
-				<tr><th>Fornitore di riserva</th><td><?php $sel('fallback', $s['fallback'], array('none' => 'Nessuno') + $labels); ?>
-					<p class="description">Usato in automatico se il principale dà errore.</p></td></tr>
-			</table>
-
-			<h2>Google Gemini</h2>
-			<table class="form-table" role="presentation">
-				<tr><th>Chiave API</th><td>
-					<input type="password" class="regular-text" autocomplete="new-password" name="<?php echo esc_attr($opt); ?>[gemini_key]" placeholder="<?php echo $s['gemini_key'] ? 'Salvata (…' . esc_attr(substr($s['gemini_key'], -4)) . ') – lascia vuoto per non cambiarla' : 'Incolla la chiave da aistudio.google.com'; ?>">
-					<?php if ($s['gemini_key']) : ?><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[gemini_key_clear]" value="1"> cancella</label><?php endif; ?>
-					<p class="description">Per i test va bene la chiave gratuita di Google AI Studio (limiti giornalieri bassi e i dati possono essere usati da Google). In produzione attiva la fatturazione.</p>
-				</td></tr>
-				<tr><th>Modello</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($opt); ?>[gemini_model]" value="<?php echo esc_attr($s['gemini_model']); ?>"></td></tr>
-			</table>
-
-			<h2>fal.ai (FLUX Kontext, Seedream, Qwen Image Edit…)</h2>
-			<table class="form-table" role="presentation">
-				<tr><th>Chiave API</th><td>
-					<input type="password" class="regular-text" autocomplete="new-password" name="<?php echo esc_attr($opt); ?>[fal_key]" placeholder="<?php echo $s['fal_key'] ? 'Salvata (…' . esc_attr(substr($s['fal_key'], -4)) . ') – lascia vuoto per non cambiarla' : 'Chiave da fal.ai/dashboard/keys'; ?>">
-					<?php if ($s['fal_key']) : ?><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[fal_key_clear]" value="1"> cancella</label><?php endif; ?>
-				</td></tr>
-				<tr><th>Modello</th><td><input type="text" class="regular-text" name="<?php echo esc_attr($opt); ?>[fal_model]" value="<?php echo esc_attr($s['fal_model']); ?>">
-					<p class="description">Esempi: <code>fal-ai/flux-pro/kontext</code>, <code>fal-ai/qwen-image-edit</code>, <code>fal-ai/bytedance/seedream/v4/edit</code>. Controlla il nome esatto sulla pagina del modello su fal.ai.</p></td></tr>
-			</table>
-
-			<h2>Prompt</h2>
-			<p><strong>Fedele</strong> (predefinito per il cliente): conversione di stile che blocca posa, espressione e composizione.</p>
-			<textarea name="<?php echo esc_attr($opt); ?>[prompt]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
-			<p><strong>Ritratto</strong>: per i volti, poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso.</p>
-			<textarea name="<?php echo esc_attr($opt); ?>[prompt_ritratto]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_ritratto']); ?></textarea>
-			<p><strong>Anime</strong> (atmosfera da film d'animazione giapponese classico, resa a colori piatti stampabili)
-				<label style="margin-left:12px"><input type="checkbox" name="<?php echo esc_attr($opt); ?>[style_anime]" value="1" <?php checked($s['style_anime'], 1); ?>> mostra questa scelta ai clienti</label></p>
-			<textarea name="<?php echo esc_attr($opt); ?>[prompt_anime]" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_anime']); ?></textarea>
-			<p><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[examples_enabled]" value="1" <?php checked($s['examples_enabled'], 1); ?>> Mostra ai clienti gli esempi dei 3 stili</label>
-				– si generano in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-esempi')); ?>">Francy Lamp Factory → Esempi stili</a></p>
-						<p class="description">Il nome del film resta solo nel prompt (il cliente vede "Anime"). Il prompt descrive anche le caratteristiche dello stile, così funziona anche se il modello ignora il nome.</p>
-			<h2>Sfondo</h2>
-			<p><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[bg_enabled]" value="1" <?php checked($s['bg_enabled'], 1); ?>> Mostra ai clienti l'interruttore <strong>Rimuovi lo sfondo</strong> con la scelta del nuovo sfondo</label></p>
-			<p>Sfondi proposti, uno per riga: <code>Nome che vede il cliente | descrizione in inglese per l'IA</code>. Il primo è quello scelto in partenza.</p>
-			<textarea name="<?php echo esc_attr($opt); ?>[backgrounds]" rows="7" class="large-text code"><?php echo esc_textarea($s['backgrounds']); ?></textarea>
-			<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nel prompt chiedi "no text". Per tornare al testo predefinito svuota il campo e salva.</p>
-
-			<h2>Limiti anti-abuso</h2>
-			<table class="form-table" role="presentation">
-				<tr><th>Ridisegni per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[per_ip_day]" value="<?php echo (int) $s['per_ip_day']; ?>"> <span class="description">(per indirizzo IP; 0 = nessun limite)</span></td></tr>
-				<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[daily_cap]" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">(blocca tutto oltre questa soglia: protegge il budget; 0 = nessun limite, il contatore conta comunque)</span></td></tr>
-			</table>
-			<h2>Disco predefinito</h2>
-			<p class="description">Come si presenta il disco quando un cliente apre il configuratore. Il cliente poi può cambiare tutto.</p>
-			<table class="form-table" role="presentation">
-				<tr><th>Colore della banda</th><td><input type="color" name="<?php echo esc_attr($opt); ?>[def_band]" value="<?php echo esc_attr($s['def_band']); ?>">
-					<span class="description">Con il catalogo filamenti attivo viene usata la bobina più vicina.</span></td></tr>
-				<tr><th>Colore delle scritte</th><td><input type="color" name="<?php echo esc_attr($opt); ?>[def_text_color]" value="<?php echo esc_attr($s['def_text_color']); ?>"></td></tr>
-				<tr><th>Testi sulla banda</th><td>
-					<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,240px));gap:8px">
-						<label>Testo 1 – in alto a sinistra<br><input type="text" maxlength="14" name="<?php echo esc_attr($opt); ?>[def_tl]" value="<?php echo esc_attr($s['def_tl']); ?>" style="width:100%"></label>
-						<label>Testo 2 – in alto a destra<br><input type="text" maxlength="14" name="<?php echo esc_attr($opt); ?>[def_tr]" value="<?php echo esc_attr($s['def_tr']); ?>" style="width:100%"></label>
-						<label>Testo 3 – in basso a sinistra<br><input type="text" maxlength="10" name="<?php echo esc_attr($opt); ?>[def_bl]" value="<?php echo esc_attr($s['def_bl']); ?>" style="width:100%"></label>
-						<label>Testo 4 – in basso a destra<br><input type="text" maxlength="10" name="<?php echo esc_attr($opt); ?>[def_br]" value="<?php echo esc_attr($s['def_br']); ?>" style="width:100%"></label>
+			<!-- ===================== PANORAMICA ===================== -->
+			<section class="flc-tab" data-tab="panoramica">
+				<div class="flc-grid">
+					<div class="flc-stat" style="border-left:4px solid <?php echo esc_attr($color); ?>">
+						<div>Ridisegni IA di oggi</div>
+						<div class="big"><?php echo (int) $today; ?><?php echo $cap > 0 ? ' / ' . $cap : ''; ?></div>
+						<?php if ($cap > 0) : ?><div class="bar"><div style="height:100%;width:<?php echo (int) $pct; ?>%;background:<?php echo esc_attr($color); ?>"></div></div><?php endif; ?>
+						<p class="description" style="margin:6px 0 0"><?php echo $cap > 0 ? 'Ne restano ' . (int) $left . '. ' : 'Nessun tetto giornaliero. '; ?>Per visitatore: <?php echo $s['per_ip_day'] > 0 ? (int) $s['per_ip_day'] . ' al giorno' : 'nessun limite'; ?>.</p>
 					</div>
-					<p class="description">Lascia vuoto un testo per non mostrarlo.</p></td></tr>
-			</table>
+					<div class="flc-stat">
+						<div>Fornitore IA</div>
+						<div class="big" style="font-size:18px"><?php echo esc_html($p[$s['primary']]['label'] ?? $s['primary']); ?></div>
+						<p class="description" style="margin:6px 0 0">Modello: <code><?php echo esc_html($s['primary'] === 'fal' ? $s['fal_model'] : $s['gemini_model']); ?></code><br>
+							<?php echo !empty($s['enabled']) && ($s['gemini_key'] || $s['fal_key']) ? '<span class="flc-badge ok">attivo</span>' : '<span class="flc-badge prev">non attivo: manca la chiave o è spento</span>'; ?></p>
+					</div>
+					<div class="flc-stat">
+						<div>Limiti di upload del server</div>
+						<div class="big" style="font-size:18px;color:<?php echo $upok ? '#00a32a' : '#d63638'; ?>"><?php echo esc_html(ini_get('upload_max_filesize') . ' / ' . ini_get('post_max_size')); ?></div>
+						<p class="description" style="margin:6px 0 0"><?php echo $upok ? 'Vanno bene per la convalida dei dischi (5–20 MB a invio).' : 'Consigliato almeno 32M: chiedi all\'hosting di alzarli.'; ?></p>
+					</div>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-admin-links"></span> Collegamenti rapidi</h2>
+					<p class="flc-links">
+						<?php if (!empty($s['page_enabled']) && function_exists('flc_page_url')) : ?><a href="<?php echo esc_url(flc_page_url()); ?>" target="_blank" rel="noopener"><span class="dashicons dashicons-external"></span>Apri il configuratore</a><?php endif; ?>
+						<a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design')); ?>"><span class="dashicons dashicons-portfolio"></span>Progetti convalidati</a>
+						<a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-filamenti')); ?>"><span class="dashicons dashicons-admin-customizer"></span>Catalogo filamenti</a>
+						<a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-esempi')); ?>"><span class="dashicons dashicons-format-gallery"></span>Esempi stili</a>
+						<a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_template')); ?>"><span class="dashicons dashicons-images-alt2"></span>Disegni pronti</a>
+					</p>
+					<p class="description">Shortcode per inserirlo in una pagina del tema: <code>[francy_lamp]</code></p>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-chart-bar"></span> Utilizzo IA ultimi 30 giorni</h2>
+					<?php if (!$log) : ?>
+						<p>Ancora nessun ridisegno.</p>
+					<?php else : ?>
+						<table class="widefat striped" style="max-width:640px;margin-bottom:8px">
+							<thead><tr><th>Giorno</th><th>Riusciti</th><th>Errori</th><th>Per fornitore</th></tr></thead>
+							<tbody>
+							<?php foreach (array_reverse($log, true) as $day => $row) : ?>
+								<tr>
+									<td><?php echo esc_html($day); ?></td>
+									<td><?php echo (int) ($row['ok'] ?? 0); ?></td>
+									<td><?php echo (int) ($row['err'] ?? 0); ?></td>
+									<td><?php
+										$parts = array();
+										foreach ($row['by'] ?? array() as $prov => $cnt) {
+											$parts[] = esc_html($prov) . ': ' . (int) $cnt;
+										}
+										echo implode(', ', $parts);
+									?></td>
+								</tr>
+							<?php endforeach; ?>
+							</tbody>
+						</table>
+					<?php endif; ?>
+				</div>
+			</section>
 
-			<h2>Regolazioni predefinite</h2>
-			<p class="description">I valori di partenza degli slider nel configuratore (il cliente può sempre cambiarli).</p>
-			<table class="form-table" role="presentation">
-				<tr><th>Modalità iniziale</th><td><select name="<?php echo esc_attr($opt); ?>[sl_mode]">
-					<option value="outline" <?php selected($s['sl_mode'], 'outline'); ?>>Foto / disegno (creo io i contorni neri)</option>
-					<option value="keep" <?php selected($s['sl_mode'], 'keep'); ?>>Grafica pronta (contorni neri già presenti)</option>
-				</select><p class="description">Dopo un ridisegno con l'IA si passa comunque a "Grafica pronta".</p></td></tr>
-				<tr><th>Colori</th><td><input type="number" min="2" max="13" step="1" name="<?php echo esc_attr($opt); ?>[sl_colors]" value="<?php echo esc_attr($s['sl_colors']); ?>" style="width:90px"> <span class="description">2–13, nero compreso (il limite totale di 13 con bianco, banda e scritte resta comunque)</span></td></tr>
-				<tr><th>Spessore contorni (mm)</th><td><input type="number" min="0.6" max="2.5" step="0.1" name="<?php echo esc_attr($opt); ?>[sl_line]" value="<?php echo esc_attr($s['sl_line']); ?>" style="width:90px"> <span class="description">contorni neri creati dal configuratore</span></td></tr>
-				<tr><th>Contorni mancanti</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[sl_add]" value="1" <?php checked($s['sl_add'], 1); ?>> In "Grafica pronta" aggiungi i contorni neri dove mancano</label></td></tr>
-				<tr><th>Ingrossa il nero (mm)</th><td><input type="number" min="0" max="1" step="0.05" name="<?php echo esc_attr($opt); ?>[sl_thick]" value="<?php echo esc_attr($s['sl_thick']); ?>" style="width:90px"> <span class="description">solo "Grafica pronta"</span></td></tr>
-				<tr><th>Semplificazione</th><td><input type="number" min="0" max="4" step="1" name="<?php echo esc_attr($opt); ?>[sl_smooth]" value="<?php echo esc_attr($s['sl_smooth']); ?>" style="width:90px"> <span class="description">0 = nessuna, 4 = molto forte</span></td></tr>
-				<tr><th>Dettaglio minimo (mm)</th><td><input type="number" min="0.4" max="2.5" step="0.1" name="<?php echo esc_attr($opt); ?>[sl_feat]" value="<?php echo esc_attr($s['sl_feat']); ?>" style="width:90px"> <span class="description">zone più strette diventano nere</span></td></tr>
-				<tr><th>Area minima zona (mm²)</th><td><input type="number" min="0.5" max="20" step="0.5" name="<?php echo esc_attr($opt); ?>[sl_area]" value="<?php echo esc_attr($s['sl_area']); ?>" style="width:90px"> <span class="description">zone più piccole vengono assorbite</span></td></tr>
-				<tr><th>Risoluzione (px/mm)</th><td><input type="number" min="3" max="8" step="1" name="<?php echo esc_attr($opt); ?>[sl_ppmm]" value="<?php echo esc_attr($s['sl_ppmm']); ?>" style="width:90px"> <span class="description">più alta = più dettaglio, più lenta</span></td></tr>
-			</table>
+			<!-- ===================== PAGINA E ASPETTO ===================== -->
+			<section class="flc-tab" data-tab="pagina">
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-welcome-view-site"></span> Pagina del configuratore</h2>
+					<table class="form-table" role="presentation">
+						<tr><th>Pagina dedicata</th><td><label><input type="checkbox" name="<?php echo $n('page_enabled'); ?>" value="1" <?php checked($s['page_enabled'], 1); ?>> Attiva la pagina a schermo intero (senza header e footer del tema)</label>
+							<?php if (!empty($s['page_enabled']) && function_exists('flc_page_url')) : ?><p><a href="<?php echo esc_url(flc_page_url()); ?>" target="_blank" rel="noopener"><strong><?php echo esc_html(flc_page_url()); ?></strong></a></p><?php endif; ?></td></tr>
+						<tr><th>Indirizzo</th><td><code><?php echo esc_html(home_url('/')); ?></code><input type="text" name="<?php echo $n('page_slug'); ?>" value="<?php echo esc_attr($s['page_slug']); ?>" class="regular-text" style="width:240px"><code>/</code>
+							<p class="description">Solo lettere minuscole, numeri e trattini. Non deve coincidere con una pagina esistente.</p></td></tr>
+						<tr><th>Titolo della pagina</th><td><input type="text" class="regular-text" name="<?php echo $n('page_title'); ?>" value="<?php echo esc_attr($s['page_title']); ?>"><p class="description">Quello che si vede nella scheda del browser e su Google.</p></td></tr>
+						<tr><th>Descrizione</th><td><input type="text" class="large-text" name="<?php echo $n('page_description'); ?>" value="<?php echo esc_attr($s['page_description']); ?>" placeholder="Es. Crea la tua lampada tombino personalizzata con la tua foto: anteprima 3D accesa e spenta."><p class="description">Facoltativa, per Google e le anteprime dei link.</p></td></tr>
+						<tr><th>Script del sito</th><td><label><input type="checkbox" name="<?php echo $n('page_wp_head'); ?>" value="1" <?php checked($s['page_wp_head'], 1); ?>> Carica gli script degli altri plugin (Pixel di Meta, analytics, banner cookie)</label>
+							<p class="description">Lascialo attivo se usi Pixel/analytics o un banner cookie. Se il tema "sporca" la pagina, toglilo.</p></td></tr>
+					</table>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-format-image"></span> Anteprima</h2>
+					<table class="form-table" role="presentation">
+						<tr><th>Colore dello sfondo</th><td><input type="color" id="flcStageBg" name="<?php echo $n('stage_bg'); ?>" value="<?php echo esc_attr($s['stage_bg']); ?>"><span class="flc-swatch" id="flcStageSwatch" style="background:<?php echo esc_attr($s['stage_bg']); ?>"></span>
+							<p class="description">Sfondo dietro la lampada in 2D, in 3D e nelle immagini di anteprima. Resta uguale da spenta e da accesa: scuro fa risaltare la luce, ma il nero della cornice deve restare visibile (consigliato un grigio scuro come #3A3D44).</p></td></tr>
+					</table>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-editor-insertmore"></span> Footer</h2>
+					<table class="form-table" role="presentation">
+						<tr><th>Privacy Policy</th><td><input type="url" class="regular-text" name="<?php echo $n('privacy_url'); ?>" value="<?php echo esc_attr($s['privacy_url']); ?>"></td></tr>
+						<tr><th>Cookie Policy</th><td><input type="url" class="regular-text" name="<?php echo $n('cookie_url'); ?>" value="<?php echo esc_attr($s['cookie_url']); ?>" placeholder="vuoto = stessa pagina della Privacy Policy"></td></tr>
+						<tr><th>Nome nel copyright</th><td><input type="text" class="regular-text" name="<?php echo $n('copyright_name'); ?>" value="<?php echo esc_attr($s['copyright_name']); ?>">
+							<p class="description">Il footer mostra: Privacy Policy · Cookie Policy · © <?php echo esc_html(current_time('Y')); ?> nome · Tutti i diritti riservati (l'anno si aggiorna da solo).</p></td></tr>
+					</table>
+				</div>
+			</section>
 
-						<h2>Disegni pronti</h2>
-			<table class="form-table" role="presentation">
-				<tr><th>Galleria nel configuratore</th><td><label><input type="checkbox" name="<?php echo esc_attr($opt); ?>[templates_enabled]" value="1" <?php checked($s['templates_enabled'], 1); ?>> Mostra il pulsante "Scegli un disegno pronto"</label>
-					<p class="description">I disegni si gestiscono in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_template')); ?>">Francy Lamp Factory → Disegni pronti</a>. Se togli la spunta, i clienti non li vedono.</p></td></tr>
-			</table>
+			<!-- ===================== INTELLIGENZA ARTIFICIALE ===================== -->
+			<section class="flc-tab" data-tab="ia">
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-admin-generic"></span> Ridisegno con IA</h2>
+					<table class="form-table" role="presentation">
+						<tr><th>Attivo</th><td><label><input type="checkbox" name="<?php echo $n('enabled'); ?>" value="1" <?php checked($s['enabled'], 1); ?>> Mostra ai clienti il pulsante "Ridisegna in stile tombino"</label></td></tr>
+						<tr><th>Fornitore principale</th><td><?php $sel('primary', $s['primary'], $labels); ?></td></tr>
+						<tr><th>Fornitore di riserva</th><td><?php $sel('fallback', $s['fallback'], array('none' => 'Nessuno') + $labels); ?>
+							<p class="description">Usato in automatico se il principale dà errore.</p></td></tr>
+					</table>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-google"></span> Google Gemini</h2>
+					<table class="form-table" role="presentation">
+						<tr><th>Chiave API</th><td>
+							<input type="password" class="regular-text" autocomplete="new-password" name="<?php echo $n('gemini_key'); ?>" placeholder="<?php echo $s['gemini_key'] ? 'Salvata (…' . esc_attr(substr($s['gemini_key'], -4)) . ') – lascia vuoto per non cambiarla' : 'Incolla la chiave da aistudio.google.com'; ?>">
+							<?php if ($s['gemini_key']) : ?><label><input type="checkbox" name="<?php echo $n('gemini_key_clear'); ?>" value="1"> cancella</label><?php endif; ?>
+							<p class="description">Per i test va bene la chiave gratuita di Google AI Studio (limiti bassi). In produzione attiva la fatturazione.</p>
+						</td></tr>
+						<tr><th>Modello</th><td>
+							<p style="margin-top:0">In uso: <code id="flcModelNow"><?php echo esc_html($s['gemini_model']); ?></code></p>
+							<p><button type="button" class="button" id="flcModelsBtn" <?php disabled(!$s['gemini_key']); ?>><span class="dashicons dashicons-update" style="vertical-align:text-bottom"></span> Controlla i modelli disponibili</button>
+								<span id="flcModelsMsg" class="description" style="margin-left:8px"><?php echo is_array($models) ? 'Elenco aggiornato al ' . esc_html($models['time']) : ($s['gemini_key'] ? 'Premi il pulsante per chiedere a Google i modelli attuali.' : 'Salva prima la chiave API.'); ?></span></p>
+							<table class="widefat striped flc-models" id="flcModels" style="max-width:820px<?php echo is_array($models) && $models['models'] ? '' : ';display:none'; ?>">
+								<thead><tr><th style="width:30px"></th><th>Modello</th><th>Versione</th><th>Note</th></tr></thead>
+								<tbody>
+								<?php if (is_array($models)) : foreach ($models['models'] as $m) : ?>
+									<tr><td><input type="radio" name="<?php echo $n('gemini_model'); ?>" value="<?php echo esc_attr($m['id']); ?>" <?php checked($s['gemini_model'], $m['id']); ?>></td>
+										<td><strong><?php echo esc_html($m['name']); ?></strong><br><code><?php echo esc_html($m['id']); ?></code></td>
+										<td><?php echo esc_html($m['version']); ?> <?php echo $m['preview'] ? '<span class="flc-badge prev">anteprima</span>' : '<span class="flc-badge ok">stabile</span>'; ?></td>
+										<td class="description"><?php echo esc_html($m['description']); ?></td></tr>
+								<?php endforeach; endif; ?>
+								</tbody>
+							</table>
+							<p style="margin-top:10px"><label>Oppure scrivilo a mano:
+								<input type="text" class="regular-text" id="flcModelManual" name="<?php echo $n('gemini_model'); ?>" value="<?php echo esc_attr($s['gemini_model']); ?>"></label></p>
+							<p class="description">Servono i modelli "image" che ricevono la foto e restituiscono un'immagine. Gli "anteprima" sono più nuovi ma possono cambiare o sparire; i prezzi per immagine li trovi su Google AI Studio.</p>
+						</td></tr>
+					</table>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-cloud"></span> fal.ai (FLUX Kontext, Seedream, Qwen Image Edit…)</h2>
+					<table class="form-table" role="presentation">
+						<tr><th>Chiave API</th><td>
+							<input type="password" class="regular-text" autocomplete="new-password" name="<?php echo $n('fal_key'); ?>" placeholder="<?php echo $s['fal_key'] ? 'Salvata (…' . esc_attr(substr($s['fal_key'], -4)) . ') – lascia vuoto per non cambiarla' : 'Chiave da fal.ai/dashboard/keys'; ?>">
+							<?php if ($s['fal_key']) : ?><label><input type="checkbox" name="<?php echo $n('fal_key_clear'); ?>" value="1"> cancella</label><?php endif; ?>
+						</td></tr>
+						<tr><th>Modello</th><td><input type="text" class="regular-text" name="<?php echo $n('fal_model'); ?>" value="<?php echo esc_attr($s['fal_model']); ?>">
+							<p class="description">Esempi: <code>fal-ai/flux-pro/kontext</code>, <code>fal-ai/qwen-image-edit</code>, <code>fal-ai/bytedance/seedream/v4/edit</code>.</p></td></tr>
+					</table>
+				</div>
+			</section>
 
-			<h2>Convalida dei dischi</h2>
-			<table class="form-table" role="presentation">
-				<tr><th>Invii per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo esc_attr($opt); ?>[submit_per_ip]" value="<?php echo (int) $s['submit_per_ip']; ?>"> <span class="description">(anti-spam; 0 = nessun limite)</span></td></tr>
-				<tr><th>Email per le notifiche</th><td><input type="email" class="regular-text" name="<?php echo esc_attr($opt); ?>[notify_email]" value="<?php echo esc_attr($s['notify_email']); ?>" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
-					<p class="description">Ti arriva una mail a ogni disco convalidato. Vuoto = email dell'amministratore.</p></td></tr>
-				<tr><th>Limiti di upload del server</th><td>
-					<?php
-					$up   = wp_convert_hr_to_bytes(ini_get('upload_max_filesize'));
-					$post = wp_convert_hr_to_bytes(ini_get('post_max_size'));
-					$ok   = min($up, $post) >= 32 * MB_IN_BYTES;
-					?>
-					<span style="color:<?php echo $ok ? '#00a32a' : '#d63638'; ?>;font-weight:600">
-						upload_max_filesize <?php echo esc_html(ini_get('upload_max_filesize')); ?> · post_max_size <?php echo esc_html(ini_get('post_max_size')); ?>
-					</span>
-					<p class="description">Ogni invio pesa circa 5–20 MB (foto originale, anteprime, STL compressi). <?php echo $ok ? 'I limiti vanno bene.' : 'Consigliato almeno 32M per entrambi: chiedi all\'hosting di alzarli (php.ini o pannello).'; ?></p>
-				</td></tr>
-			</table>
-			<?php submit_button(); ?>
+			<!-- ===================== STILI E PROMPT ===================== -->
+			<section class="flc-tab" data-tab="stili">
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-format-image"></span> Fedele</h2>
+					<p class="intro">Predefinito per il cliente: conversione di stile che blocca posa, espressione e composizione.</p>
+					<textarea name="<?php echo $n('prompt'); ?>" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-admin-users"></span> Ritratto</h2>
+					<p class="intro">Per i volti: poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso. Scegliendolo, nel configuratore si accende da sola la modalità ritratto.</p>
+					<textarea name="<?php echo $n('prompt_ritratto'); ?>" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_ritratto']); ?></textarea>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-star-filled"></span> Anime</h2>
+					<p class="intro"><label><input type="checkbox" name="<?php echo $n('style_anime'); ?>" value="1" <?php checked($s['style_anime'], 1); ?>> Mostra questa scelta ai clienti</label>
+						– il nome del film resta solo nel prompt, il cliente vede "Anime".</p>
+					<textarea name="<?php echo $n('prompt_anime'); ?>" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_anime']); ?></textarea>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-format-gallery"></span> Esempi degli stili</h2>
+					<p><label><input type="checkbox" name="<?php echo $n('examples_enabled'); ?>" value="1" <?php checked($s['examples_enabled'], 1); ?>> Mostra ai clienti gli esempi "originale → risultato" sotto gli stili</label>
+						– si preparano in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-esempi')); ?>">Esempi stili</a>.</p>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-cover-image"></span> Nuovo sfondo</h2>
+					<p><label><input type="checkbox" name="<?php echo $n('bg_enabled'); ?>" value="1" <?php checked($s['bg_enabled'], 1); ?>> Mostra ai clienti l'interruttore <strong>Rimuovi lo sfondo</strong> con la scelta del nuovo sfondo</label></p>
+					<p class="intro">Uno per riga: <code>Nome che vede il cliente | descrizione in inglese per l'IA</code>. Il primo è quello scelto in partenza.</p>
+					<textarea name="<?php echo $n('backgrounds'); ?>" rows="6" class="large-text code"><?php echo esc_textarea($s['backgrounds']); ?></textarea>
+				</div>
+				<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nei prompt chiedi "no text". Per tornare al testo predefinito svuota il campo e salva.</p>
+			</section>
+
+			<!-- ===================== DISCO E REGOLAZIONI ===================== -->
+			<section class="flc-tab" data-tab="disco">
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-marker"></span> Disco predefinito</h2>
+					<p class="intro">Come si presenta il disco quando un cliente apre il configuratore. Il cliente poi può cambiare tutto.</p>
+					<table class="form-table" role="presentation">
+						<tr><th>Colore della banda</th><td><input type="color" name="<?php echo $n('def_band'); ?>" value="<?php echo esc_attr($s['def_band']); ?>"> <span class="description">Con il catalogo filamenti viene usata la bobina più vicina.</span></td></tr>
+						<tr><th>Colore delle scritte</th><td><input type="color" name="<?php echo $n('def_text_color'); ?>" value="<?php echo esc_attr($s['def_text_color']); ?>"></td></tr>
+						<tr><th>Testi sulla banda</th><td>
+							<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,240px));gap:8px">
+								<label>Testo 1 – in alto a sinistra<br><input type="text" maxlength="14" name="<?php echo $n('def_tl'); ?>" value="<?php echo esc_attr($s['def_tl']); ?>" style="width:100%"></label>
+								<label>Testo 2 – in alto a destra<br><input type="text" maxlength="14" name="<?php echo $n('def_tr'); ?>" value="<?php echo esc_attr($s['def_tr']); ?>" style="width:100%"></label>
+								<label>Testo 3 – in basso a sinistra<br><input type="text" maxlength="10" name="<?php echo $n('def_bl'); ?>" value="<?php echo esc_attr($s['def_bl']); ?>" style="width:100%"></label>
+								<label>Testo 4 – in basso a destra<br><input type="text" maxlength="10" name="<?php echo $n('def_br'); ?>" value="<?php echo esc_attr($s['def_br']); ?>" style="width:100%"></label>
+							</div>
+							<p class="description">Lascia vuoto un testo per non mostrarlo.</p></td></tr>
+					</table>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-admin-settings"></span> Regolazioni predefinite</h2>
+					<p class="intro">I valori di partenza degli slider nel configuratore (il cliente può sempre cambiarli).</p>
+					<table class="form-table" role="presentation">
+						<tr><th>Modalità iniziale</th><td><select name="<?php echo $n('sl_mode'); ?>">
+							<option value="outline" <?php selected($s['sl_mode'], 'outline'); ?>>Foto / disegno (creo io i contorni neri)</option>
+							<option value="keep" <?php selected($s['sl_mode'], 'keep'); ?>>Grafica pronta (contorni neri già presenti)</option>
+						</select><p class="description">Dopo un ridisegno con l'IA si passa comunque a "Grafica pronta".</p></td></tr>
+						<tr><th>Colori</th><td><input type="number" min="2" max="13" step="1" name="<?php echo $n('sl_colors'); ?>" value="<?php echo esc_attr($s['sl_colors']); ?>" style="width:90px"> <span class="description">2–13, nero compreso</span></td></tr>
+						<tr><th>Spessore contorni (mm)</th><td><input type="number" min="0.6" max="2.5" step="0.1" name="<?php echo $n('sl_line'); ?>" value="<?php echo esc_attr($s['sl_line']); ?>" style="width:90px"></td></tr>
+						<tr><th>Contorni mancanti</th><td><label><input type="checkbox" name="<?php echo $n('sl_add'); ?>" value="1" <?php checked($s['sl_add'], 1); ?>> In "Grafica pronta" aggiungi i contorni neri dove mancano</label></td></tr>
+						<tr><th>Ingrossa il nero (mm)</th><td><input type="number" min="0" max="1" step="0.05" name="<?php echo $n('sl_thick'); ?>" value="<?php echo esc_attr($s['sl_thick']); ?>" style="width:90px"> <span class="description">solo "Grafica pronta"</span></td></tr>
+						<tr><th>Semplificazione</th><td><input type="number" min="0" max="4" step="1" name="<?php echo $n('sl_smooth'); ?>" value="<?php echo esc_attr($s['sl_smooth']); ?>" style="width:90px"> <span class="description">0 = nessuna, 4 = molto forte</span></td></tr>
+						<tr><th>Dettaglio minimo (mm)</th><td><input type="number" min="0.4" max="2.5" step="0.1" name="<?php echo $n('sl_feat'); ?>" value="<?php echo esc_attr($s['sl_feat']); ?>" style="width:90px"> <span class="description">zone più strette diventano nere</span></td></tr>
+						<tr><th>Area minima zona (mm²)</th><td><input type="number" min="0.5" max="20" step="0.5" name="<?php echo $n('sl_area'); ?>" value="<?php echo esc_attr($s['sl_area']); ?>" style="width:90px"> <span class="description">zone più piccole vengono assorbite</span></td></tr>
+						<tr><th>Risoluzione (px/mm)</th><td><input type="number" min="3" max="8" step="1" name="<?php echo $n('sl_ppmm'); ?>" value="<?php echo esc_attr($s['sl_ppmm']); ?>" style="width:90px"> <span class="description">più alta = più dettaglio, più lenta</span></td></tr>
+					</table>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-images-alt2"></span> Disegni pronti</h2>
+					<p><label><input type="checkbox" name="<?php echo $n('templates_enabled'); ?>" value="1" <?php checked($s['templates_enabled'], 1); ?>> Mostra il pulsante "Scegli un disegno pronto"</label>
+						– i disegni si gestiscono in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_template')); ?>">Disegni pronti</a>.</p>
+				</div>
+			</section>
+
+			<!-- ===================== ORDINI E LIMITI ===================== -->
+			<section class="flc-tab" data-tab="ordini">
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-email-alt"></span> Convalida dei dischi</h2>
+					<table class="form-table" role="presentation">
+						<tr><th>Email per le notifiche</th><td><input type="email" class="regular-text" name="<?php echo $n('notify_email'); ?>" value="<?php echo esc_attr($s['notify_email']); ?>" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
+							<p class="description">Ti arriva una mail a ogni disco convalidato. Vuoto = email dell'amministratore.</p></td></tr>
+						<tr><th>Invii per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo $n('submit_per_ip'); ?>" value="<?php echo (int) $s['submit_per_ip']; ?>"> <span class="description">anti-spam; 0 = nessun limite</span></td></tr>
+						<tr><th>Limiti di upload del server</th><td><span style="color:<?php echo $upok ? '#00a32a' : '#d63638'; ?>;font-weight:600">upload_max_filesize <?php echo esc_html(ini_get('upload_max_filesize')); ?> · post_max_size <?php echo esc_html(ini_get('post_max_size')); ?></span>
+							<p class="description">Ogni invio pesa circa 5–20 MB. <?php echo $upok ? 'I limiti vanno bene.' : 'Consigliato almeno 32M per entrambi.'; ?></p></td></tr>
+					</table>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-shield"></span> Limiti dei ridisegni IA</h2>
+					<table class="form-table" role="presentation">
+						<tr><th>Ridisegni per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo $n('per_ip_day'); ?>" value="<?php echo (int) $s['per_ip_day']; ?>"> <span class="description">per indirizzo IP; 0 = nessun limite</span></td></tr>
+						<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo $n('daily_cap'); ?>" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">blocca tutto oltre questa soglia e protegge il budget; 0 = nessun limite</span></td></tr>
+					</table>
+				</div>
+			</section>
+
+			<div class="flc-sticky"><?php submit_button('Salva impostazioni', 'primary', 'submit', false); ?></div>
 		</form>
-
-		<h2>Utilizzo ultimi 30 giorni</h2>
-		<?php if (!$log) : ?>
-			<p>Ancora nessun ridisegno.</p>
-		<?php else : ?>
-			<table class="widefat striped" style="max-width:640px">
-				<thead><tr><th>Giorno</th><th>Riusciti</th><th>Errori</th><th>Per fornitore</th></tr></thead>
-				<tbody>
-				<?php foreach (array_reverse($log, true) as $day => $row) : ?>
-					<tr>
-						<td><?php echo esc_html($day); ?></td>
-						<td><?php echo (int) ($row['ok'] ?? 0); ?></td>
-						<td><?php echo (int) ($row['err'] ?? 0); ?></td>
-						<td><?php
-							$parts = array();
-							foreach ($row['by'] ?? array() as $prov => $n) {
-								$parts[] = esc_html($prov) . ': ' . (int) $n;
-							}
-							echo implode(', ', $parts);
-						?></td>
-					</tr>
-				<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
 	</div>
+	<script>
+	(function () {
+		// schede: si ricorda l'ultima aperta (anche dopo il salvataggio)
+		const tabs = document.querySelectorAll('#flcTabs .nav-tab'), panes = document.querySelectorAll('.flc-tab');
+		function show(k) {
+			if (![...panes].some((p) => p.dataset.tab === k)) k = 'panoramica';
+			tabs.forEach((t) => t.classList.toggle('nav-tab-active', t.dataset.tab === k));
+			panes.forEach((p) => p.classList.toggle('on', p.dataset.tab === k));
+			document.querySelector('.flc-sticky').style.display = k === 'panoramica' ? 'none' : '';
+			try { localStorage.setItem('flcSettingsTab', k); } catch (e) {}
+		}
+		tabs.forEach((t) => t.addEventListener('click', (e) => { e.preventDefault(); show(t.dataset.tab); history.replaceState(null, '', '#' + t.dataset.tab); }));
+		let start = location.hash.slice(1);
+		if (!start) { try { start = localStorage.getItem('flcSettingsTab') || ''; } catch (e) {} }
+		show(start);
+		window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+
+		// anteprima del colore dello sfondo
+		const bg = document.getElementById('flcStageBg');
+		if (bg) bg.addEventListener('input', () => { document.getElementById('flcStageSwatch').style.background = bg.value; });
+
+		// modello Gemini: la scelta nella tabella e il campo manuale restano allineati (vince l'ultimo toccato)
+		const manual = document.getElementById('flcModelManual'), table = document.getElementById('flcModels');
+		function syncRadios() {
+			table.querySelectorAll('input[type=radio]').forEach((r) => { r.checked = r.value === manual.value.trim(); });
+		}
+		table.addEventListener('change', (e) => { if (e.target.type === 'radio') manual.value = e.target.value; });
+		manual.addEventListener('input', syncRadios);
+		// i radio hanno lo stesso name del campo manuale: per non mandare due valori li tolgo dall'invio
+		manual.form.addEventListener('submit', () => { table.querySelectorAll('input[type=radio]').forEach((r) => { r.disabled = true; }); });
+
+		const btn = document.getElementById('flcModelsBtn'), msg = document.getElementById('flcModelsMsg');
+		const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+		if (btn) btn.addEventListener('click', async () => {
+			btn.disabled = true; msg.textContent = 'Chiedo a Google l\'elenco aggiornato…';
+			try {
+				const r = await fetch(<?php echo wp_json_encode(rest_url('francy-lamp/v1/modelli')); ?>, { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': <?php echo wp_json_encode(wp_create_nonce('wp_rest')); ?> } });
+				const j = await r.json().catch(() => ({}));
+				if (!r.ok) throw new Error(j.message || ('HTTP ' + r.status));
+				const name = <?php echo wp_json_encode("{$opt}[gemini_model]"); ?>;
+				table.querySelector('tbody').innerHTML = j.models.map((m) =>
+					'<tr><td><input type="radio" name="' + esc(name) + '" value="' + esc(m.id) + '"></td>' +
+					'<td><strong>' + esc(m.name) + '</strong><br><code>' + esc(m.id) + '</code></td>' +
+					'<td>' + esc(m.version) + ' ' + (m.preview ? '<span class="flc-badge prev">anteprima</span>' : '<span class="flc-badge ok">stabile</span>') + '</td>' +
+					'<td class="description">' + esc(m.description) + '</td></tr>').join('');
+				table.style.display = j.models.length ? '' : 'none';
+				syncRadios();
+				msg.textContent = j.models.length ? j.models.length + ' modelli trovati (aggiornato al ' + j.time + '). Scegline uno e salva.' : 'Nessun modello immagine disponibile per questa chiave.';
+			} catch (e) {
+				msg.textContent = 'Errore: ' + e.message;
+			} finally {
+				btn.disabled = false;
+			}
+		});
+	})();
+	</script>
 	<?php
 }
 

@@ -31,6 +31,15 @@ const state = {
 const worker = new Worker(new URL('./worker.js' + new URL(import.meta.url).search, import.meta.url));
 let jobId = 0;
 let preview3d = null;
+
+// Sfondo dell'anteprima: fisso (non cambia tra spenta e accesa), colore scelto in Impostazioni
+const STAGE_BG = /^#[0-9a-f]{6}$/i.test(CFG.stageBg || '') ? CFG.stageBg : '#3a3d44';
+root.style.setProperty('--stage', STAGE_BG);
+root.style.setProperty('--stage-lit', STAGE_BG);
+{
+  const n = parseInt(STAGE_BG.slice(1), 16), lum = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255);
+  root.classList.toggle('stage-dark', lum < 140); // testi chiari sopra uno sfondo scuro
+}
 let dirty3d = true;
 
 // ---------------- catalogo filamenti ----------------
@@ -231,6 +240,8 @@ if (Array.isArray(CFG.aiStyles)) document.querySelectorAll('#aiStyle button').fo
 document.querySelectorAll('#aiStyle button').forEach((b) => b.addEventListener('click', () => {
   aiStyle = b.dataset.style;
   document.querySelectorAll('#aiStyle button').forEach((x) => x.classList.toggle('active', x === b));
+  // stile Ritratto: la modalità ritratto si accende da sola (si può sempre spegnere a mano)
+  if (aiStyle === 'ritratto' && !$('#portrait').checked) { setPortrait(true); schedule(); }
   showExample();
 }));
 
@@ -345,7 +356,7 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
   $('#view2d').hidden = state.view !== '2d';
   $('#view3d').hidden = state.view !== '3d';
   if (state.view === '3d') {
-    if (!preview3d) preview3d = new Preview3D($('#view3d'));
+    if (!preview3d) preview3d = new Preview3D($('#view3d'), STAGE_BG);
     preview3d.setLit(state.lit);
     if (dirty3d) update3d();
   }
@@ -830,7 +841,8 @@ function svgToPng(lit, size = 1200) {
       const c = document.createElement('canvas');
       c.width = c.height = size;
       const ctx = c.getContext('2d');
-      if (lit) { ctx.fillStyle = '#15171c'; ctx.fillRect(0, 0, size, size); ctx.filter = 'brightness(1.12) saturate(1.25)'; }
+      ctx.fillStyle = STAGE_BG; ctx.fillRect(0, 0, size, size);
+      if (lit) ctx.filter = 'brightness(1.12) saturate(1.25)';
       ctx.drawImage(img, 0, 0, size, size);
       c.toBlob((b) => (b ? ok(b) : ko(new Error('PNG non creato'))), 'image/png');
     };

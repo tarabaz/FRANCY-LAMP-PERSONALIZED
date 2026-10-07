@@ -7,8 +7,8 @@
   --line: #e4e0d9;
   --accent: #f2b705;
   --accent-ink: #1d1b19;
-  --stage: #ffffff;
-  --stage-lit: #15171c;
+  --stage: #3a3d44;
+  --stage-lit: #3a3d44;
   --radius: 12px;
 }
 /* Pagina autonoma (index.html) */
@@ -97,6 +97,7 @@ html.flc-page .flc { height: 100%; }
 
 .flc .stage { display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 14px; background: var(--stage); transition: background .3s; }
 .flc.lit .stage { background: var(--stage-lit); }
+.flc.stage-dark .status { color: #b9b6b0; }
 .flc .view { flex: 1; width: 100%; min-height: 0; display: grid; place-items: center; }
 .flc #svgHost { width: min(100%, 70vh); aspect-ratio: 1; }
 .flc #svgHost svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 6px 14px rgba(0,0,0,.25)); transition: filter .3s; }
