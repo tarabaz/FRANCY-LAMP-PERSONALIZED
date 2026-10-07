@@ -241,8 +241,8 @@ stessa inquadratura, quindi si può ancora spostare e zoomare.
 **È una carta da gioco**: interruttore nel riquadro IA, da accendere solo quando il cliente carica una carta (es.
 Pokémon). Viene mandata la carta intera e l'IA tiene solo l'illustrazione: toglie cornice, nome, PS, testi degli
 attacchi, simboli, loghi e copyright (in qualsiasi lingua), continua l'illustrazione dove era coperta e poi
-applica lo stile scelto. Il prompt della carta dice solo cosa togliere: lo stile lo decide il prompt dello stile. Il risultato è quadrato
-e centrato (inquadratura nuova). Si spegne da Impostazioni → Stili IA, dove si può modificare anche il suo prompt.
+applica lo stile scelto. Il prompt della carta dice solo cosa togliere: lo stile lo decide il prompt dello stile. Il risultato ha lo
+stesso formato della carta e torna con la stessa inquadratura. Si spegne da Impostazioni → Stili IA, dove si può modificare anche il suo prompt.
 
 Il pannello sinistro del configuratore si allarga trascinando il suo bordo destro (280–640 px; il browser se lo
 ricorda, doppio clic = larghezza normale). Scegliendo uno sfondo IA, il cliente vede la prova salvata come esempio.
