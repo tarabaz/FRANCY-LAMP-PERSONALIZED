@@ -28,6 +28,7 @@ const state = {
   filaments: [], originalFile: null, originalSrc: null, aiImageSrc: null, aiProvider: '',
   templates: [], template: null, // disegno pronto scelto: { id, name, url, dataUrl }
   overflow: false, ovSeeds: [], // "sopra la fascia": zone toccate (punti in mm) che escono dal cerchio
+  painting: false, brush: -1, paints: [], // colora a mano: pennello = indice della palette, tocchi in mm
 };
 
 // stessa versione di app.js (?ver=...) così anche il worker non resta vecchio in cache
@@ -575,7 +576,8 @@ function templateSvg() {
 // Fascia e scritte possono usare un colore già presente nel disegno (gratis) o uno nuovo se c'è posto.
 function drawingColors() {
   if (!state.result) return [];
-  return state.result.palette.map((_, i) => artColor(i));
+  // le voci rimaste senza area (colorazioni a mano annullate o svuotate) non contano
+  return state.result.palette.map((p, i) => (p.area > 0 ? artColor(i) : null)).filter(Boolean);
 }
 function colorSet(exclude) {
   const set = new Set([WHITE, BLACK, ...drawingColors()]);
@@ -766,6 +768,7 @@ function run() {
   };
   const id = ++jobId;
   state.pendingOv = state.overflow;
+  state.paints = []; // nuova conversione: si ricolora da capo
   setStatus('Elaborazione…');
   worker.postMessage({ id, imageData, size, ppmm, opts }, [imageData.buffer]);
 }
@@ -826,12 +829,12 @@ function autoColors() {
   // il bianco protetto (denti, occhi) usa sempre la bobina della base
   let wi = pal.findIndex((p, i) => p.white && !state.colorOverrides[i]), wl = wi >= 0 ? Infinity : -1;
   pal.forEach((p, i) => {
-    if (out[i] || state.colorOverrides[i]) return;
+    if (out[i] || state.colorOverrides[i] || p.area <= 0) return;
     const hex = rgbToHex(p), L = hexToLab(hex)[0];
     if (isNearWhite(hex) && L > wl) { wl = L; wi = i; }
   });
   if (wi >= 0) out[wi] = WHITE;
-  const todo = pal.map((p, i) => i).filter((i) => !out[i] && !state.colorOverrides[i]);
+  const todo = pal.map((p, i) => i).filter((i) => !out[i] && !state.colorOverrides[i] && pal[i].area > 0);
   if (!state.filaments.length) {
     for (const i of todo) out[i] = rgbToHex(pal[i]);
   } else {
@@ -862,6 +865,8 @@ function autoColors() {
     // catalogo troppo piccolo: per i colori rimasti si torna alla bobina più vicina
     for (const i of todo) if (!out[i]) out[i] = nearestFilament(rgbToHex(pal[i])).hex;
   }
+  // voci senza area (non stampate): colore qualsiasi, non occupano bobine
+  pal.forEach((p, i) => { if (!out[i] && !state.colorOverrides[i]) out[i] = rgbToHex(p); });
   autoCache = { r, f: state.filaments, ov, k: BLACK + WHITE, list: out };
   return out;
 }
@@ -891,7 +896,12 @@ function renderPalette() {
   $('#paletteHint').hidden = !state.result;
   if (!state.result) return;
   state.result.palette.forEach((p, i) => {
+    if (p.area <= 0) return; // non più nel disegno
     const li = document.createElement('li');
+    if (state.painting) {
+      li.classList.toggle('brush', state.brush === artColor(i));
+      li.addEventListener('click', () => { state.brush = artColor(i); renderPalette(); renderPaintSwatches(); });
+    }
     let ctrl;
     if (state.filaments.length) {
       ctrl = document.createElement('button');
@@ -899,8 +909,8 @@ function renderPalette() {
       ctrl.className = 'swatch-btn';
       ctrl.dataset.popover = '1';
       ctrl.style.background = artColor(i);
-      ctrl.addEventListener('click', () => openFilamentPopover(ctrl, (hex) => { state.colorOverrides[i] = hex; renderPalette(); render(); },
-        (hex) => !otherDrawingColors(i).has(hex) && (colorSet().has(hex) || colorSet().size < MAX_FILAMENTS)));
+      ctrl.addEventListener('click', (ev) => { if (state.painting) return; openFilamentPopover(ctrl, (hex) => { state.colorOverrides[i] = hex; renderPalette(); render(); },
+        (hex) => !otherDrawingColors(i).has(hex) && (colorSet().has(hex) || colorSet().size < MAX_FILAMENTS)); });
     } else {
       ctrl = document.createElement('input');
       ctrl.type = 'color'; ctrl.value = artColor(i);
@@ -1026,8 +1036,8 @@ function parts() {
   if (state.result) {
     const pal = state.result.palette;
     // prima i colori, poi il nero del disegno (in caso di sovrapposizione al bordo vince il nero)
-    pal.forEach((p, i) => { if (!p.black) art({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i), area: p.area }); });
-    pal.forEach((p, i) => { if (p.black) art({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), black: true, area: p.area }); });
+    pal.forEach((p, i) => { if (!p.black && p.area > 0) art({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i), area: p.area }); });
+    pal.forEach((p, i) => { if (p.black && p.area > 0) art({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), black: true, area: p.area }); });
   }
   art({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, black: true });
   art({ id: 'cornice-fascia', d: frame.band, color: band });
@@ -1074,9 +1084,70 @@ function render() {
   dirty3d = true;
   if (state.view === '3d' && preview3d) update3d(ps);
   updateOvUi();
+  updatePaintUi();
   $('#textWarn').hidden = !state.textOverlap;
   $('#textWarn').textContent = state.textOverlap ? `Le due scritte di ${state.textOverlap} si sovrappongono: spostane una con il suo slider.` : '';
   updateSteps();
+}
+
+// ---------------- colora a mano ----------------
+function paintIndexFor(hex) {
+  const pal = state.result.palette;
+  hex = hex.toLowerCase();
+  const found = pal.findIndex((p, i) => p.area > 0 && !(p.black && hex !== BLACK) && artColor(i) === hex);
+  if (found >= 0) return found;
+  // colore nuovo: voce in più (anche se ce n'è già una in attesa nei tocchi non ancora tornati)
+  return Math.max(pal.length, ...state.paints.map((x) => x.to + 1));
+}
+function renderPaintSwatches() {
+  const host = $('#paintSwatches');
+  host.innerHTML = '';
+  const set = colorSet();
+  for (const hex of [BLACK, ...state.filaments.map((f) => f.hex)]) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.background = hex;
+    const f = state.filaments.find((x) => x.hex === hex);
+    b.title = hex === BLACK ? 'Nero' : (CFG.isAdmin ? f && f.name : f && f.label) || hex;
+    b.className = state.brush === hex ? 'on' : '';
+    b.disabled = !set.has(hex) && set.size >= MAX_FILAMENTS; // oltre i 13 colori non si va
+    b.addEventListener('click', () => { state.brush = hex; renderPaintSwatches(); renderPalette(); });
+    host.append(b);
+  }
+}
+function updatePaintUi() {
+  $('#paintBar').hidden = !state.result || !!state.template || !state.filaments.length;
+  $('#paintPanel').hidden = !state.painting;
+  $('#paintOn').hidden = state.painting;
+  $('#paintUndo').disabled = !state.paints.length;
+  root.classList.toggle('paint-mode', state.painting);
+  if (state.painting) renderPaintSwatches();
+}
+function sendPaints() {
+  setStatus('Coloro…');
+  worker.postMessage({ id: ++jobId, paints: state.paints });
+}
+$('#paintOn').addEventListener('click', () => {
+  state.painting = true; state.brush = state.brush || null;
+  if (state.view === '3d') document.querySelector('.tabs button[data-view="2d"]').click();
+  updatePaintUi(); renderPalette();
+});
+$('#paintOff').addEventListener('click', () => { state.painting = false; updatePaintUi(); renderPalette(); });
+$('#paintUndo').addEventListener('click', () => { if (!state.paints.length) return; state.paints = state.paints.slice(0, -1); sendPaints(); });
+$('#paintClear').addEventListener('click', () => {
+  if (!state.result) return;
+  const to = paintIndexFor(WHITE);
+  if (to >= state.result.palette.length) state.colorOverrides[to] = WHITE;
+  state.paints = [...state.paints, { clear: true, to, hex: WHITE }];
+  state.brush = state.brush || null;
+  sendPaints();
+});
+function paintAt(x, y) {
+  if (!state.brush) { setStatus('Scegli prima il colore del pennello'); return; }
+  const to = paintIndexFor(state.brush);
+  if (to >= state.result.palette.length) state.colorOverrides[to] = state.brush;
+  state.paints = [...state.paints, { x, y, to, hex: state.brush }];
+  sendPaints();
 }
 
 // ---------------- sopra la fascia: interfaccia ----------------
@@ -1102,12 +1173,14 @@ $('#ovClear').addEventListener('click', () => {
   worker.postMessage({ id: ++jobId, ovSeeds: [] });
 });
 $('#svgHost').addEventListener('click', (e) => {
-  if (!state.overflow || !state.result || state.template || !state.resultOv) return;
+  if (!state.result || state.template) return;
   const svg = $('#svgHost svg');
   if (!svg) return;
   const pt = svg.createSVGPoint();
   pt.x = e.clientX; pt.y = e.clientY;
   const m = pt.matrixTransform(svg.getScreenCTM().inverse());
+  if (state.painting) { if (Math.hypot(m.x, m.y) <= geometry().rBandOut) paintAt(Math.round(m.x * 100) / 100, Math.round(m.y * 100) / 100); return; }
+  if (!state.overflow || !state.resultOv) return;
   if (Math.hypot(m.x, m.y) > geometry().rBandOut) return;
   setStatus('Aggiorno…');
   worker.postMessage({ id: ++jobId, ovToggle: [Math.round(m.x * 100) / 100, Math.round(m.y * 100) / 100] });
@@ -1145,7 +1218,7 @@ function updateSteps() {
   const list = steps();
   const tpl = !!state.template, img = !!state.img, res = !!state.result;
   const t = texts(), words = [t.topLeft, t.topRight, t.bottomLeft, t.bottomRight].map((x) => x.trim()).filter(Boolean);
-  const nColors = res ? new Set(state.result.palette.map((_, i) => artColor(i))).size : 0;
+  const nColors = res ? new Set(drawingColors()).size : 0;
   const sum = {
     1: tpl ? ['✓ Disegno pronto: ' + state.template.name, true] : img ? ['✓ Immagine caricata' + ($('#portrait').checked ? ' · volto' : ''), true] : ['Carica una foto o un disegno', false],
     2: tpl ? ['Non serve con un disegno pronto', false] : state.aiImageSrc ? ['✓ Ridisegnata in stile ' + (AI_STYLE_NAMES[aiStyle] || aiStyle), true] : ['Facoltativo: fai ridisegnare la foto', false],
@@ -1172,6 +1245,7 @@ function updateSteps() {
   if (img || tpl) {
     rows.push(['Fascia', bandLabel(state.bandColor)]);
     rows.push(['Scritte', words.length ? words.join(' · ') : 'nessuna']);
+    if (!tpl && state.paints.length) rows.push(['Colorato a mano', `${state.paints.length} ${state.paints.length === 1 ? 'tocco' : 'tocchi'}`]);
     if (!tpl && state.overflow && state.ovSeeds.length) rows.push(['Sopra la fascia', `${state.ovSeeds.length} ${state.ovSeeds.length === 1 ? 'parte' : 'parti'}`]);
   }
   $('#recap').innerHTML = rows.length ? rows.map(([k, v]) => `<li><span>${escapeAttr(k)}</span><strong>${escapeAttr(v)}</strong></li>`).join('') : '<li class="empty">Carica prima un\'immagine (passo 1).</li>';

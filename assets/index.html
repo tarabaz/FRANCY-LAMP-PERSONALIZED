@@ -203,6 +203,14 @@
         <h2>Colori del disco</h2>
         <p class="hint" id="paletteHint">Tocca un colore per cambiarlo. Massimo 13 colori in tutto, compresi il bianco della base e il nero dei contorni.</p>
         <p class="hint palette-empty" id="paletteEmpty">I colori compaiono qui appena carichi un'immagine.</p>
+        <div class="paint-bar" id="paintBar" hidden>
+          <button type="button" class="ghost small" id="paintOn">🖌️ Colora a mano</button>
+          <div class="paint-panel" id="paintPanel" hidden>
+            <p class="hint">Scegli il colore (il pennello) tra le bobine qui sotto o nell'elenco del disco, poi tocca sull'anteprima le zone da colorare: la zona intera prende quel colore, le linee nere restano. "Svuota i colori" rende tutto bianco tranne il nero. Cambiando immagine o colori/contorni si riparte da capo.</p>
+            <div class="paint-swatches" id="paintSwatches"></div>
+            <div class="paint-actions"><button type="button" class="ghost small" id="paintClear">Svuota i colori</button><button type="button" class="ghost small" id="paintUndo" disabled>↶ Annulla</button><button type="button" class="small" id="paintOff">Fine</button></div>
+          </div>
+        </div>
         <ul id="palette" class="palette"></ul>
         <p class="count" id="count"></p>
       </section>

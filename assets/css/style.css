@@ -332,6 +332,21 @@ html.flc-page .flc { height: 100%; }
 /* modalità disegno pronto: i passi che non servono restano visibili ma spenti */
 .flc.template-mode .step[data-step="2"] .step-head, .flc.template-mode .step[data-step="3"] .step-head { opacity: .55; }
 
+/* colora a mano */
+.flc .paint-bar { margin: 4px 0 10px; }
+.flc .paint-bar button.small { padding: 6px 10px; font-size: 12.5px; width: auto; display: inline-block; margin: 0 6px 0 0; border-radius: 8px; cursor: pointer; }
+.flc .paint-bar #paintOff { border: 0; background: var(--ink); color: #fff; font-weight: 600; }
+.flc .paint-panel { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+.flc .paint-panel .hint { margin: 0 0 8px; }
+.flc .paint-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; }
+.flc .paint-swatches button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); padding: 0; cursor: pointer; }
+.flc .paint-swatches button.on { outline: 2px solid var(--ink); outline-offset: 2px; }
+.flc .paint-swatches button:disabled { opacity: .25; cursor: not-allowed; }
+.flc .paint-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.flc.paint-mode .palette li { cursor: pointer; border-radius: 8px; padding: 2px; }
+.flc.paint-mode .palette li.brush { background: var(--bg); box-shadow: inset 0 0 0 2px var(--ink); }
+.flc.paint-mode #view2d #svgHost { cursor: cell; }
+
 /* sopra la fascia */
 .flc .ov-box { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 13px; }
 .flc .ov-box .hint { margin: 8px 0 4px; }

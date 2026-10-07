@@ -72,6 +72,14 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
 
+**Colora a mano** (pulsante 🖌️ nell'elenco "Colori del disco"): si sceglie il pennello tra tutte le bobine
+disponibili (o tra i colori del disco) e si tocca sull'anteprima 2D: la zona toccata (com'era nella conversione,
+anche dopo uno svuotamento) prende quel colore, le linee nere restano. **Svuota i colori** rende tutto bianco tranne
+il nero, **Annulla** toglie l'ultimo tocco. Il colore cambia nella mappa delle zone e il disegno viene
+ri-vettorializzato: in SVG, STL per colore e 3MF le zone ricolorate sono davvero forme del nuovo colore (es. la coda
+rossa finisce nello STL del rosso). Le bobine oltre il limite dei 13 colori sono disattivate. Una nuova conversione
+(immagine, colori o contorni) riparte da zero.
+
 I passi chiusi mostrano un riassunto di una riga (es. "✓ Ridisegnata in stile Tombino") e ognuno ha **Avanti →**.
 I colori senza nome pubblico della bobina prendono un nome generico italiano ("Verde lime", "Blu scuro"…) invece
 di "Colore 3". Sotto l'anteprima c'è un messaggio che invita ad accendere la lampada.

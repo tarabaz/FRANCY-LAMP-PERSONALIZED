@@ -7,15 +7,17 @@ const NONE = 255; // pixel fuori dal cerchio
 
 let last = null; // ultima conversione, per riunire le zone senza rifare tutto
 let lastFull = null; // "sopra la fascia": etichette PRIMA del taglio al cerchio (anche fuori dal cerchio)
+let paintBase = null; // etichette appena convertite, prima delle colorazioni a mano (per rifarle / annullarle)
 
 self.onmessage = (e) => {
-  const { id, imageData, size, ppmm, opts, merge, ovToggle, ovSeeds } = e.data;
+  const { id, imageData, size, ppmm, opts, merge, ovToggle, ovSeeds, paints } = e.data;
   try {
     let result;
     if (merge) result = mergeColors(merge);
+    else if (paints) result = repaint(paints);
     else if (ovToggle || ovSeeds) result = overflowAgain(ovToggle, ovSeeds);
     else result = convert(imageData, size, ppmm, opts, (msg) => self.postMessage({ id, progress: msg }));
-    last = { labels: result.labels.slice(), palette: result.palette, size: result.size, ppmm: result.ppmm, opts: merge || ovToggle || ovSeeds ? last.opts : opts, framePath: result.framePath, ovSeeds: result.ovSeeds };
+    last = { labels: result.labels.slice(), palette: result.palette, size: result.size, ppmm: result.ppmm, opts: merge || ovToggle || ovSeeds || paints ? last.opts : opts, framePath: result.framePath, ovSeeds: result.ovSeeds };
     self.postMessage({ id, result }, [result.labels.buffer]);
   } catch (err) {
     self.postMessage({ id, error: String(err && err.stack || err) });
@@ -166,6 +168,10 @@ function convert(rgba, size, ppmm, opts, progress) {
   palette = newPal;
 
   // 4. Sopra la fascia: fuori dal cerchio restano solo le zone toccate dal cliente (con il loro contorno nero)
+  // colorazioni a mano (se la conversione è rifatta con le stesse impostazioni, es. "sopra la fascia")
+  paintBase = labels.slice();
+  if (opts.paints && opts.paints.length) applyPaints(labels, palette, size, ppmm, opts, opts.paints);
+
   let framePath = '', seedsOut = [], frameLabels = null;
   lastFull = null;
   if (opts.ov) {
@@ -269,6 +275,58 @@ function traceWithFrame(labels, frameLabels, size, ncolors, opts) {
   return { layers: all, framePath };
 }
 
+// ---------- colora a mano ----------
+// paints: [{ x, y (mm), to (indice della palette) }]: la zona toccata (tocco su una linea nera = zona colorata più
+// vicina) prende il colore "to". Zone vicine dello stesso colore senza linea in mezzo diventano una zona sola.
+// Le zone sono quelle della conversione di partenza (base): anche dopo "svuota i colori" il pennello riempie
+// la zona come era disegnata, non tutto il bianco unito.
+function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice()) {
+  const sc = opts.scale ?? 1, off = opts.offset ?? 0, toPx = (v) => Math.round((v - off) / sc);
+  const blackIdx = palette.findIndex((p) => p.black);
+  let comp = null;
+  for (const pt of paints) {
+    if (!(pt.to >= 0 && pt.to < 250)) continue;
+    // colore nuovo preso dal catalogo: voce in più nella palette (il colore vero lo decide l'app)
+    while (palette.length <= pt.to) {
+      const h = /^#[0-9a-f]{6}$/i.test(pt.hex || '') ? parseInt(pt.hex.slice(1), 16) : 0x808080;
+      palette.push({ r: h >> 16, g: (h >> 8) & 255, b: h & 255, area: 0, black: false, white: !!pt.clear, skin: false });
+    }
+    // "svuota i colori": tutto ciò che non è nero diventa il colore "to" (il bianco)
+    if (pt.clear) { for (let i = 0; i < labs.length; i++) if (labs[i] !== NONE && labs[i] !== blackIdx) labs[i] = pt.to; continue; }
+    const x = toPx(pt.x), y = toPx(pt.y), R = Math.ceil(1.5 * ppmm);
+    let at = -1;
+    for (let rr = 0; rr <= R && at < 0; rr++) for (let yy = y - rr; yy <= y + rr && at < 0; yy++) for (let xx = x - rr; xx <= x + rr; xx++) {
+      if (Math.max(Math.abs(xx - x), Math.abs(yy - y)) !== rr || xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
+      const j = yy * size + xx;
+      if (base[j] !== NONE && base[j] !== blackIdx) { at = j; break; }
+    }
+    if (at < 0) continue;
+    if (!comp) comp = components(base, size).comp;
+    const c = comp[at];
+    for (let i = 0; i < labs.length; i++) if (comp[i] === c && labs[i] !== NONE) labs[i] = pt.to;
+  }
+}
+// Rifà tutte le colorazioni a mano dalla conversione di partenza (serve anche per "Annulla")
+function repaint(paints) {
+  if (!paintBase) throw new Error('colora a mano: manca la conversione');
+  const { palette: pal, size, ppmm, opts } = last;
+  const palette = pal.map((p) => ({ ...p }));
+  const labs = new Uint8Array(paintBase);
+  applyPaints(labs, palette, size, ppmm, opts, paints, paintBase);
+  last.opts = { ...opts, paints };
+  if (opts.ov) {
+    lastFull = labs;
+    const seeds = opts.ov.seeds || [];
+    const o = applyOverflow(lastFull, palette, size, ppmm, last.opts, seeds);
+    const tr = traceWithFrame(o.labels, o.frameLabels, size, palette.length, last.opts);
+    return { labels: o.labels, palette, layers: tr.layers, size, ppmm, framePath: tr.framePath, ovSeeds: o.seeds, merged: true, keep: true };
+  }
+  const counts = new Uint32Array(palette.length);
+  for (let i = 0; i < labs.length; i++) if (labs[i] !== NONE) counts[labs[i]]++;
+  palette.forEach((p, i) => { p.area = counts[i] / (ppmm * ppmm); });
+  return { labels: labs, palette, layers: trace(labs, size, palette.length, opts), size, ppmm, framePath: '', ovSeeds: [], merged: true, keep: true };
+}
+
 // Tocco sull'anteprima: aggiunge la zona toccata, o la toglie se era già fuori. Rifà solo il taglio.
 function overflowAgain(toggle, seedsIn) {
   if (!lastFull || !last.opts.ov) throw new Error('sopra la fascia: manca la conversione');
@@ -344,6 +402,7 @@ function mergeColors(merge) {
   });
   for (let i = 0; i < labels.length; i++) if (labels[i] !== NONE) labels[i] = remap[labels[i]];
   if (lastFull) for (let i = 0; i < lastFull.length; i++) if (lastFull[i] !== NONE) lastFull[i] = remap[lastFull[i]];
+  if (paintBase) for (let i = 0; i < paintBase.length; i++) if (paintBase[i] !== NONE) paintBase[i] = remap[paintBase[i]];
   const frameLabels = opts.ov && last.framePath ? frameLabelsOf(labels, size, opts.ov, newPal.length) : null;
   const tr = traceWithFrame(labels, frameLabels, size, newPal.length, opts);
   return { labels, palette: newPal, layers: tr.layers, size, ppmm, merged: true, framePath: tr.framePath, ovSeeds: last.ovSeeds || [] };
