@@ -72,6 +72,11 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
 
+**Bobine bloccate**: quando il cliente sceglie a mano la bobina di un colore (tocco sul colore nell'elenco), la
+scelta resta 🔒 anche se la conversione si rifà (numero di colori, contorni, zoom…): nella nuova palette si ritrova
+la zona con il colore originale più simile e le si rimette quella bobina; le altre zone si adattano senza usarla.
+Il lucchetto accanto al nome riporta il colore in automatico. Un'immagine nuova azzera i blocchi.
+
 **Colora a mano** (pulsante 🖌️ nell'elenco "Colori del disco"): si sceglie il pennello tra tutte le bobine
 disponibili (o tra i colori del disco) e si tocca sull'anteprima 2D: la zona toccata (com'era nella conversione,
 anche dopo uno svuotamento: due zone vicine senza linea nera, es. il viola e la luce sul corpo di Gengar, restano

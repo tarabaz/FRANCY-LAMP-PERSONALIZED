@@ -29,6 +29,7 @@ const state = {
   templates: [], template: null, // disegno pronto scelto: { id, name, url, dataUrl }
   overflow: false, ovSeeds: [], // "sopra la fascia": zone toccate (punti in mm) che escono dal cerchio
   painting: false, brush: -1, paints: [], // colora a mano: pennello = indice della palette, tocchi in mm
+  locks: [], // bobine scelte a mano: [{ lab (colore originale della zona), hex }], restano anche se si riconverte
 };
 
 // stessa versione di app.js (?ver=...) così anche il worker non resta vecchio in cache
@@ -214,6 +215,7 @@ function loadImage(src, zoom = 1) {
   const img = new Image();
   img.onload = () => {
     originalImg = null; state.aiImageSrc = null; state.aiCrop = null; state.originalSrc = src;
+    state.locks = []; // immagine nuova: le bobine bloccate ripartono da zero
     $('#aiUndo').hidden = true;
     setImage(img, zoom, 0, 0);
   };
@@ -779,7 +781,7 @@ worker.onmessage = (e) => {
   if (progress) return setStatus(progress + '…');
   if (error) { console.error(error); return setStatus('Errore nella conversione'); }
   state.result = result;
-  if (!result.keep) { state.colorOverrides = {}; state.resultOv = !!state.pendingOv; state.baseLayers = result.layers; }
+  if (!result.keep) { state.colorOverrides = {}; state.resultOv = !!state.pendingOv; state.baseLayers = result.layers; applyLocks(result.palette); }
   state.ovSeeds = result.ovSeeds || [];
   state.ovNote = result.ovTooBig ? 'Quella zona è sfondo: riempirebbe tutta la fascia, quindi resta dentro il cerchio.'
     : result.ovNoOut ? 'Quella parte non arriva al bordo del cerchio: allarga un po\' lo zoom o sposta l\'immagine perché sporga.' : '';
@@ -909,7 +911,7 @@ function renderPalette() {
       ctrl.className = 'swatch-btn';
       ctrl.dataset.popover = '1';
       ctrl.style.background = artColor(i);
-      ctrl.addEventListener('click', (ev) => { if (state.painting) return; openFilamentPopover(ctrl, (hex) => { state.colorOverrides[i] = hex; renderPalette(); render(); },
+      ctrl.addEventListener('click', (ev) => { if (state.painting) return; openFilamentPopover(ctrl, (hex) => { state.colorOverrides[i] = hex; lockColor(i, hex); renderPalette(); render(); },
         (hex) => !otherDrawingColors(i).has(hex) && (colorSet().has(hex) || colorSet().size < MAX_FILAMENTS)); });
     } else {
       ctrl = document.createElement('input');
@@ -925,6 +927,19 @@ function renderPalette() {
     const area = document.createElement('span');
     area.className = 'area';
     area.textContent = `${Math.round(p.area)} mm²`;
+    if (isLocked(i) && !state.painting) {
+      const lk = document.createElement('button');
+      lk.type = 'button'; lk.className = 'lock-btn'; lk.textContent = '🔒';
+      lk.title = 'Bobina scelta da te: resta anche se aggiorni il disegno. Tocca per tornare automatico.';
+      lk.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const hex = state.colorOverrides[i];
+        state.locks = state.locks.filter((l) => l.hex !== hex);
+        delete state.colorOverrides[i];
+        renderPalette(); render();
+      });
+      name.append(' ', lk);
+    }
     li.append(ctrl, name, area);
     ul.append(li);
   });
@@ -1092,6 +1107,34 @@ function render() {
   $('#textWarn').hidden = !state.textOverlap;
   $('#textWarn').textContent = state.textOverlap ? `Le due scritte di ${state.textOverlap} si sovrappongono: spostane una con il suo slider.` : '';
   updateSteps();
+}
+
+// ---------------- colori bloccati ----------------
+// Una bobina scelta a mano per una zona resta sua anche quando la conversione si rifà (altri colori, contorni,
+// zoom…): nella nuova palette si ritrova la zona con il colore originale più simile e le si rimette la bobina.
+const palLab = (p) => hexToLab(rgbToHex(p));
+function lockColor(i, hex) {
+  const lab = palLab(state.result.palette[i]);
+  const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  state.locks = state.locks.filter((l) => d(l.lab, lab) > 6); // la stessa zona scelta di nuovo: vale l'ultima
+  state.locks.push({ lab, hex });
+}
+function applyLocks(pal) {
+  if (!state.locks.length) return;
+  const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const pairs = [];
+  pal.forEach((p, i) => { if (p.black || p.area <= 0) return; const lab = palLab(p); state.locks.forEach((l, k) => pairs.push([d(l.lab, lab), i, k])); });
+  pairs.sort((a, b) => a[0] - b[0]);
+  const zoneDone = new Set(), lockDone = new Set();
+  for (const [dist, i, k] of pairs) {
+    if (dist > 22 || zoneDone.has(i) || lockDone.has(k)) continue; // troppo diversa: quella zona non c'è più
+    state.colorOverrides[i] = state.locks[k].hex;
+    zoneDone.add(i); lockDone.add(k);
+  }
+}
+function isLocked(i) {
+  const o = state.colorOverrides[i];
+  return !!o && state.locks.some((l) => l.hex === o);
 }
 
 // ---------------- colora a mano ----------------

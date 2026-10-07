@@ -364,3 +364,4 @@ html.flc-page .flc { height: 100%; }
   .flc #paletteSlot #paletteSection { border-top: 0; padding-top: 4px; }
   .flc .panel.right #paletteSection { display: none; }
 }
+.flc .lock-btn { border: 0; background: none; padding: 0 2px; cursor: pointer; font-size: 12px; line-height: 1; }
