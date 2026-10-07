@@ -168,7 +168,9 @@ html.flc-page .flc { height: 100%; }
 .flc .switch input:checked + .switch-ui { background: var(--ink); }
 .flc .switch input:checked + .switch-ui::after { transform: translateX(16px); }
 .flc .switch input:focus-visible + .switch-ui { outline: 2px solid var(--ink); outline-offset: 2px; }
-.flc .portrait-switch { margin: 12px 0 2px; font-size: 13px; }
+.flc .portrait-switch { margin: 4px 0 2px; font-size: 13px; }
+.flc .portrait-row { margin: 6px 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.flc .portrait-row .hint { margin: 6px 0 0; }
 .flc .ai-bg-pick { display: inline-flex; align-items: center; gap: 6px; }
 .flc .ai-bg-pick select { font: inherit; padding: 4px 6px; border-radius: 8px; border: 1px solid #c9c5bd; background: #fff; max-width: 210px; }
 .flc .ai-box .ai-style button.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }

@@ -122,7 +122,7 @@ function flc_run_gemini($image, $mime, $prompt, $s) {
 			'generationConfig' => array(
 				'temperature'        => $a['temp'], // più basso = meno libertà creativa, più fedele all'originale
 				'responseModalities' => array('TEXT', 'IMAGE'),
-				'imageConfig'        => array('aspectRatio' => '1:1'),
+				'imageConfig'        => array('aspectRatio' => $s['aspect'] ?? '1:1'),
 			),
 		);
 		$res = wp_remote_post($url, array(

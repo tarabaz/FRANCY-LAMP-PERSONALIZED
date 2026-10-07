@@ -90,6 +90,11 @@ function flc_rest_redraw(WP_REST_Request $req) {
 
 	// Stile scelto dal cliente: fedele (predefinito), ritratto o anime; sfondo: -1 = lascia quello dell'immagine
 	$bg  = $req->get_param('bg');
+	// formato dell'immagine mandata (la foto intera): il ridisegno torna nello stesso formato
+	$aspect = (string) $req->get_param('aspect');
+	if (in_array($aspect, array('1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'), true)) {
+		$s['aspect'] = $aspect;
+	}
 	$gen = flc_generate($bin, $mime, (string) $req->get_param('style'), $s, is_numeric($bg) ? (int) $bg : -1);
 	if (!is_wp_error($gen)) {
 		$quota = flc_quota_status();

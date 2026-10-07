@@ -120,13 +120,18 @@ vuoi e salvi. Resta il campo per scriverlo a mano. L'elenco resta in memoria 12 
 **Sfondo dell'anteprima**: un colore solo (Pagina e aspetto), uguale da spenta e da accesa, in 2D, 3D e nelle
 immagini PNG; predefinito un grigio scuro che fa risaltare la luce senza nascondere il nero della cornice.
 
+**All'IA va sempre la foto originale intera** (lato lungo max 1536 px, con luminosità/contrasto/saturazione già
+applicati), non il ritaglio: il ridisegno torna nello stesso formato (1:1, 3:4, 4:3, 9:16…, il più vicino tra quelli
+che Gemini restituisce) e viene rimesso con lo stesso zoom e spostamento, quindi si può ancora spostare e zoomare.
+"Torna all'immagine originale" mantiene l'inquadratura attuale. Un nuovo ridisegno riparte sempre dalla foto originale.
+
 Il cliente sceglie tra tre stili: **Fedele** (predefinito: conversione di stile che blocca posa, espressione e
 composizione), **Ritratto** (per i volti: poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso) e **Anime** (atmosfera da film
 d'animazione giapponese classico, sempre a colori piatti stampabili; si spegne da Impostazioni). I tre prompt
 si modificano in Impostazioni → Francy Lamp; se il testo è quello predefinito non viene salvato, così gli
 aggiornamenti del plugin migliorano anche il tuo prompt.
 
-Nel passo 2 c'è lo switch **È un ritratto (volto)**: il convertitore trova la pelle e le dà 3 toni dedicati (il resto
+Nel passo 1, sotto la foto, c'è lo switch **È un volto (ritratto)**, sempre visibile e indipendente dallo stile IA: il convertitore trova la pelle e le dà 3 toni dedicati (il resto
 dell'immagine si divide gli altri colori), non disegna linee nere tra i toni della pelle (niente "cicatrici" sul viso),
 assorbe le macchioline di pelle e protegge i dettagli circondati dalla pelle (occhi, sopracciglia, narici, bocca)
 anche se piccoli. Si accende da solo appena il cliente sceglie lo stile IA **Ritratto** (e si può sempre spegnere).

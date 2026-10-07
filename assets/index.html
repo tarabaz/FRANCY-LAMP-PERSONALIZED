@@ -53,6 +53,10 @@
           <button type="button" class="ghost small" id="adjReset">Ripristina</button>
           <p class="hint">Più contrasto e saturazione separano meglio i colori; più luminosità schiarisce le zone scure prima della scelta dei colori.</p>
         </details>
+        <div class="portrait-row lockable">
+          <label class="switch portrait-switch"><input type="checkbox" id="portrait"><span class="switch-ui" aria-hidden="true"></span> È un volto (ritratto)</label>
+          <p class="hint" id="portraitHint" hidden>Pelle con 3 toni dedicati e senza linee nere dentro il viso; occhi, sopracciglia e bocca protetti anche se piccoli.</p>
+        </div>
         <div class="ai-box lockable" id="aiBox" hidden>
           <div class="ai-style" id="aiStyle" role="group" aria-label="Tipo di ridisegno">
             <button type="button" data-style="fedele" class="active">Fedele<small>stessa posa ed espressione</small></button>
@@ -82,8 +86,6 @@
           <button data-mode="outline" class="active">Foto / disegno<small>creo io i contorni neri</small></button>
           <button data-mode="keep">Grafica pronta<small>contorni neri già presenti</small></button>
         </div>
-        <label class="switch portrait-switch"><input type="checkbox" id="portrait"><span class="switch-ui" aria-hidden="true"></span> È un ritratto (volto)</label>
-        <p class="hint" id="portraitHint" hidden>Pelle con 3 toni dedicati e senza linee nere dentro il viso; occhi, sopracciglia e bocca protetti anche se piccoli.</p>
         <label class="row">Colori <output id="colorsOut">10</output>
           <input type="range" id="colors" min="2" max="12" step="1" value="10"></label>
         <label class="check" id="addRow" hidden><input type="checkbox" id="addOutlines" checked> Aggiungi i contorni neri dove mancano</label>

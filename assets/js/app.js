@@ -96,14 +96,14 @@ function drawImageTo(ctx, size) {
 // Si applicano all'immagine PRIMA della riduzione dei colori (anteprima del ritaglio, conversione,
 // immagine mandata all'IA e "ritaglio usato" nello zip). Valori da -100 a +100, 0 = immagine originale.
 const adjust = { b: 0, c: 0, s: 0 };
-function applyAdjust(ctx, size) {
+function applyAdjust(ctx, size, height = size) {
   const { b, c, s } = adjust;
   if (!b && !c && !s) return;
   const lut = new Uint8ClampedArray(256);
   const cc = c * 1.28, f = (259 * (cc + 255)) / (255 * (259 - cc));
   for (let v = 0; v < 256; v++) lut[v] = f * (v + b * 1.28 - 128) + 128;
   const sat = 1 + s / 100;
-  const id = ctx.getImageData(0, 0, size, size), d = id.data;
+  const id = ctx.getImageData(0, 0, size, height), d = id.data;
   for (let i = 0; i < d.length; i += 4) {
     let r = lut[d[i]], g = lut[d[i + 1]], bl = lut[d[i + 2]];
     if (s) {
@@ -177,7 +177,7 @@ $('#file').addEventListener('change', (e) => {
 function loadImage(src, zoom = 1) {
   const img = new Image();
   img.onload = () => {
-    originalImg = null; state.aiImageSrc = null; state.originalSrc = src;
+    originalImg = null; state.aiImageSrc = null; state.aiCrop = null; state.originalSrc = src;
     $('#aiUndo').hidden = true;
     setImage(img, zoom, 0, 0);
   };
@@ -194,6 +194,18 @@ function setImage(img, zoom, ox, oy) {
 
 // ---------------- ridisegno con IA (passa dal plugin WordPress) ----------------
 let originalImg = null;
+// Formati che l'IA sa restituire (Gemini): si sceglie il più vicino a quello della foto
+const AI_RATIOS = [[1, 1], [2, 3], [3, 2], [3, 4], [4, 3], [4, 5], [5, 4], [9, 16], [16, 9], [21, 9]];
+// Immagine da mandare all'IA: sempre la foto originale, con l'inquadratura attuale riportata su di essa
+// (se adesso c'è un ridisegno, zoom e spostamento vengono convertiti dalle coordinate del ridisegno)
+function aiSource() {
+  if (originalImg && state.aiCrop && state.aiImageSrc) {
+    const o = originalImg.img, a = state.img, c = state.aiCrop;
+    const s0 = (coverFor(a) * state.zoom * a.width) / c.cw;
+    return { img: o, zoom: s0 / coverFor(o), ox: state.ox - s0 * (c.cx0 + c.cw / 2 - o.width / 2), oy: state.oy - s0 * (c.cy0 + c.ch / 2 - o.height / 2) };
+  }
+  return { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy };
+}
 if (CFG.restUrl) { $('#aiBox').hidden = false; loadQuota(); }
 
 // Contatori del giorno: quanti ridisegni restano a te e a tutto il sito
@@ -267,12 +279,23 @@ function selectMode(m) { document.querySelector(`#mode button[data-mode=${m}]`).
 
 $('#aiBtn').addEventListener('click', async () => {
   if (!state.img || $('#aiBox').classList.contains('busy')) return;
-  // Mando all'IA solo il ritaglio quadrato attuale, ridotto a 1024 px
+  // Mando all'IA la FOTO ORIGINALE intera (non il ritaglio), nel formato più vicino tra quelli che l'IA
+  // sa restituire: così il risultato si rimette con lo stesso zoom e spostamento e si può ancora spostare.
+  const src = aiSource(), o = src.img;
+  const ratio = o.width / o.height;
+  const [rw, rh] = AI_RATIOS.reduce((best, r) => (Math.abs(Math.log(ratio * r[1] / r[0])) < Math.abs(Math.log(ratio * best[1] / best[0])) ? r : best));
+  let cw = o.width, ch = (cw * rh) / rw;
+  if (ch > o.height) { ch = o.height; cw = (ch * rw) / rh; }
+  const s0 = coverFor(o) * src.zoom;
+  const vcx = o.width / 2 - src.ox / s0, vcy = o.height / 2 - src.oy / s0;    // centro inquadrato, in pixel della foto
+  const cx0 = Math.min(Math.max(0, vcx - cw / 2), o.width - cw), cy0 = Math.min(Math.max(0, vcy - ch / 2), o.height - ch);
+  const k = Math.min(1, 1536 / Math.max(cw, ch));
   const c = document.createElement('canvas');
-  c.width = c.height = 1024;
+  c.width = Math.round(cw * k); c.height = Math.round(ch * k);
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 1024, 1024);
-  drawImageTo(ctx, 1024);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(o, cx0, cy0, cw, ch, 0, 0, c.width, c.height);
+  applyAdjust(ctx, c.width, c.height);
   const image = c.toDataURL('image/jpeg', 0.9);
 
   $('#aiBox').classList.add('busy');
@@ -285,7 +308,7 @@ $('#aiBtn').addEventListener('click', async () => {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', ...(CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}) },
-      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground() }),
+      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground(), aspect: `${rw}:${rh}` }),
     });
     const raw = await r.text();
     let j = {};
@@ -296,14 +319,17 @@ $('#aiBtn').addEventListener('click', async () => {
     }
     const img = new Image();
     await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = j.image; });
-    if (!originalImg) originalImg = { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy, mode: state.mode };
+    if (!originalImg) originalImg = { img: o, zoom: src.zoom, ox: src.ox, oy: src.oy, mode: state.mode };
     state.aiImageSrc = j.image;
     state.aiProvider = j.provider || '';
     state.aiBackground = aiBackground() >= 0 ? aiBackgrounds[aiBackground()] : null;
     $('#aiUndo').hidden = false;
     selectMode('keep');
     if (aiStyle === 'ritratto') setPortrait(true); // il ritratto IA ha già la pelle in 3 toni
-    setImage(img, 1, 0, 0);
+    // stessa inquadratura di prima: il ridisegno copre la zona [cx0, cy0, cw, ch] della foto originale
+    const s1 = (s0 * cw) / img.width;
+    state.aiCrop = { cx0, cy0, cw, ch };
+    setImage(img, Math.min(4, Math.max(1, s1 / coverFor(img))), src.ox + s0 * (cx0 + cw / 2 - o.width / 2), src.oy + s0 * (cy0 + ch / 2 - o.height / 2));
     aiMessage(`Ridisegno fatto${j.provider ? ' con ' + j.provider : ''}: ora il disco parte dall'immagine dell'IA.`, 'ok');
   } catch (err) {
     console.error(err);
@@ -317,12 +343,12 @@ $('#aiBtn').addEventListener('click', async () => {
 
 $('#aiUndo').addEventListener('click', () => {
   if (!originalImg) return;
-  const o = originalImg;
+  const o = originalImg, v = aiSource(); // la foto torna con l'inquadratura che hai adesso
   originalImg = null;
-  state.aiImageSrc = null;
+  state.aiImageSrc = null; state.aiCrop = null;
   $('#aiUndo').hidden = true;
   selectMode(o.mode);
-  setImage(o.img, o.zoom, o.ox, o.oy);
+  setImage(v.img, Math.min(4, Math.max(1, v.zoom)), v.ox, v.oy);
 });
 
 // ---------------- controlli ----------------
@@ -549,11 +575,12 @@ function toCanvas(p, img, zoom, ox, oy, size) {
 async function findFace(img) {
   let pts = await detectFace(img);
   // sul ridisegno IA a volte non trova il volto: lo cerco sulla foto originale e riporto i punti
-  // (l'IA ha ricevuto proprio quel ritaglio a 1024 px, e Fedele/Ritratto mantengono la composizione)
+  // (l'IA ha ricevuto la zona state.aiCrop della foto originale, e Fedele/Ritratto mantengono la composizione)
   if (!pts && originalImg && img === state.img && state.aiImageSrc) {
     const o = originalImg;
     const op = await detectFace(o.img);
-    if (op) pts = op.map((p) => toCanvas(p, o.img, o.zoom, o.ox, o.oy, 1024).map((v) => v / 1024));
+    const c = state.aiCrop;
+    if (op && c) pts = op.map((p) => [(p[0] * o.img.width - c.cx0) / c.cw, (p[1] * o.img.height - c.cy0) / c.ch]);
   }
   return pts;
 }

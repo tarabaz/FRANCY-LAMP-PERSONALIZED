@@ -9,24 +9,22 @@ const FLC_OPTION = 'flc_settings';
 
 // Prompt usati finché non vengono personalizzati. I vecchi predefiniti vengono sostituiti da quelli nuovi.
 function flc_default_prompt() {
-	return 'This is a STYLE CONVERSION, not a redesign. Convert the attached image into flat-color vector line art, like a Japanese decorative manhole cover, '
-		. 'while keeping EXACTLY the same composition. Treat the input as a tracing template: every element must stay in the same position, size and proportion. '
-		. 'Do NOT change the pose, the body orientation, the camera angle, the head direction, the facial expression, the number or position of objects, '
-		. 'the framing or the cropping: anything cut off by the image edge stays cut off. '
-		. 'Do NOT redraw the subject from memory or from your knowledge of the character, and do not make it more generic, symmetrical or front-facing. '
-		. 'Keep identifiable details: for a person the exact face shape, eyes, eyebrows, nose, mouth, smile, hairstyle, hair and skin color; for a character its exact expression, teeth, eyes and markings as shown. '
+	return 'This is a faithful STYLE CONVERSION of the attached photo, not a redesign. Redraw it as a clean, realistic flat-color illustration that looks as close as possible to the original photo. '
+		. 'Keep EXACTLY the same composition, framing and aspect ratio: every element stays in the same position, size and proportion; do not change the pose, the head angle, the expression, the clothing, the objects or the cropping. '
+		. 'Keep a true photographic likeness. For a person: real proportions and anatomy, the exact face shape, eyes, eyebrows, nose, lips, smile, teeth, ears, hairline and hairstyle, natural skin tone and hair color; do not beautify, no cartoon or anime eyes, no exaggeration. '
+		. 'For an animal, a character or an object: its exact shape, markings, colors and expression as shown. '
+		. 'Translate the real light and shadow of the photo into flat solid color areas: 3 to 4 flat tones for skin and hair following the real shadows, and the real colors for clothes, objects and background. '
 		. 'Teeth and the whites of the eyes must be pure white, never pink or skin colored. '
-		. 'Rendering: flat solid colors, at most two tones per area (base color plus one simple shadow tone), thick uniform black outlines around every shape, '
-		. 'no gradients, no glow, no blur, no textures, no text, no letters, no frame or border. '
-		. 'Reduce the many colors of the original to a small bold palette that matches the original hues, and merge tiny details and busy background texture into a few large flat shapes. '
-		. 'The artwork must fill the whole square canvas because it will be cropped to a circle.';
+		. 'Thin clean dark outlines only on the main contours (face, hair, eyes, eyebrows, nose, lips, clothing and object edges); no outlines inside the skin between skin tones. '
+		. 'No gradients, no textures, no blur, no glow, no text, no letters, no frame or border.';
 }
+
 
 function flc_default_prompt_stylized() {
 	return 'Convert the attached image into a Japanese decorative manhole cover illustration with flat solid colors (at most 10 different colors) and thick uniform black outlines around every shape. '
 		. 'Keep the same subject, pose and general composition as the input, but simplify shapes and details more boldly and make the background simple and decorative. '
 		. 'No gradients, no shading, no textures, no glow, no text, no letters, no frame or border. '
-		. 'The main subject must stay centered and the artwork must fill the whole square canvas because it will be cropped to a circle.';
+		. 'Keep the same framing and aspect ratio as the input image.';
 }
 
 // Stile ritratto: poster pop-art posterizzato, già a colori piatti (la conversione diventa quasi 1:1).
@@ -39,7 +37,7 @@ function flc_default_prompt_ritratto() {
 		. 'Hair uses 2 flat tones, clothes 1 or 2 flat tones. '
 		. 'Clean black outlines around the face, hair, eyes, eyebrows, nose and lips, but no black lines inside the skin between the skin tones. '
 		. 'Eyes clearly drawn with iris and pupil. Teeth and the whites of the eyes must be pure white, never pink or skin colored. '
-		. 'Simple plain background in one or two flat colors. The face is large, centered and fills most of the square canvas because it will be cropped to a circle. '
+		. 'Simple plain background in one or two flat colors. Keep the same framing and aspect ratio as the input photo. '
 		. 'No gradients, no textures, no text, no letters, no frame or border.';
 }
 
@@ -84,12 +82,13 @@ function flc_default_prompt_anime() {
 		. 'IMPORTANT, this will be 3D printed in flat colors: translate that look into flat solid cel-shaded colors ONLY (at most 10 colors, at most two tones per area), '
 		. 'clean thick uniform black outlines around every shape, no gradients, no lens flare, no glow, no light rays, no blur, no film grain. '
 		. 'Simplify the background into a few large flat shapes (for example a stylised sky with a few bold clouds). No text, no letters, no frame or border. '
-		. 'The artwork must fill the whole square canvas because it will be cropped to a circle.';
+		. 'The artwork must fill the whole canvas, with the same framing and aspect ratio as the input image.';
 }
 
 // Prompt predefiniti delle versioni precedenti: se salvati nelle impostazioni vengono rimpiazzati dal nuovo
 function flc_old_default_prompts() {
 	return array(
+		'This is a STYLE CONVERSION, not a redesign. Convert the attached image into flat-color vector line art, like a Japanese decorative manhole cover, while keeping EXACTLY the same composition. Treat the input as a tracing template: every element must stay in the same position, size and proportion. Do NOT change the pose, the body orientation, the camera angle, the head direction, the facial expression, the number or position of objects, the framing or the cropping: anything cut off by the image edge stays cut off. Do NOT redraw the subject from memory or from your knowledge of the character, and do not make it more generic, symmetrical or front-facing. Keep identifiable details: for a person the exact face shape, eyes, eyebrows, nose, mouth, smile, hairstyle, hair and skin color; for a character its exact expression, teeth, eyes and markings as shown. Teeth and the whites of the eyes must be pure white, never pink or skin colored. Rendering: flat solid colors, at most two tones per area (base color plus one simple shadow tone), thick uniform black outlines around every shape, no gradients, no glow, no blur, no textures, no text, no letters, no frame or border. Reduce the many colors of the original to a small bold palette that matches the original hues, and merge tiny details and busy background texture into a few large flat shapes. The artwork must fill the whole square canvas because it will be cropped to a circle.',
 		'Redraw this image as a Japanese decorative manhole cover illustration. Style: flat solid colors only (at most 10 different colors), thick uniform black outlines around every shape, no gradients, no shading, no textures, no text, no letters, no frame or border. Simplify small details into bold clean shapes, keep the composition, the subject and the main colors recognisable. The main subject must be centered, the artwork must fill the whole square canvas because it will be cropped to a circle.',
 		'Redraw this photo as a Japanese decorative manhole cover illustration in a clean anime / cel-shaded style. IMPORTANT: keep the likeness of the subject. Preserve the exact face shape, eye shape and eye color, eyebrows, nose, mouth and smile, ears, hairstyle and hair color, skin tone, expression, head pose, clothing and any object being held. A person who knows the subject must recognise them. Draw the facial features with clear black line art: eyes with pupils and small white highlights, eyebrows, nose, mouth, ears and hair strands. Use flat solid colors with at most two tones per area (base color plus one simple shadow tone), thick uniform black outlines around every shape, no gradients, no blur, no textures, no text, no letters, no frame or border. Simplify only the background into a few bold flat shapes. Keep the subject large and centered; the artwork must fill the whole square canvas because it will be cropped to a circle.',
 	);

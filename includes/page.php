@@ -132,6 +132,14 @@ add_action('template_redirect', function () {
 	<style>
 		html.flc-page, html.flc-page body { margin: 0 !important; padding: 0 !important; height: 100%; background: #f4f2ee; }
 		html.flc-page body > .flc { height: 100vh; height: 100dvh; }
+		/* computer: la pagina è esattamente alta come lo schermo e non scorre (scorrono solo i pannelli) */
+		@media (min-width: 981px) {
+			html.flc-page, html.flc-page body { overflow: hidden !important; }
+			<?php if (is_admin_bar_showing()) : ?>html.flc-page { margin-top: 0 !important; } html.flc-page body { padding-top: 32px !important; box-sizing: border-box; }
+			html.flc-page body > .flc { height: calc(100vh - 32px); height: calc(100dvh - 32px); }<?php endif; ?>
+		}
+		/* blocchi che il tema aggiunge in fondo alla pagina (spazio vuoto sotto il footer) */
+		html.flc-page body > .flc-stray { display: none !important; }
 		/* telefono e tablet: la pagina scorre normalmente, il footer resta in fondo */
 		@media (max-width: 980px) { html.flc-page body > .flc { height: auto; min-height: 100dvh; } }
 	</style>
@@ -141,6 +149,25 @@ add_action('template_redirect', function () {
 	<?php echo $markup; // markup statico del plugin ?>
 	<script type="module" src="<?php echo esc_url($app . '?ver=' . flc_asset_ver('assets/js/app.js')); ?>"></script>
 	<?php if (!empty($s['page_wp_head'])) { wp_footer(); } ?>
+	<script>
+	// Il tema può aggiungere in fondo alla pagina contenitori vuoti o nascosti che allungano la pagina:
+	// nascondo quelli "normali" dopo il configuratore. Restano attivi script, barra admin e gli elementi
+	// fissi o sovrapposti (banner cookie, chat, pulsanti flottanti).
+	(function () {
+		function tidy() {
+			var app = document.querySelector('body > .flc');
+			if (!app) return;
+			for (var el = app.nextElementSibling; el; el = el.nextElementSibling) {
+				if (/^(SCRIPT|STYLE|LINK|NOSCRIPT|TEMPLATE|IFRAME)$/.test(el.tagName) || el.id === 'wpadminbar') continue;
+				var pos = getComputedStyle(el).position;
+				if (pos === 'fixed' || pos === 'absolute' || pos === 'sticky') continue;
+				el.classList.add('flc-stray');
+			}
+		}
+		if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tidy); else tidy();
+		window.addEventListener('load', tidy);
+	})();
+	</script>
 </body>
 </html>
 	<?php
