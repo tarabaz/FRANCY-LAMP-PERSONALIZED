@@ -25,7 +25,8 @@ function flc_frontend_config() {
 		'templates' => flc_templates_for_frontend(),
 		'homeUrl'   => home_url('/'),
 		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,
-		'aiStyles'  => array_values(array_filter(array('fedele', 'ritratto', !empty($s['style_anime']) ? 'anime' : ''))),
+		'aiStyles'  => array_values(array_filter(array('fedele', !empty($s['style_ritratto']) ? 'ritratto' : '', !empty($s['style_tombino']) ? 'tombino' : '', !empty($s['style_anime']) ? 'anime' : ''))),
+		'aiCard'    => !empty($s['card_enabled']),
 		'aiBackgrounds' => !empty($s['bg_enabled']) ? array_column(flc_backgrounds($s), 'label') : array(),
 		// immagine di prova di ogni sfondo (Impostazioni → Nuovo sfondo), mostrata come esempio
 		'aiBgExamples' => !empty($s['bg_enabled']) && function_exists('flc_bg_test_url') ? array_map(function ($b) { return $b['id'] ? flc_bg_test_url($b['id']) : ''; }, flc_backgrounds($s)) : array(),
@@ -36,7 +37,7 @@ function flc_frontend_config() {
 		'stageBg'   => $s['stage_bg'],
 		'lamp'      => function_exists('flc_parts_for_frontend') ? flc_parts_for_frontend() : null,
 		'watermark' => array(
-			'screen'   => (bool) $s['wm_screen'],
+			'screen'   => (bool) $s['wm_onscreen'],
 			'download' => (bool) $s['wm_download'],
 			'image'    => esc_url_raw($s['wm_image']),
 			'text'     => $s['wm_text'] ?: $s['copyright_name'],

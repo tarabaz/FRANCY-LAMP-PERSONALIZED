@@ -88,6 +88,28 @@ function flc_background_instruction($bg) {
 		. 'The main subject stays as described above, large and centered, with a black outline around it.';
 }
 
+// Stile Poké Lids: i tombini decorati Pokémon delle città giapponesi (pokéfuta). Vale per qualsiasi soggetto,
+// non solo i volti: persone, animali, personaggi, oggetti, scene.
+function flc_default_prompt_tombino() {
+	return 'Redraw the attached image as a Japanese decorative manhole cover illustration in the style of the Poké Lids (pokéfuta), the colorful Pokémon manhole covers found in towns across Japan. '
+		. 'The subject of the image (a person, a pet, a character, an object or a whole scene) becomes the cheerful hero of the design: keep it recognisable, with the same pose, expression, main colors and key details; '
+		. 'for a real person keep the likeness (face shape, hairstyle, hair color, glasses, clothes) in a cute stylised way. '
+		. 'Drawing style: clean modern Japanese character art like official Pokémon artwork, simple rounded shapes, bold uniform black outlines around every shape, '
+		. 'bright cheerful flat solid colors (at most 10 colors), like enamel paint on cast iron. '
+		. 'Around the subject add a simple decorative scene typical of the Poké Lids: local nature or symbols (flowers, leaves, waves, clouds, stars, small sparkles) in a balanced, mostly circular composition that fills the whole image edge to edge. '
+		. 'Keep the same framing and aspect ratio as the input image, with the subject in the same position and size. '
+		. 'No gradients, no shading, no textures, no metal texture, no text, no letters, no numbers, no logos, no frame and no circular border ring (the round frame is added later).';
+}
+
+// Carta da gioco (es. carta Pokémon): si tiene solo l'illustrazione, senza cornice, scritte e simboli.
+// Viene messa PRIMA del prompt dello stile.
+function flc_default_prompt_card() {
+	return 'The attached image is a trading card (for example a Pokémon card). Use ONLY the illustration artwork printed on the card. '
+		. 'Completely remove the card frame and border, the name, HP, type and energy symbols, text boxes, attack and ability descriptions, numbers, rarity marks, set symbols, logos, copyright lines and any other printed text or overlay. '
+		. 'Where the text or the frame covered the artwork, reconstruct the missing parts naturally so the illustration continues. '
+		. 'The result is only the artwork, extended to fill the whole square image edge to edge, with the main character large and centered. No text, no letters, no numbers anywhere.';
+}
+
 // Stile anime: atmosfera da film d'animazione giapponese classico, ma resa stampabile (colori piatti + contorni)
 function flc_default_prompt_anime() {
 	return 'Redraw the attached image in the visual style of the Japanese anime film "Your Name" (Kimi no Na wa, 2016, directed by Makoto Shinkai): '
@@ -123,6 +145,11 @@ function flc_defaults() {
 		'prompt'       => '',
 		'prompt_stylized' => '',
 		'prompt_anime' => '',
+		'prompt_tombino' => '',
+		'prompt_card'  => '',
+		'style_tombino' => 1,
+		'style_ritratto' => 1,
+		'card_enabled' => 1,
 		'prompt_ritratto' => '',
 		'backgrounds'  => '',
 		'bg_enabled'   => 1,
@@ -144,7 +171,7 @@ function flc_defaults() {
 		'cookie_url'   => '',
 		'copyright_name' => 'FrancyStore3D',
 		'stage_bg'     => '#3a3d44',
-		'wm_screen'    => 1,
+		'wm_onscreen'  => 0, // watermark sulla vista a schermo: spento (resta solo sull'immagine scaricata)
 		'wm_download'  => 1,
 		'wm_image'     => '',
 		'wm_text'      => '',
@@ -182,6 +209,12 @@ function flc_settings() {
 	}
 	if (trim((string) $s['prompt_anime']) === '') {
 		$s['prompt_anime'] = flc_default_prompt_anime();
+	}
+	if (trim((string) $s['prompt_tombino']) === '') {
+		$s['prompt_tombino'] = flc_default_prompt_tombino();
+	}
+	if (trim((string) $s['prompt_card']) === '') {
+		$s['prompt_card'] = flc_default_prompt_card();
 	}
 	if (trim((string) $s['prompt_ritratto']) === '') {
 		$s['prompt_ritratto'] = flc_default_prompt_ritratto();
@@ -225,6 +258,11 @@ function flc_sanitize_settings($in) {
 		'prompt'       => sanitize_textarea_field($in['prompt'] ?? ''),
 		'prompt_stylized' => sanitize_textarea_field($in['prompt_stylized'] ?? ''),
 		'prompt_anime' => sanitize_textarea_field($in['prompt_anime'] ?? ''),
+		'prompt_tombino' => sanitize_textarea_field($in['prompt_tombino'] ?? ''),
+		'prompt_card'  => sanitize_textarea_field($in['prompt_card'] ?? ''),
+		'style_tombino' => empty($in['style_tombino']) ? 0 : 1,
+		'style_ritratto' => empty($in['style_ritratto']) ? 0 : 1,
+		'card_enabled' => empty($in['card_enabled']) ? 0 : 1,
 		'prompt_ritratto' => sanitize_textarea_field($in['prompt_ritratto'] ?? ''),
 		'backgrounds'  => sanitize_textarea_field($in['backgrounds'] ?? $old['backgrounds']), // vecchio elenco di testo, serve solo per passare alla tabella
 		'bg_enabled'   => empty($in['bg_enabled']) ? 0 : 1,
@@ -246,7 +284,7 @@ function flc_sanitize_settings($in) {
 		'cookie_url'   => esc_url_raw($in['cookie_url'] ?? ''),
 		'copyright_name' => sanitize_text_field($in['copyright_name'] ?? '') ?: $d['copyright_name'],
 		'stage_bg'     => sanitize_hex_color($in['stage_bg'] ?? '') ?: $d['stage_bg'],
-		'wm_screen'    => empty($in['wm_screen']) ? 0 : 1,
+		'wm_onscreen'  => empty($in['wm_onscreen']) ? 0 : 1,
 		'wm_download'  => empty($in['wm_download']) ? 0 : 1,
 		'wm_image'     => esc_url_raw($in['wm_image'] ?? ''),
 		'wm_text'      => mb_substr(sanitize_text_field($in['wm_text'] ?? ''), 0, 40),
@@ -281,6 +319,12 @@ function flc_sanitize_settings($in) {
 	}
 	if ($out['prompt_anime'] === flc_default_prompt_anime()) {
 		$out['prompt_anime'] = '';
+	}
+	if ($out['prompt_tombino'] === flc_default_prompt_tombino()) {
+		$out['prompt_tombino'] = '';
+	}
+	if ($out['prompt_card'] === flc_default_prompt_card()) {
+		$out['prompt_card'] = '';
 	}
 	if ($out['prompt_ritratto'] === flc_default_prompt_ritratto()) {
 		$out['prompt_ritratto'] = '';
@@ -317,27 +361,114 @@ function flc_settings_page() {
 	};
 	$labels = array_map(function ($x) { return $x['label']; }, $p);
 	$models = get_transient(FLC_MODELS_CACHE);
+	$up    = wp_convert_hr_to_bytes(ini_get('upload_max_filesize'));
+	$post  = wp_convert_hr_to_bytes(ini_get('post_max_size'));
+	$upok  = min($up, $post) >= 32 * MB_IN_BYTES;
+	// sezioni: icona, nome, cosa contiene (in breve)
 	$tabs   = array(
-		'panoramica' => array('dashicons-dashboard', 'Panoramica'),
-		'pagina'     => array('dashicons-admin-appearance', 'Pagina e aspetto'),
-		'ia'         => array('dashicons-admin-network', 'Intelligenza artificiale'),
-		'stili'      => array('dashicons-art', 'Stili e prompt'),
-		'disco'      => array('dashicons-marker', 'Disco e regolazioni'),
-		'lampada'    => array('dashicons-lightbulb', 'Lampada 3D'),
-		'ordini'     => array('dashicons-cart', 'Ordini e limiti'),
+		'panoramica'    => array('dashicons-dashboard', 'Panoramica', 'Stato e cose da sistemare'),
+		'configuratore' => array('dashicons-welcome-view-site', 'Pagina', 'Indirizzo, aspetto, footer'),
+		'disco'         => array('dashicons-marker', 'Disco', 'Come parte il disco'),
+		'stili'         => array('dashicons-art', 'Stili IA', 'Fedele, Ritratto, Tombino…'),
+		'sfondi'        => array('dashicons-cover-image', 'Sfondi IA', 'Sfondi e prove'),
+		'ia'            => array('dashicons-admin-network', 'Motore IA', 'Chiave, modello, spesa'),
+		'anteprima'     => array('dashicons-shield-alt', 'Anteprima e watermark', 'Immagine da condividere'),
+		'lampada'       => array('dashicons-lightbulb', 'Lampada 3D', 'Pezzi e colori'),
+		'ordini'        => array('dashicons-email-alt', 'Ordini', 'Notifiche e anti-spam'),
+	);
+	// stili IA (card nella sezione Stili)
+	$saved      = get_option(FLC_OPTION, array());
+	$style_defs = array(
+		'fedele'   => array('name' => 'Fedele', 'desc' => 'Stessa posa ed espressione, colori piatti realistici.', 'field' => 'prompt', 'toggle' => '', 'default' => flc_default_prompt()),
+		'ritratto' => array('name' => 'Ritratto', 'desc' => 'Per i volti: pop-art con la pelle in 3 toni. Accende da solo la modalità ritratto.', 'field' => 'prompt_ritratto', 'toggle' => 'style_ritratto', 'default' => flc_default_prompt_ritratto()),
+		'tombino'  => array('name' => 'Tombino Poké Lids', 'desc' => 'Come i tombini Pokémon giapponesi: va bene per persone, animali, personaggi e oggetti.', 'field' => 'prompt_tombino', 'toggle' => 'style_tombino', 'default' => flc_default_prompt_tombino()),
+		'anime'    => array('name' => 'Anime', 'desc' => 'Cartone animato giapponese (il nome del film resta solo nel prompt).', 'field' => 'prompt_anime', 'toggle' => 'style_anime', 'default' => flc_default_prompt_anime()),
+	);
+	foreach ($style_defs as $k => $st) {
+		$style_defs[$k]['custom'] = trim((string) ($saved[$st['field']] ?? '')) !== '' && trim($saved[$st['field']]) !== trim($st['default']);
+	}
+	$ex_all = function_exists('flc_examples') ? flc_examples() : array();
+	// controlli della panoramica: array(stato ok|warn, testo, link, testo del link)
+	$fil_on  = count(array_filter(flc_filaments(), function ($f) { return empty($f['off']); }));
+	$fixed   = flc_filaments_fixed();
+	$nparts  = function_exists('flc_parts') ? count(flc_parts()['parts']) : 0;
+	$bgs_on  = array_values(array_filter(flc_bg_list(), function ($b) { return $b['on']; }));
+	$bg_noex = count(array_filter($bgs_on, function ($b) { return flc_bg_test_url($b['id']) === ''; }));
+	$vis     = array_filter(array_keys($style_defs), function ($k) use ($s, $style_defs) { return !$style_defs[$k]['toggle'] || !empty($s[$style_defs[$k]['toggle']]); });
+	$no_ex   = array_filter($vis, function ($k) use ($ex_all) { return empty($ex_all[$k]['url']); });
+	$fil_url = admin_url('edit.php?post_type=flc_design&page=flc-filamenti');
+	$ai_ok   = !empty($s['enabled']) && ($s['primary'] === 'fal' ? $s['fal_key'] : $s['gemini_key']);
+	$checks  = array(
+		!empty($s['page_enabled'])
+			? array('ok', 'Configuratore online su <a href="' . esc_url(flc_page_url()) . '" target="_blank" rel="noopener">' . esc_html(flc_page_url()) . '</a>', '#configuratore', 'Pagina')
+			: array('warn', 'La pagina dedicata è spenta: il configuratore funziona solo con lo shortcode <code>[francy_lamp]</code>.', '#configuratore', 'Accendila'),
+		$ai_ok
+			? array('ok', 'Ridisegno con IA attivo (' . esc_html($s['primary'] === 'fal' ? $s['fal_model'] : $s['gemini_model']) . ').', '#ia', 'Motore IA')
+			: array('warn', empty($s['enabled']) ? 'Il ridisegno con IA è spento.' : 'Manca la chiave API: il ridisegno con IA non funziona.', '#ia', 'Sistema'),
+		$fil_on >= 3
+			? array('ok', $fil_on . ' bobine disponibili per il disco' . ($fixed['white'] && $fixed['black'] ? ', bianco e nero scelti a mano.' : ' (bianco e nero automatici).'), $fil_url, 'Filamenti')
+			: array('warn', 'Il catalogo filamenti ha solo ' . $fil_on . ' bobine: i colori del disco saranno poco precisi.', $fil_url, 'Aggiungi bobine'),
+		$nparts
+			? array('ok', $nparts . ' pezzi della lampada nell\'anteprima 3D.', '#lampada', 'Lampada 3D')
+			: array('warn', 'Nessun pezzo della lampada caricato: in 3D si vede solo il disco.', '#lampada', 'Carica i pezzi'),
+		empty($s['bg_enabled'])
+			? array('ok', 'Cambio sfondo con IA spento.', '#sfondi', 'Sfondi IA')
+			: ($bg_noex
+				? array('warn', count($bgs_on) . ' sfondi attivi, ' . $bg_noex . ' senza prova: il cliente non vede un esempio di come vengono.', '#sfondi', 'Genera le prove')
+				: array('ok', count($bgs_on) . ' sfondi attivi, tutti con la prova.', '#sfondi', 'Sfondi IA')),
+		$no_ex
+			? array('warn', 'Stili senza immagine d\'esempio: ' . esc_html(implode(', ', array_map(function ($k) use ($style_defs) { return $style_defs[$k]['name']; }, $no_ex))) . '.', admin_url('edit.php?post_type=flc_design&page=flc-esempi'), 'Esempi stili')
+			: array('ok', 'Tutti gli stili visibili hanno l\'esempio.', '#stili', 'Stili IA'),
+		$upok
+			? array('ok', 'Limiti di upload del server adatti alla convalida dei dischi.', '', '')
+			: array('warn', 'Limiti di upload del server bassi (' . esc_html(ini_get('upload_max_filesize')) . '): chiedi all\'hosting almeno 32M.', '', ''),
 	);
 	$today = flc_today_count();
 	$cap   = (int) $s['daily_cap'];
 	$left  = $cap > 0 ? max(0, $cap - $today) : null;
 	$pct   = $cap > 0 ? min(100, round($today / $cap * 100)) : 0;
 	$color = $cap > 0 && $left === 0 ? '#d63638' : ($pct >= 80 ? '#dba617' : '#00a32a');
-	$up    = wp_convert_hr_to_bytes(ini_get('upload_max_filesize'));
-	$post  = wp_convert_hr_to_bytes(ini_get('post_max_size'));
-	$upok  = min($up, $post) >= 32 * MB_IN_BYTES;
 	?>
 	<style>
-		.flc-set { max-width: 1100px; }
-		.flc-set .nav-tab .dashicons { margin-right: 4px; vertical-align: text-bottom; }
+		.flc-set { max-width: 1280px; }
+		.flc-layout { display: flex; gap: 22px; align-items: flex-start; margin-top: 14px; }
+		.flc-nav { position: sticky; top: 46px; flex: 0 0 220px; background: #fff; border: 1px solid #dcdcde; border-radius: 10px; padding: 6px; }
+		.flc-nav .nav-tab { display: flex; gap: 10px; align-items: flex-start; float: none; margin: 0; border: 0; background: none; padding: 9px 10px; border-radius: 7px; color: #1d2327; font-weight: 400; }
+		.flc-nav .nav-tab:hover { background: #f6f7f7; }
+		.flc-nav .nav-tab .dashicons { color: #8c8f94; margin-top: 1px; }
+		.flc-nav .nav-tab strong { display: block; font-size: 13px; }
+		.flc-nav .nav-tab small { display: block; color: #646970; font-size: 11.5px; line-height: 1.35; }
+		.flc-nav .nav-tab.nav-tab-active { background: #2271b1; color: #fff; }
+		.flc-nav .nav-tab.nav-tab-active small, .flc-nav .nav-tab.nav-tab-active .dashicons { color: #dbe9f5; }
+		.flc-main { flex: 1; min-width: 0; }
+		.flc-head h2 { font-size: 21px; font-weight: 600; margin: 4px 0 2px; }
+		.flc-head p { color: #646970; margin: 0 0 4px; font-size: 13.5px; }
+		@media (max-width: 960px) {
+			.flc-layout { flex-direction: column; }
+			.flc-nav { position: static; display: flex; flex-wrap: wrap; flex: none; width: 100%; box-sizing: border-box; }
+			.flc-nav .nav-tab small { display: none; }
+		}
+		.flc-adv > summary { cursor: pointer; font-size: 15px; font-weight: 600; padding: 12px 0; list-style: none; display: flex; align-items: center; gap: 6px; }
+		.flc-adv > summary::-webkit-details-marker { display: none; }
+		.flc-adv > summary::after { content: '▸'; margin-left: auto; color: #8c8f94; }
+		.flc-adv[open] > summary::after { content: '▾'; }
+		.flc-toggle { font-size: 13.5px; }
+		.flc-check { margin: 6px 0 4px; }
+		.flc-check li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f1; margin: 0; }
+		.flc-check li:last-child { border-bottom: 0; }
+		.flc-check .ico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; background: #00a32a; }
+		.flc-check li.warn .ico { background: #dba617; }
+		.flc-check .txt { flex: 1; }
+		.flc-check .go { white-space: nowrap; text-decoration: none; }
+		.flc-styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin: 12px 0 6px; }
+		.flc-style { border: 1px solid #dcdcde; border-radius: 10px; padding: 12px; background: #fcfcfc; }
+		.flc-style.off { opacity: .6; }
+		.flc-style-head { display: flex; gap: 12px; align-items: center; }
+		.flc-style-head img, .flc-style-noimg { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex: none; border: 1px solid #dcdcde; }
+		.flc-style-noimg { display: grid; place-items: center; background: #f0f0f1; color: #8c8f94; font-size: 20px; }
+		.flc-style-on { margin: 10px 0 6px; }
+		.flc-prompt > summary { cursor: pointer; color: #2271b1; margin: 6px 0; }
+		.flc-dirty { color: #8a5a00; background: #fcf3dc; border-radius: 10px; padding: 2px 10px; margin-left: 10px; vertical-align: middle; }
 		.flc-set .flc-tab { display: none; padding-top: 6px; }
 		.flc-set .flc-tab.on { display: block; }
 		.flc-card { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 4px 20px 14px; margin: 16px 0; }
@@ -360,17 +491,30 @@ function flc_settings_page() {
 	<div class="wrap flc-set">
 		<h1>Francy Lamp Factory – Impostazioni</h1>
 		<?php settings_errors(); ?>
-		<nav class="nav-tab-wrapper" id="flcTabs">
+		<div class="flc-layout">
+		<nav class="flc-nav" id="flcTabs">
 			<?php foreach ($tabs as $k => $t) : ?>
-				<a href="#<?php echo esc_attr($k); ?>" class="nav-tab" data-tab="<?php echo esc_attr($k); ?>"><span class="dashicons <?php echo esc_attr($t[0]); ?>"></span><?php echo esc_html($t[1]); ?></a>
+				<a href="#<?php echo esc_attr($k); ?>" class="nav-tab" data-tab="<?php echo esc_attr($k); ?>"><span class="dashicons <?php echo esc_attr($t[0]); ?>"></span><span><strong><?php echo esc_html($t[1]); ?></strong><small><?php echo esc_html($t[2]); ?></small></span></a>
 			<?php endforeach; ?>
 		</nav>
+		<div class="flc-main">
 
-		<form method="post" action="options.php">
+		<form method="post" action="options.php" id="flcForm">
 			<?php settings_fields('flc'); ?>
 
 			<!-- ===================== PANORAMICA ===================== -->
 			<section class="flc-tab" data-tab="panoramica">
+				<div class="flc-head"><h2>Panoramica</h2><p>Lo stato del configuratore e le cose che conviene sistemare.</p></div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-yes-alt"></span> È tutto a posto?</h2>
+					<ul class="flc-check">
+					<?php foreach ($checks as $c) : ?>
+						<li class="<?php echo esc_attr($c[0]); ?>"><span class="ico"><?php echo $c[0] === 'ok' ? '✓' : '!'; ?></span>
+							<span class="txt"><?php echo wp_kses_post($c[1]); ?></span>
+							<?php if (!empty($c[2])) : ?><a href="<?php echo esc_url($c[2]); ?>" class="go"<?php echo $c[2][0] === '#' ? ' data-go="' . esc_attr(substr($c[2], 1)) . '"' : ''; ?>><?php echo esc_html($c[3] ?? 'Apri'); ?> →</a><?php endif; ?></li>
+					<?php endforeach; ?>
+					</ul>
+				</div>
 				<div class="flc-grid">
 					<div class="flc-stat" style="border-left:4px solid <?php echo esc_attr($color); ?>">
 						<div>Ridisegni IA di oggi</div>
@@ -384,11 +528,6 @@ function flc_settings_page() {
 						<p class="description" style="margin:6px 0 0">Modello: <code><?php echo esc_html($s['primary'] === 'fal' ? $s['fal_model'] : $s['gemini_model']); ?></code><br>
 							<?php echo !empty($s['enabled']) && ($s['gemini_key'] || $s['fal_key']) ? '<span class="flc-badge ok">attivo</span>' : '<span class="flc-badge prev">non attivo: manca la chiave o è spento</span>'; ?></p>
 					</div>
-					<div class="flc-stat">
-						<div>Limiti di upload del server</div>
-						<div class="big" style="font-size:18px;color:<?php echo $upok ? '#00a32a' : '#d63638'; ?>"><?php echo esc_html(ini_get('upload_max_filesize') . ' / ' . ini_get('post_max_size')); ?></div>
-						<p class="description" style="margin:6px 0 0"><?php echo $upok ? 'Vanno bene per la convalida dei dischi (5–20 MB a invio).' : 'Consigliato almeno 32M: chiedi all\'hosting di alzarli.'; ?></p>
-					</div>
 				</div>
 				<div class="flc-card">
 					<h2><span class="dashicons dashicons-admin-links"></span> Collegamenti rapidi</h2>
@@ -401,8 +540,8 @@ function flc_settings_page() {
 					</p>
 					<p class="description">Shortcode per inserirlo in una pagina del tema: <code>[francy_lamp]</code></p>
 				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-chart-bar"></span> Utilizzo IA ultimi 30 giorni</h2>
+				<details class="flc-card flc-adv">
+					<summary><span class="dashicons dashicons-chart-bar"></span> Utilizzo IA ultimi 30 giorni</summary>
 					<?php if (!$log) : ?>
 						<p>Ancora nessun ridisegno.</p>
 					<?php else : ?>
@@ -426,13 +565,14 @@ function flc_settings_page() {
 							</tbody>
 						</table>
 					<?php endif; ?>
-				</div>
+				</details>
 			</section>
 
-			<!-- ===================== PAGINA E ASPETTO ===================== -->
-			<section class="flc-tab" data-tab="pagina">
+			<!-- ===================== PAGINA DEL CONFIGURATORE ===================== -->
+			<section class="flc-tab" data-tab="configuratore">
+				<div class="flc-head"><h2>Pagina del configuratore</h2><p>Dove si trova la pagina, come appare e cosa c'è nel footer.</p></div>
 				<div class="flc-card">
-					<h2><span class="dashicons dashicons-welcome-view-site"></span> Pagina del configuratore</h2>
+					<h2><span class="dashicons dashicons-welcome-view-site"></span> Indirizzo e pubblicazione</h2>
 					<table class="form-table" role="presentation">
 						<tr><th>Pagina dedicata</th><td><label><input type="checkbox" name="<?php echo $n('page_enabled'); ?>" value="1" <?php checked($s['page_enabled'], 1); ?>> Attiva la pagina a schermo intero (senza header e footer del tema)</label>
 							<?php if (!empty($s['page_enabled']) && function_exists('flc_page_url')) : ?><p><a href="<?php echo esc_url(flc_page_url()); ?>" target="_blank" rel="noopener"><strong><?php echo esc_html(flc_page_url()); ?></strong></a></p><?php endif; ?></td></tr>
@@ -445,32 +585,16 @@ function flc_settings_page() {
 					</table>
 				</div>
 				<div class="flc-card">
-					<h2><span class="dashicons dashicons-format-image"></span> Anteprima</h2>
+					<h2><span class="dashicons dashicons-format-image"></span> Aspetto</h2>
 					<table class="form-table" role="presentation">
 						<tr><th>Colore dello sfondo</th><td><input type="color" id="flcStageBg" name="<?php echo $n('stage_bg'); ?>" value="<?php echo esc_attr($s['stage_bg']); ?>"><span class="flc-swatch" id="flcStageSwatch" style="background:<?php echo esc_attr($s['stage_bg']); ?>"></span>
 							<p class="description">Sfondo dietro la lampada in 2D, in 3D e nelle immagini di anteprima. Resta uguale da spenta e da accesa: scuro fa risaltare la luce, ma il nero della cornice deve restare visibile (consigliato un grigio scuro come #3A3D44).</p></td></tr>
 					</table>
 				</div>
 				<div class="flc-card">
-					<h2><span class="dashicons dashicons-shield-alt"></span> Watermark e anteprima scaricabile</h2>
-					<p class="intro">Protegge l'anteprima del disco: il cliente la vede (e la può scaricare) con il tuo logo ripetuto sopra. Tu da amministratore scarichi sempre senza watermark.</p>
-					<table class="form-table" role="presentation">
-						<tr><th>Dove</th><td>
-							<label><input type="checkbox" name="<?php echo $n('wm_screen'); ?>" value="1" <?php checked($s['wm_screen'], 1); ?>> Sull'anteprima a schermo (2D e 3D)</label><br>
-							<label><input type="checkbox" name="<?php echo $n('wm_download'); ?>" value="1" <?php checked($s['wm_download'], 1); ?>> Mostra ai clienti il pulsante "Scarica l'anteprima" (immagine con watermark)</label></td></tr>
-						<tr><th>Dimensione massima del download</th><td><input type="number" min="200" max="2400" step="10" name="<?php echo $n('dl_max'); ?>" value="<?php echo (int) $s['dl_max']; ?>" style="width:90px"> px <span class="description">lato lungo dell'immagine che scarica il cliente (es. 640 = bassa qualità, va bene per i social)</span></td></tr>
-						<tr><th>Immagine da ripetere</th><td>
-							<input type="url" class="regular-text" id="flcWmImage" name="<?php echo $n('wm_image'); ?>" value="<?php echo esc_attr($s['wm_image']); ?>" placeholder="vuoto = usa il testo qui sotto">
-							<button type="button" class="button" id="flcWmPick">Scegli dalla Libreria media</button>
-							<p class="description">Meglio un PNG con sfondo trasparente (il tuo logo).</p></td></tr>
-						<tr><th>Testo (se non c'è immagine)</th><td><input type="text" class="regular-text" id="flcWmText" name="<?php echo $n('wm_text'); ?>" value="<?php echo esc_attr($s['wm_text']); ?>" placeholder="<?php echo esc_attr($s['copyright_name']); ?>"></td></tr>
-						<tr><th>Colore</th><td><input type="color" id="flcWmColor" name="<?php echo $n('wm_color'); ?>" value="<?php echo esc_attr($s['wm_color']); ?>">
-							<label style="margin-left:10px"><input type="checkbox" id="flcWmTint" name="<?php echo $n('wm_tint'); ?>" value="1" <?php checked($s['wm_tint'], 1); ?>> Colora anche l'immagine con questo colore</label></td></tr>
-						<tr><th>Trasparenza</th><td><input type="range" min="3" max="80" id="flcWmOpacity" name="<?php echo $n('wm_opacity'); ?>" value="<?php echo (int) $s['wm_opacity']; ?>"> <output id="flcWmOpacityOut"><?php echo (int) $s['wm_opacity']; ?></output>% visibile</td></tr>
-						<tr><th>Dimensione del logo</th><td><input type="range" min="8" max="60" id="flcWmSize" name="<?php echo $n('wm_size'); ?>" value="<?php echo (int) $s['wm_size']; ?>"> <output id="flcWmSizeOut"><?php echo (int) $s['wm_size']; ?></output>% della larghezza</td></tr>
-						<tr><th>Inclinazione</th><td><input type="range" min="-90" max="90" id="flcWmAngle" name="<?php echo $n('wm_angle'); ?>" value="<?php echo (int) $s['wm_angle']; ?>"> <output id="flcWmAngleOut"><?php echo (int) $s['wm_angle']; ?></output>°</td></tr>
-						<tr><th>Anteprima</th><td><canvas id="flcWmPreview" width="360" height="240" style="border-radius:8px;border:1px solid #dcdcde;max-width:100%"></canvas></td></tr>
-					</table>
+					<h2><span class="dashicons dashicons-images-alt2"></span> Disegni pronti</h2>
+					<p><label><input type="checkbox" name="<?php echo $n('templates_enabled'); ?>" value="1" <?php checked($s['templates_enabled'], 1); ?>> Mostra il pulsante "Scegli un disegno pronto"</label>
+						– i disegni si gestiscono in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_template')); ?>">Disegni pronti</a>.</p>
 				</div>
 				<div class="flc-card">
 					<h2><span class="dashicons dashicons-editor-insertmore"></span> Footer</h2>
@@ -483,16 +607,123 @@ function flc_settings_page() {
 				</div>
 			</section>
 
-			<!-- ===================== INTELLIGENZA ARTIFICIALE ===================== -->
+			<!-- ===================== DISCO ===================== -->
+			<section class="flc-tab" data-tab="disco">
+				<div class="flc-head"><h2>Disco</h2><p>Come si presenta il disco quando il cliente apre il configuratore.</p></div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-marker"></span> Disco predefinito</h2>
+					<p class="intro">Come si presenta il disco quando un cliente apre il configuratore. Il cliente poi può cambiare tutto.</p>
+					<table class="form-table" role="presentation">
+						<tr><th>Colore della banda</th><td><input type="color" name="<?php echo $n('def_band'); ?>" value="<?php echo esc_attr($s['def_band']); ?>"> <span class="description">Con il catalogo filamenti viene usata la bobina più vicina.</span></td></tr>
+						<tr><th>Colore delle scritte</th><td><input type="color" name="<?php echo $n('def_text_color'); ?>" value="<?php echo esc_attr($s['def_text_color']); ?>"></td></tr>
+						<tr><th>Testi sulla banda</th><td>
+							<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,240px));gap:8px">
+								<label>Testo 1 – in alto a sinistra<br><input type="text" maxlength="14" name="<?php echo $n('def_tl'); ?>" value="<?php echo esc_attr($s['def_tl']); ?>" style="width:100%"></label>
+								<label>Testo 2 – in alto a destra<br><input type="text" maxlength="14" name="<?php echo $n('def_tr'); ?>" value="<?php echo esc_attr($s['def_tr']); ?>" style="width:100%"></label>
+								<label>Testo 3 – in basso a sinistra<br><input type="text" maxlength="10" name="<?php echo $n('def_bl'); ?>" value="<?php echo esc_attr($s['def_bl']); ?>" style="width:100%"></label>
+								<label>Testo 4 – in basso a destra<br><input type="text" maxlength="10" name="<?php echo $n('def_br'); ?>" value="<?php echo esc_attr($s['def_br']); ?>" style="width:100%"></label>
+							</div>
+							<p class="description">Lascia vuoto un testo per non mostrarlo.</p></td></tr>
+					</table>
+				</div>
+				<details class="flc-card flc-adv">
+					<summary><span class="dashicons dashicons-admin-settings"></span> Regolazioni della conversione <span class="flc-badge">avanzate</span></summary>
+					<p class="intro">I valori di partenza degli slider nel configuratore (il cliente può sempre cambiarli).</p>
+					<table class="form-table" role="presentation">
+						<tr><th>Modalità iniziale</th><td><select name="<?php echo $n('sl_mode'); ?>">
+							<option value="outline" <?php selected($s['sl_mode'], 'outline'); ?>>Foto / disegno (creo io i contorni neri)</option>
+							<option value="keep" <?php selected($s['sl_mode'], 'keep'); ?>>Grafica pronta (contorni neri già presenti)</option>
+						</select><p class="description">Dopo un ridisegno con l'IA si passa comunque a "Grafica pronta".</p></td></tr>
+						<tr><th>Colori</th><td><input type="number" min="2" max="13" step="1" name="<?php echo $n('sl_colors'); ?>" value="<?php echo esc_attr($s['sl_colors']); ?>" style="width:90px"> <span class="description">2–13, nero compreso</span></td></tr>
+						<tr><th>Spessore contorni (mm)</th><td><input type="number" min="0.6" max="2.5" step="0.1" name="<?php echo $n('sl_line'); ?>" value="<?php echo esc_attr($s['sl_line']); ?>" style="width:90px"></td></tr>
+						<tr><th>Contorni mancanti</th><td><label><input type="checkbox" name="<?php echo $n('sl_add'); ?>" value="1" <?php checked($s['sl_add'], 1); ?>> In "Grafica pronta" aggiungi i contorni neri dove mancano</label></td></tr>
+						<tr><th>Ingrossa il nero (mm)</th><td><input type="number" min="0" max="1" step="0.05" name="<?php echo $n('sl_thick'); ?>" value="<?php echo esc_attr($s['sl_thick']); ?>" style="width:90px"> <span class="description">solo "Grafica pronta"</span></td></tr>
+						<tr><th>Semplificazione</th><td><input type="number" min="0" max="4" step="1" name="<?php echo $n('sl_smooth'); ?>" value="<?php echo esc_attr($s['sl_smooth']); ?>" style="width:90px"> <span class="description">0 = nessuna, 4 = molto forte</span></td></tr>
+						<tr><th>Dettaglio minimo (mm)</th><td><input type="number" min="0.4" max="2.5" step="0.1" name="<?php echo $n('sl_feat'); ?>" value="<?php echo esc_attr($s['sl_feat']); ?>" style="width:90px"> <span class="description">zone più strette diventano nere</span></td></tr>
+						<tr><th>Area minima zona (mm²)</th><td><input type="number" min="0.5" max="20" step="0.5" name="<?php echo $n('sl_area'); ?>" value="<?php echo esc_attr($s['sl_area']); ?>" style="width:90px"> <span class="description">zone più piccole vengono assorbite</span></td></tr>
+						<tr><th>Risoluzione (px/mm)</th><td><input type="number" min="3" max="8" step="1" name="<?php echo $n('sl_ppmm'); ?>" value="<?php echo esc_attr($s['sl_ppmm']); ?>" style="width:90px"> <span class="description">più alta = più dettaglio, più lenta</span></td></tr>
+					</table>
+				</details>
+			</section>
+
+			<!-- ===================== STILI IA ===================== -->
+			<section class="flc-tab" data-tab="stili">
+				<div class="flc-head"><h2>Stili IA</h2><p>Gli stili di ridisegno con IA che il cliente può scegliere.</p></div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-art"></span> Stili tra cui sceglie il cliente</h2>
+					<p class="intro">Accendi gli stili che vuoi proporre. Il testo che riceve l'IA (prompt) è già pronto: aprilo solo se vuoi cambiarne il comportamento.
+						Le immagini d'esempio si preparano in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-esempi')); ?>">Esempi stili</a>.</p>
+					<div class="flc-styles">
+					<?php foreach ($style_defs as $key => $st) : $ex_res = $ex_all[$key]['url'] ?? ''; ?>
+						<div class="flc-style<?php echo $st['toggle'] && empty($s[$st['toggle']]) ? ' off' : ''; ?>">
+							<div class="flc-style-head">
+								<?php if ($ex_res) : ?><img src="<?php echo esc_url($ex_res); ?>" alt=""><?php else : ?><span class="flc-style-noimg" title="Nessun esempio">?</span><?php endif; ?>
+								<div><strong><?php echo esc_html($st['name']); ?></strong><br><span class="description"><?php echo esc_html($st['desc']); ?></span></div>
+							</div>
+							<p class="flc-style-on"><?php if ($st['toggle']) : ?>
+								<label class="flc-toggle"><input type="checkbox" class="flc-style-cb" name="<?php echo $n($st['toggle']); ?>" value="1" <?php checked($s[$st['toggle']], 1); ?>> Visibile ai clienti</label>
+							<?php else : ?><span class="flc-badge ok">sempre attivo</span> <span class="description">è lo stile proposto in partenza</span><?php endif; ?></p>
+							<details class="flc-prompt">
+								<summary>Modifica il prompt <span class="flc-badge"><?php echo $st['custom'] ? 'personalizzato' : 'originale'; ?></span></summary>
+								<textarea name="<?php echo $n($st['field']); ?>" rows="9" class="large-text code" data-default="<?php echo esc_attr($st['default']); ?>"><?php echo esc_textarea($s[$st['field']]); ?></textarea>
+								<p><button type="button" class="button-link flc-reset">↺ Ripristina il testo originale</button></p>
+							</details>
+						</div>
+					<?php endforeach; ?>
+					</div>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-id-alt"></span> Carte da gioco</h2>
+					<p class="intro">Se il cliente carica una carta (es. Pokémon) accende "È una carta da gioco": l'IA tiene solo l'illustrazione e toglie cornice, nome, testi e simboli, poi applica lo stile scelto.</p>
+					<p><label class="flc-toggle"><input type="checkbox" name="<?php echo $n('card_enabled'); ?>" value="1" <?php checked($s['card_enabled'], 1); ?>> Mostra l'interruttore "È una carta da gioco"</label></p>
+					<details class="flc-prompt">
+						<summary>Modifica il prompt <span class="flc-badge"><?php echo trim((string) (get_option(FLC_OPTION, array())['prompt_card'] ?? '')) !== '' ? 'personalizzato' : 'originale'; ?></span></summary>
+						<textarea name="<?php echo $n('prompt_card'); ?>" rows="6" class="large-text code" data-default="<?php echo esc_attr(flc_default_prompt_card()); ?>"><?php echo esc_textarea($s['prompt_card']); ?></textarea>
+						<p><button type="button" class="button-link flc-reset">↺ Ripristina il testo originale</button></p>
+					</details>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-format-gallery"></span> Esempi degli stili</h2>
+					<p><label><input type="checkbox" name="<?php echo $n('examples_enabled'); ?>" value="1" <?php checked($s['examples_enabled'], 1); ?>> Mostra ai clienti gli esempi "originale → risultato" sotto gli stili</label>
+						– si preparano in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-esempi')); ?>">Esempi stili</a>.</p>
+				</div>
+			</section>
+
+			<!-- ===================== SFONDI IA ===================== -->
+			<section class="flc-tab" data-tab="sfondi">
+				<div class="flc-head"><h2>Sfondi IA</h2><p>Gli sfondi che il cliente può mettere al posto di quello della foto, con le prove generate dall'IA.</p></div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-cover-image"></span> Sfondi tra cui sceglie il cliente</h2>
+					<p><label><input type="checkbox" name="<?php echo $n('bg_enabled'); ?>" value="1" <?php checked($s['bg_enabled'], 1); ?>> Mostra ai clienti l'interruttore <strong>Rimuovi lo sfondo</strong> con la scelta del nuovo sfondo</label></p>
+					<p class="intro">Gli sfondi tra cui sceglie il cliente. <strong>Nome</strong>: quello che vede il cliente; <strong>categoria</strong>: solo per te, per tenerli in ordine e filtrarli;
+						<strong>descrizione per l'IA</strong>: in inglese, cosa disegnare. Il primo attivo è quello proposto in partenza; con le frecce cambi l'ordine del menu.</p>
+					<?php flc_bg_table_html($s); ?>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-edit"></span> Sfondo scritto dal cliente</h2>
+					<p><label><input type="checkbox" name="<?php echo $n('bg_custom'); ?>" value="1" <?php checked($s['bg_custom'], 1); ?>> Aggiungi in fondo al menu la scelta
+						<input type="text" name="<?php echo $n('bg_custom_label'); ?>" value="<?php echo esc_attr($s['bg_custom_label']); ?>" style="width:150px"> con cui il cliente scrive lo sfondo che vuole</label></p>
+					<p class="description">Massimo 160 caratteri. Il testo del cliente entra nel prompt solo come descrizione dello sfondo: eventuali altre richieste vengono ignorate e restano le regole di stampa (colori piatti, contorni, niente scritte).</p>
+					<div class="flc-bg"><div class="try">
+						<a class="thumb" id="flcBgTryImg" target="_blank">nessuna<br>prova</a>
+						<div style="flex:1;min-width:260px">
+							<p style="margin-top:0"><strong>Prova come un cliente</strong> – scrivi un testo (anche in italiano) e guarda che sfondo esce.</p>
+							<input type="text" id="flcBgTryText" maxlength="160" class="large-text" placeholder="es. cielo stellato con la luna piena">
+							<p><button type="button" class="button" id="flcBgTryBtn">✨ Genera prova</button>
+								<button type="button" class="button-link" id="flcBgTryAdd" hidden>+ Aggiungilo alla tabella degli sfondi</button>
+								<span id="flcBgTryMsg" class="err"></span></p>
+						</div>
+					</div></div>
+				</div>
+			</section>
+
+			<!-- ===================== MOTORE IA ===================== -->
 			<section class="flc-tab" data-tab="ia">
+				<div class="flc-head"><h2>Motore IA</h2><p>Chiave, modello e limiti di spesa del ridisegno.</p></div>
 				<div class="flc-card">
 					<h2><span class="dashicons dashicons-admin-generic"></span> Ridisegno con IA</h2>
-					<table class="form-table" role="presentation">
-						<tr><th>Attivo</th><td><label><input type="checkbox" name="<?php echo $n('enabled'); ?>" value="1" <?php checked($s['enabled'], 1); ?>> Mostra ai clienti il pulsante "Ridisegna in stile tombino"</label></td></tr>
-						<tr><th>Fornitore principale</th><td><?php $sel('primary', $s['primary'], $labels); ?></td></tr>
-						<tr><th>Fornitore di riserva</th><td><?php $sel('fallback', $s['fallback'], array('none' => 'Nessuno') + $labels); ?>
-							<p class="description">Usato in automatico se il principale dà errore.</p></td></tr>
-					</table>
+					<p class="intro">Il pulsante con cui il cliente fa ridisegnare la sua foto. Basta la chiave di Google Gemini qui sotto.</p>
+					<p><label class="flc-toggle"><input type="checkbox" name="<?php echo $n('enabled'); ?>" value="1" <?php checked($s['enabled'], 1); ?>> <strong>Attivo</strong> – mostra ai clienti il ridisegno con IA</label></p>
 				</div>
 				<div class="flc-card">
 					<h2><span class="dashicons dashicons-google"></span> Google Gemini</h2>
@@ -524,7 +755,21 @@ function flc_settings_page() {
 					</table>
 				</div>
 				<div class="flc-card">
-					<h2><span class="dashicons dashicons-cloud"></span> fal.ai (FLUX Kontext, Seedream, Qwen Image Edit…)</h2>
+					<h2><span class="dashicons dashicons-shield"></span> Limiti di spesa</h2>
+					<p class="intro">Ogni ridisegno costa qualche centesimo: questi limiti proteggono il budget da curiosi e abusi.</p>
+					<table class="form-table" role="presentation">
+						<tr><th>Ridisegni per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo $n('per_ip_day'); ?>" value="<?php echo (int) $s['per_ip_day']; ?>"> <span class="description">per indirizzo IP; 0 = nessun limite</span></td></tr>
+						<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo $n('daily_cap'); ?>" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">blocca tutto oltre questa soglia e protegge il budget; 0 = nessun limite</span></td></tr>
+					</table>
+				</div>
+				<details class="flc-card flc-adv">
+					<summary><span class="dashicons dashicons-cloud"></span> Altri fornitori e riserva <span class="flc-badge">avanzate</span></summary>
+					<table class="form-table" role="presentation">
+						<tr><th>Fornitore principale</th><td><?php $sel('primary', $s['primary'], $labels); ?></td></tr>
+						<tr><th>Fornitore di riserva</th><td><?php $sel('fallback', $s['fallback'], array('none' => 'Nessuno') + $labels); ?>
+							<p class="description">Usato in automatico se il principale dà errore.</p></td></tr>
+					</table>
+					<h3><span class="dashicons dashicons-cloud"></span> fal.ai (FLUX Kontext, Seedream, Qwen Image Edit…)</h3>
 					<table class="form-table" role="presentation">
 						<tr><th>Chiave API</th><td>
 							<input type="password" class="regular-text" autocomplete="new-password" name="<?php echo $n('fal_key'); ?>" placeholder="<?php echo $s['fal_key'] ? 'Salvata (…' . esc_attr(substr($s['fal_key'], -4)) . ') – lascia vuoto per non cambiarla' : 'Chiave da fal.ai/dashboard/keys'; ?>">
@@ -533,105 +778,40 @@ function flc_settings_page() {
 						<tr><th>Modello</th><td><input type="text" class="regular-text" name="<?php echo $n('fal_model'); ?>" value="<?php echo esc_attr($s['fal_model']); ?>">
 							<p class="description">Esempi: <code>fal-ai/flux-pro/kontext</code>, <code>fal-ai/qwen-image-edit</code>, <code>fal-ai/bytedance/seedream/v4/edit</code>.</p></td></tr>
 					</table>
-				</div>
+				</details>
 			</section>
 
-			<!-- ===================== STILI E PROMPT ===================== -->
-			<section class="flc-tab" data-tab="stili">
+			<!-- ===================== ANTEPRIMA E WATERMARK ===================== -->
+			<section class="flc-tab" data-tab="anteprima">
+				<div class="flc-head"><h2>Anteprima e watermark</h2><p>L'immagine della lampada che il cliente può scaricare e condividere.</p></div>
 				<div class="flc-card">
-					<h2><span class="dashicons dashicons-format-image"></span> Fedele</h2>
-					<p class="intro">Predefinito per il cliente: conversione di stile che blocca posa, espressione e composizione.</p>
-					<textarea name="<?php echo $n('prompt'); ?>" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt']); ?></textarea>
-				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-admin-users"></span> Ritratto</h2>
-					<p class="intro">Per i volti: poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso. Scegliendolo, nel configuratore si accende da sola la modalità ritratto.</p>
-					<textarea name="<?php echo $n('prompt_ritratto'); ?>" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_ritratto']); ?></textarea>
-				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-star-filled"></span> Anime</h2>
-					<p class="intro"><label><input type="checkbox" name="<?php echo $n('style_anime'); ?>" value="1" <?php checked($s['style_anime'], 1); ?>> Mostra questa scelta ai clienti</label>
-						– il nome del film resta solo nel prompt, il cliente vede "Anime".</p>
-					<textarea name="<?php echo $n('prompt_anime'); ?>" rows="7" class="large-text code"><?php echo esc_textarea($s['prompt_anime']); ?></textarea>
-				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-format-gallery"></span> Esempi degli stili</h2>
-					<p><label><input type="checkbox" name="<?php echo $n('examples_enabled'); ?>" value="1" <?php checked($s['examples_enabled'], 1); ?>> Mostra ai clienti gli esempi "originale → risultato" sotto gli stili</label>
-						– si preparano in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_design&page=flc-esempi')); ?>">Esempi stili</a>.</p>
-				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-cover-image"></span> Nuovo sfondo</h2>
-					<p><label><input type="checkbox" name="<?php echo $n('bg_enabled'); ?>" value="1" <?php checked($s['bg_enabled'], 1); ?>> Mostra ai clienti l'interruttore <strong>Rimuovi lo sfondo</strong> con la scelta del nuovo sfondo</label></p>
-					<p class="intro">Gli sfondi tra cui sceglie il cliente. <strong>Nome</strong>: quello che vede il cliente; <strong>categoria</strong>: solo per te, per tenerli in ordine e filtrarli;
-						<strong>descrizione per l'IA</strong>: in inglese, cosa disegnare. Il primo attivo è quello proposto in partenza; con le frecce cambi l'ordine del menu.</p>
-					<?php flc_bg_table_html($s); ?>
-				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-edit"></span> Sfondo scritto dal cliente</h2>
-					<p><label><input type="checkbox" name="<?php echo $n('bg_custom'); ?>" value="1" <?php checked($s['bg_custom'], 1); ?>> Aggiungi in fondo al menu la scelta
-						<input type="text" name="<?php echo $n('bg_custom_label'); ?>" value="<?php echo esc_attr($s['bg_custom_label']); ?>" style="width:150px"> con cui il cliente scrive lo sfondo che vuole</label></p>
-					<p class="description">Massimo 160 caratteri. Il testo del cliente entra nel prompt solo come descrizione dello sfondo: eventuali altre richieste vengono ignorate e restano le regole di stampa (colori piatti, contorni, niente scritte).</p>
-					<div class="flc-bg"><div class="try">
-						<a class="thumb" id="flcBgTryImg" target="_blank">nessuna<br>prova</a>
-						<div style="flex:1;min-width:260px">
-							<p style="margin-top:0"><strong>Prova come un cliente</strong> – scrivi un testo (anche in italiano) e guarda che sfondo esce.</p>
-							<input type="text" id="flcBgTryText" maxlength="160" class="large-text" placeholder="es. cielo stellato con la luna piena">
-							<p><button type="button" class="button" id="flcBgTryBtn">✨ Genera prova</button>
-								<button type="button" class="button-link" id="flcBgTryAdd" hidden>+ Aggiungilo alla tabella degli sfondi</button>
-								<span id="flcBgTryMsg" class="err"></span></p>
-						</div>
-					</div></div>
-				</div>
-				<p class="description">In inglese i modelli rispondono meglio. Le scritte le aggiunge il configuratore, quindi nei prompt chiedi "no text". Per tornare al testo predefinito svuota il campo e salva.</p>
-			</section>
-
-			<!-- ===================== DISCO E REGOLAZIONI ===================== -->
-			<section class="flc-tab" data-tab="disco">
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-marker"></span> Disco predefinito</h2>
-					<p class="intro">Come si presenta il disco quando un cliente apre il configuratore. Il cliente poi può cambiare tutto.</p>
+					<h2><span class="dashicons dashicons-shield-alt"></span> Immagine scaricabile e watermark</h2>
+					<p class="intro">Il cliente può scaricare un'immagine della sua lampada da condividere: esce piccola e con il tuo logo ripetuto sopra. Sulla pagina il progetto resta pulito. Tu da amministratore scarichi sempre senza watermark.</p>
 					<table class="form-table" role="presentation">
-						<tr><th>Colore della banda</th><td><input type="color" name="<?php echo $n('def_band'); ?>" value="<?php echo esc_attr($s['def_band']); ?>"> <span class="description">Con il catalogo filamenti viene usata la bobina più vicina.</span></td></tr>
-						<tr><th>Colore delle scritte</th><td><input type="color" name="<?php echo $n('def_text_color'); ?>" value="<?php echo esc_attr($s['def_text_color']); ?>"></td></tr>
-						<tr><th>Testi sulla banda</th><td>
-							<div style="display:grid;grid-template-columns:repeat(2,minmax(160px,240px));gap:8px">
-								<label>Testo 1 – in alto a sinistra<br><input type="text" maxlength="14" name="<?php echo $n('def_tl'); ?>" value="<?php echo esc_attr($s['def_tl']); ?>" style="width:100%"></label>
-								<label>Testo 2 – in alto a destra<br><input type="text" maxlength="14" name="<?php echo $n('def_tr'); ?>" value="<?php echo esc_attr($s['def_tr']); ?>" style="width:100%"></label>
-								<label>Testo 3 – in basso a sinistra<br><input type="text" maxlength="10" name="<?php echo $n('def_bl'); ?>" value="<?php echo esc_attr($s['def_bl']); ?>" style="width:100%"></label>
-								<label>Testo 4 – in basso a destra<br><input type="text" maxlength="10" name="<?php echo $n('def_br'); ?>" value="<?php echo esc_attr($s['def_br']); ?>" style="width:100%"></label>
-							</div>
-							<p class="description">Lascia vuoto un testo per non mostrarlo.</p></td></tr>
+						<tr><th>Download per i clienti</th><td>
+							<label><input type="checkbox" name="<?php echo $n('wm_download'); ?>" value="1" <?php checked($s['wm_download'], 1); ?>> Mostra il pulsante "Scarica l'anteprima" (immagine con watermark)</label></td></tr>
+						<tr><th>Dimensione massima del download</th><td><input type="number" min="200" max="2400" step="10" name="<?php echo $n('dl_max'); ?>" value="<?php echo (int) $s['dl_max']; ?>" style="width:90px"> px <span class="description">lato lungo dell'immagine che scarica il cliente (es. 640 = bassa qualità, va bene per i social)</span></td></tr>
+						<tr><th>Immagine da ripetere</th><td>
+							<input type="url" class="regular-text" id="flcWmImage" name="<?php echo $n('wm_image'); ?>" value="<?php echo esc_attr($s['wm_image']); ?>" placeholder="vuoto = usa il testo qui sotto">
+							<button type="button" class="button" id="flcWmPick">Scegli dalla Libreria media</button>
+							<p class="description">Meglio un PNG con sfondo trasparente (il tuo logo).</p></td></tr>
+						<tr><th>Testo (se non c'è immagine)</th><td><input type="text" class="regular-text" id="flcWmText" name="<?php echo $n('wm_text'); ?>" value="<?php echo esc_attr($s['wm_text']); ?>" placeholder="<?php echo esc_attr($s['copyright_name']); ?>"></td></tr>
+						<tr><th>Colore</th><td><input type="color" id="flcWmColor" name="<?php echo $n('wm_color'); ?>" value="<?php echo esc_attr($s['wm_color']); ?>">
+							<label style="margin-left:10px"><input type="checkbox" id="flcWmTint" name="<?php echo $n('wm_tint'); ?>" value="1" <?php checked($s['wm_tint'], 1); ?>> Colora anche l'immagine con questo colore</label></td></tr>
+						<tr><th>Trasparenza</th><td><input type="range" min="3" max="80" id="flcWmOpacity" name="<?php echo $n('wm_opacity'); ?>" value="<?php echo (int) $s['wm_opacity']; ?>"> <output id="flcWmOpacityOut"><?php echo (int) $s['wm_opacity']; ?></output>% visibile</td></tr>
+						<tr><th>Dimensione del logo</th><td><input type="range" min="8" max="60" id="flcWmSize" name="<?php echo $n('wm_size'); ?>" value="<?php echo (int) $s['wm_size']; ?>"> <output id="flcWmSizeOut"><?php echo (int) $s['wm_size']; ?></output>% della larghezza</td></tr>
+						<tr><th>Inclinazione</th><td><input type="range" min="-90" max="90" id="flcWmAngle" name="<?php echo $n('wm_angle'); ?>" value="<?php echo (int) $s['wm_angle']; ?>"> <output id="flcWmAngleOut"><?php echo (int) $s['wm_angle']; ?></output>°</td></tr>
+						<tr><th>Anche sulla pagina</th><td><label><input type="checkbox" name="<?php echo $n('wm_onscreen'); ?>" value="1" <?php checked($s['wm_onscreen'], 1); ?>> Mostra il watermark anche sull'anteprima a schermo (sconsigliato: sporca la vista del progetto)</label></td></tr>
+						<tr><th>Anteprima</th><td><canvas id="flcWmPreview" width="360" height="240" style="border-radius:8px;border:1px solid #dcdcde;max-width:100%"></canvas></td></tr>
 					</table>
 				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-admin-settings"></span> Regolazioni predefinite</h2>
-					<p class="intro">I valori di partenza degli slider nel configuratore (il cliente può sempre cambiarli).</p>
-					<table class="form-table" role="presentation">
-						<tr><th>Modalità iniziale</th><td><select name="<?php echo $n('sl_mode'); ?>">
-							<option value="outline" <?php selected($s['sl_mode'], 'outline'); ?>>Foto / disegno (creo io i contorni neri)</option>
-							<option value="keep" <?php selected($s['sl_mode'], 'keep'); ?>>Grafica pronta (contorni neri già presenti)</option>
-						</select><p class="description">Dopo un ridisegno con l'IA si passa comunque a "Grafica pronta".</p></td></tr>
-						<tr><th>Colori</th><td><input type="number" min="2" max="13" step="1" name="<?php echo $n('sl_colors'); ?>" value="<?php echo esc_attr($s['sl_colors']); ?>" style="width:90px"> <span class="description">2–13, nero compreso</span></td></tr>
-						<tr><th>Spessore contorni (mm)</th><td><input type="number" min="0.6" max="2.5" step="0.1" name="<?php echo $n('sl_line'); ?>" value="<?php echo esc_attr($s['sl_line']); ?>" style="width:90px"></td></tr>
-						<tr><th>Contorni mancanti</th><td><label><input type="checkbox" name="<?php echo $n('sl_add'); ?>" value="1" <?php checked($s['sl_add'], 1); ?>> In "Grafica pronta" aggiungi i contorni neri dove mancano</label></td></tr>
-						<tr><th>Ingrossa il nero (mm)</th><td><input type="number" min="0" max="1" step="0.05" name="<?php echo $n('sl_thick'); ?>" value="<?php echo esc_attr($s['sl_thick']); ?>" style="width:90px"> <span class="description">solo "Grafica pronta"</span></td></tr>
-						<tr><th>Semplificazione</th><td><input type="number" min="0" max="4" step="1" name="<?php echo $n('sl_smooth'); ?>" value="<?php echo esc_attr($s['sl_smooth']); ?>" style="width:90px"> <span class="description">0 = nessuna, 4 = molto forte</span></td></tr>
-						<tr><th>Dettaglio minimo (mm)</th><td><input type="number" min="0.4" max="2.5" step="0.1" name="<?php echo $n('sl_feat'); ?>" value="<?php echo esc_attr($s['sl_feat']); ?>" style="width:90px"> <span class="description">zone più strette diventano nere</span></td></tr>
-						<tr><th>Area minima zona (mm²)</th><td><input type="number" min="0.5" max="20" step="0.5" name="<?php echo $n('sl_area'); ?>" value="<?php echo esc_attr($s['sl_area']); ?>" style="width:90px"> <span class="description">zone più piccole vengono assorbite</span></td></tr>
-						<tr><th>Risoluzione (px/mm)</th><td><input type="number" min="3" max="8" step="1" name="<?php echo $n('sl_ppmm'); ?>" value="<?php echo esc_attr($s['sl_ppmm']); ?>" style="width:90px"> <span class="description">più alta = più dettaglio, più lenta</span></td></tr>
-					</table>
-				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-images-alt2"></span> Disegni pronti</h2>
-					<p><label><input type="checkbox" name="<?php echo $n('templates_enabled'); ?>" value="1" <?php checked($s['templates_enabled'], 1); ?>> Mostra il pulsante "Scegli un disegno pronto"</label>
-						– i disegni si gestiscono in <a href="<?php echo esc_url(admin_url('edit.php?post_type=flc_template')); ?>">Disegni pronti</a>.</p>
-				</div>
 			</section>
 
-			<!-- ===================== ORDINI E LIMITI ===================== -->
+			<!-- ===================== ORDINI ===================== -->
 			<section class="flc-tab" data-tab="ordini">
+				<div class="flc-head"><h2>Ordini</h2><p>Cosa succede quando un cliente convalida il suo disco.</p></div>
 				<div class="flc-card">
-					<h2><span class="dashicons dashicons-email-alt"></span> Convalida dei dischi</h2>
+					<h2><span class="dashicons dashicons-email-alt"></span> Dischi convalidati dai clienti</h2>
 					<table class="form-table" role="presentation">
 						<tr><th>Email per le notifiche</th><td><input type="email" class="regular-text" name="<?php echo $n('notify_email'); ?>" value="<?php echo esc_attr($s['notify_email']); ?>" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>">
 							<p class="description">Ti arriva una mail a ogni disco convalidato. Vuoto = email dell'amministratore.</p></td></tr>
@@ -640,16 +820,9 @@ function flc_settings_page() {
 							<p class="description">Ogni invio pesa circa 5–20 MB. <?php echo $upok ? 'I limiti vanno bene.' : 'Consigliato almeno 32M per entrambi.'; ?></p></td></tr>
 					</table>
 				</div>
-				<div class="flc-card">
-					<h2><span class="dashicons dashicons-shield"></span> Limiti dei ridisegni IA</h2>
-					<table class="form-table" role="presentation">
-						<tr><th>Ridisegni per visitatore al giorno</th><td><input type="number" min="0" name="<?php echo $n('per_ip_day'); ?>" value="<?php echo (int) $s['per_ip_day']; ?>"> <span class="description">per indirizzo IP; 0 = nessun limite</span></td></tr>
-						<tr><th>Tetto giornaliero totale</th><td><input type="number" min="0" name="<?php echo $n('daily_cap'); ?>" value="<?php echo (int) $s['daily_cap']; ?>"> <span class="description">blocca tutto oltre questa soglia e protegge il budget; 0 = nessun limite</span></td></tr>
-					</table>
-				</div>
 			</section>
 
-			<div class="flc-sticky"><?php submit_button('Salva impostazioni', 'primary', 'submit', false); ?></div>
+			<div class="flc-sticky"><?php submit_button('Salva impostazioni', 'primary', 'submit', false); ?> <span id="flcDirty" class="flc-dirty" hidden>Hai modifiche non salvate</span></div>
 		</form>
 		<!-- ===================== LAMPADA 3D (fuori dal modulo principale: ha i suoi pulsanti) ===================== -->
 		<?php
@@ -661,6 +834,7 @@ function flc_settings_page() {
 		$grids = array_filter(array('Speciali (silk, metal…)' => $spec, 'Catalogo del disco' => $fils));
 		?>
 		<section class="flc-tab" data-tab="lampada">
+			<div class="flc-head"><h2>Lampada 3D</h2><p>I pezzi della lampada nell'anteprima 3D, con colori e materiali. Ha il suo pulsante "Salva pezzi".</p></div>
 			<div class="flc-card">
 				<h2><span class="dashicons dashicons-lightbulb"></span> Parti della lampada per l'anteprima 3D</h2>
 				<p class="intro">Carica un file per ogni pezzo (base, perni, tappo frontale, cover…), tutti esportati dalla <strong>stessa composizione senza spostarli</strong>.
@@ -798,19 +972,39 @@ function flc_settings_page() {
 			});
 		})();
 		</script>
-
+		</div><!-- .flc-main -->
+		</div><!-- .flc-layout -->
 	</div>
 	<script>
 	(function () {
 		// schede: si ricorda l'ultima aperta (anche dopo il salvataggio)
 		const tabs = document.querySelectorAll('#flcTabs .nav-tab'), panes = document.querySelectorAll('.flc-tab');
+		const alias = { pagina: 'configuratore' }; // vecchi indirizzi
 		function show(k) {
+			k = alias[k] || k;
 			if (![...panes].some((p) => p.dataset.tab === k)) k = 'panoramica';
 			tabs.forEach((t) => t.classList.toggle('nav-tab-active', t.dataset.tab === k));
 			panes.forEach((p) => p.classList.toggle('on', p.dataset.tab === k));
 			document.querySelector('.flc-sticky').style.display = k === 'panoramica' || k === 'lampada' ? 'none' : '';
 			try { localStorage.setItem('flcSettingsTab', k); } catch (e) {}
+			window.scrollTo(0, 0);
 		}
+		// link interni della panoramica ("Sistema →")
+		document.querySelectorAll('[data-go]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); show(a.dataset.go); history.replaceState(null, '', '#' + a.dataset.go); }));
+		// modifiche non salvate: avviso nella barra e prima di uscire
+		const form = document.getElementById('flcForm'), dirtyEl = document.getElementById('flcDirty');
+		let dirty = false, submitting = false;
+		const markDirty = (e) => { if (!e.target.name) return; dirty = true; dirtyEl.hidden = false; };
+		form.addEventListener('input', markDirty); form.addEventListener('change', markDirty);
+		form.addEventListener('submit', () => { submitting = true; });
+		window.addEventListener('beforeunload', (e) => { if (dirty && !submitting) { e.preventDefault(); e.returnValue = ''; } });
+		// stili: card spenta = più chiara; ripristino del prompt originale
+		document.querySelectorAll('.flc-style-cb').forEach((cb) => cb.addEventListener('change', () => cb.closest('.flc-style').classList.toggle('off', !cb.checked)));
+		document.querySelectorAll('.flc-reset').forEach((b) => b.addEventListener('click', () => {
+			const ta = b.closest('details').querySelector('textarea');
+			if (ta.value.trim() !== ta.dataset.default.trim() && !confirm('Rimettere il testo originale? Le tue modifiche a questo prompt si perdono (dopo il salvataggio).')) return;
+			ta.value = ta.dataset.default; ta.dispatchEvent(new Event('input', { bubbles: true }));
+		}));
 		tabs.forEach((t) => t.addEventListener('click', (e) => { e.preventDefault(); show(t.dataset.tab); history.replaceState(null, '', '#' + t.dataset.tab); }));
 		let start = location.hash.slice(1);
 		if (!start) { try { start = localStorage.getItem('flcSettingsTab') || ''; } catch (e) {} }

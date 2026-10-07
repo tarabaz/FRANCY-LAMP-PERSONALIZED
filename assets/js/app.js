@@ -213,9 +213,12 @@ function aiSource() {
     const s0 = (coverFor(a) * state.zoom * a.width) / c.cw;
     return { img: o, zoom: s0 / coverFor(o), ox: state.ox - s0 * (c.cx0 + c.cw / 2 - o.width / 2), oy: state.oy - s0 * (c.cy0 + c.ch / 2 - o.height / 2) };
   }
+  // ridisegno di una carta (inquadratura nuova): si riparte dalla foto come era prima del ridisegno
+  if (originalImg) return { img: originalImg.img, zoom: originalImg.zoom, ox: originalImg.ox, oy: originalImg.oy };
   return { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy };
 }
 if (CFG.restUrl) { $('#aiBox').hidden = false; loadQuota(); }
+if (CFG.aiCard) $('#aiCardRow').hidden = false;
 
 // Contatori del giorno: quanti ridisegni restano a te e a tutto il sito
 function showQuota(q) {
@@ -254,7 +257,7 @@ function showExample() {
   box.hidden = false;
   $('#exOrig').src = pair.orig;
   $('#exStyle').src = pair.res;
-  $('#exLabel').textContent = { fedele: 'Fedele', ritratto: 'Ritratto', anime: 'Anime' }[aiStyle] || aiStyle;
+  $('#exLabel').textContent = { fedele: 'Fedele', ritratto: 'Ritratto', tombino: 'Tombino', anime: 'Anime' }[aiStyle] || aiStyle;
 }
 // stili disponibili decisi dall'admin (l'anime si può spegnere)
 if (Array.isArray(CFG.aiStyles)) document.querySelectorAll('#aiStyle button').forEach((b) => { b.hidden = !CFG.aiStyles.includes(b.dataset.style); });
@@ -320,12 +323,15 @@ $('#aiBtn').addEventListener('click', async () => {
   // sa restituire: così il risultato si rimette con lo stesso zoom e spostamento e si può ancora spostare.
   const src = aiSource(), o = src.img;
   const ratio = o.width / o.height;
-  const [rw, rh] = AI_RATIOS.reduce((best, r) => (Math.abs(Math.log(ratio * r[1] / r[0])) < Math.abs(Math.log(ratio * best[1] / best[0])) ? r : best));
+  // carta da gioco: si manda la carta intera e torna un quadrato con solo l'illustrazione (inquadratura nuova)
+  const card = !!CFG.aiCard && $('#aiCard').checked;
+  const [rw, rh] = card ? [1, 1] : AI_RATIOS.reduce((best, r) => (Math.abs(Math.log(ratio * r[1] / r[0])) < Math.abs(Math.log(ratio * best[1] / best[0])) ? r : best));
   let cw = o.width, ch = (cw * rh) / rw;
   if (ch > o.height) { ch = o.height; cw = (ch * rw) / rh; }
   const s0 = coverFor(o) * src.zoom;
   const vcx = o.width / 2 - src.ox / s0, vcy = o.height / 2 - src.oy / s0;    // centro inquadrato, in pixel della foto
-  const cx0 = Math.min(Math.max(0, vcx - cw / 2), o.width - cw), cy0 = Math.min(Math.max(0, vcy - ch / 2), o.height - ch);
+  let cx0 = Math.min(Math.max(0, vcx - cw / 2), o.width - cw), cy0 = Math.min(Math.max(0, vcy - ch / 2), o.height - ch);
+  if (card) { cx0 = 0; cy0 = 0; cw = o.width; ch = o.height; }
   const k = Math.min(1, 1536 / Math.max(cw, ch));
   const c = document.createElement('canvas');
   c.width = Math.round(cw * k); c.height = Math.round(ch * k);
@@ -347,7 +353,7 @@ $('#aiBtn').addEventListener('click', async () => {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', ...(CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}) },
-      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground(), bg_text: aiBackground() === 'custom' ? $('#aiBgText').value.trim().slice(0, 160) : '', aspect: `${rw}:${rh}` }),
+      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground(), bg_text: aiBackground() === 'custom' ? $('#aiBgText').value.trim().slice(0, 160) : '', card: card ? 1 : 0, aspect: `${rw}:${rh}` }),
     });
     const raw = await r.text();
     let j = {};
@@ -366,9 +372,14 @@ $('#aiBtn').addEventListener('click', async () => {
     selectMode('keep');
     if (aiStyle === 'ritratto') setPortrait(true); // il ritratto IA ha già la pelle in 3 toni
     // stessa inquadratura di prima: il ridisegno copre la zona [cx0, cy0, cw, ch] della foto originale
-    const s1 = (s0 * cw) / img.width;
-    state.aiCrop = { cx0, cy0, cw, ch };
-    setImage(img, Math.min(4, Math.max(1, s1 / coverFor(img))), src.ox + s0 * (cx0 + cw / 2 - o.width / 2), src.oy + s0 * (cy0 + ch / 2 - o.height / 2));
+    if (card) {
+      state.aiCrop = null; // illustrazione nuova, centrata: niente da riallineare con la foto
+      setImage(img, 1, 0, 0);
+    } else {
+      const s1 = (s0 * cw) / img.width;
+      state.aiCrop = { cx0, cy0, cw, ch };
+      setImage(img, Math.min(4, Math.max(1, s1 / coverFor(img))), src.ox + s0 * (cx0 + cw / 2 - o.width / 2), src.oy + s0 * (cy0 + ch / 2 - o.height / 2));
+    }
     aiMessage(`Ridisegno fatto${j.provider ? ' con ' + j.provider : ''}: ora il disco parte dall'immagine dell'IA.`, 'ok');
   } catch (err) {
     console.error(err);

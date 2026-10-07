@@ -108,10 +108,19 @@ Le chiavi API restano sul server e non arrivano mai al browser. Le immagini non 
 | Google Gemini | `gemini-2.5-flash-image` | Free tier di AI Studio per i test |
 | fal.ai | `fal-ai/flux-pro/kontext`, `fal-ai/qwen-image-edit`, `fal-ai/bytedance/seedream/v4/edit` … | Un'unica chiave per tanti modelli |
 
-**Impostazioni** è divisa in schede: *Panoramica* (ridisegni di oggi, fornitore e modello in uso, limiti del
-server, collegamenti rapidi, utilizzo degli ultimi 30 giorni), *Pagina e aspetto* (pagina dedicata, colore dello
-sfondo dell'anteprima, footer), *Intelligenza artificiale* (fornitori, chiavi, modello), *Stili e prompt*,
-*Disco e regolazioni*, *Ordini e limiti*. L'ultima scheda aperta viene ricordata.
+**Impostazioni** ha un menu laterale con il sottotitolo di ogni sezione:
+- *Panoramica*: la lista **È tutto a posto?** (pagina online, IA attiva, bobine, pezzi 3D, sfondi senza prova,
+  stili senza esempio, limiti del server), ognuna con il link per sistemarla; ridisegni di oggi e collegamenti rapidi.
+- *Pagina*: indirizzo, aspetto (colore di sfondo dell'anteprima), disegni pronti e footer.
+- *Disco*: il disco di partenza; le regolazioni fini della conversione sono chiuse in "Avanzate".
+- *Stili IA*: una card per stile con esempio, "Visibile ai clienti" e il prompt nascosto sotto "Modifica il prompt",
+  con il badge originale/personalizzato e **↺ Ripristina il testo originale**. Ci sono anche le carte da gioco e gli esempi.
+- *Sfondi IA*: la tabella degli sfondi con le prove.
+- *Motore IA*: interruttore, chiave e modello Gemini, limiti di spesa; fal.ai e il fornitore di riserva stanno in "Avanzate".
+- *Anteprima e watermark*, *Lampada 3D*, *Ordini*.
+
+Se modifichi qualcosa compare "Hai modifiche non salvate" vicino a Salva, e il browser ti avvisa prima di uscire.
+L'ultima sezione aperta viene ricordata.
 
 **Modello Gemini**: con **Controlla i modelli disponibili** il plugin chiede a Google l'elenco aggiornato dei modelli
 "image" usabili con la tua chiave (stabili prima, anteprime dopo) e li mostra in una tabella: spunti quello che
@@ -121,7 +130,8 @@ vuoi e salvi. Resta il campo per scriverlo a mano. L'elenco resta in memoria 12 
 al browser **solo agli amministratori** (per gli altri il blocco non viene nemmeno inviato). I clienti hanno solo
 **"Scarica l'anteprima"**: un PNG ridotto (lato lungo massimo impostabile, predefinito 640 px) con il watermark.
 Il watermark (logo dalla Libreria media oppure testo, colore, trasparenza, dimensione, inclinazione) si ripete
-sopra l'anteprima a schermo in 2D/3D e sull'immagine scaricata; nelle impostazioni c'è un'anteprima dal vivo.
+solo sull'immagine scaricata: la vista del progetto resta pulita (si può accendere anche a schermo, ma è
+sconsigliato). Nelle impostazioni c'è un'anteprima dal vivo.
 
 **Lampada 3D** (Impostazioni → Lampada 3D): carichi un file per pezzo (base, perni, tappo frontale, cover…) esportati
 dalla stessa composizione. Lo STL viene convertito nel browser in un formato compatto (FLM): al sito non arriva mai lo
@@ -155,11 +165,24 @@ applicati), non il ritaglio: il ridisegno torna nello stesso formato (1:1, 3:4, 
 che Gemini restituisce) e viene rimesso con lo stesso zoom e spostamento, quindi si può ancora spostare e zoomare.
 "Torna all'immagine originale" mantiene l'inquadratura attuale. Un nuovo ridisegno riparte sempre dalla foto originale.
 
-Il cliente sceglie tra tre stili: **Fedele** (predefinito: conversione di stile che blocca posa, espressione e
-composizione), **Ritratto** (per i volti: poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso) e **Anime** (atmosfera da film
-d'animazione giapponese classico, sempre a colori piatti stampabili; si spegne da Impostazioni). I tre prompt
-si modificano in Impostazioni → Francy Lamp; se il testo è quello predefinito non viene salvato, così gli
-aggiornamenti del plugin migliorano anche il tuo prompt.
+Il cliente sceglie tra quattro stili:
+- **Fedele** (predefinito): conversione di stile che blocca posa, espressione e composizione.
+- **Ritratto**: per i volti, poster pop-art con la pelle in 3 toni netti e niente linee nere dentro il viso.
+- **Tombino** (stile Poké Lids, i tombini Pokémon giapponesi): personaggio allegro con contorni neri e colori smaltati
+  dentro una scena decorativa; va bene per persone, animali, personaggi e oggetti.
+- **Anime**: atmosfera da film d'animazione giapponese.
+
+Ritratto, Tombino e Anime si possono nascondere. I prompt si modificano in Impostazioni → Stili IA; se il testo è
+quello predefinito non viene salvato, così gli aggiornamenti del plugin migliorano anche il tuo prompt.
+
+**È una carta da gioco**: interruttore nel riquadro IA, da accendere solo quando il cliente carica una carta (es.
+Pokémon). Viene mandata la carta intera e l'IA tiene solo l'illustrazione: toglie cornice, nome, PS, testi degli
+attacchi, simboli e copyright, ricostruisce le parti coperte e poi applica lo stile scelto. Il risultato è quadrato
+e centrato (inquadratura nuova). Si spegne da Impostazioni → Stili IA, dove si può modificare anche il suo prompt.
+
+Il pannello sinistro del configuratore si allarga trascinando il suo bordo destro (280–640 px; il browser se lo
+ricorda, doppio clic = larghezza normale). Scegliendo uno sfondo IA, il cliente vede la prova salvata come esempio.
+**Ridisegna di nuovo** manda sempre la foto originale (con le regolazioni usate la prima volta), mai il ridisegno precedente.
 
 Nel passo 1, sotto la foto, c'è lo switch **È un volto (ritratto)**, sempre visibile e indipendente dallo stile IA: il convertitore trova la pelle e le dà 3 toni dedicati (il resto
 dell'immagine si divide gli altri colori), non disegna linee nere tra i toni della pelle (niente "cicatrici" sul viso),
@@ -180,8 +203,7 @@ finiscono nel riepilogo del progetto. Con un'immagine nuova o un risultato IA si
 
 Sotto gli stili c'è l'interruttore **Rimuovi lo sfondo**: se acceso compare il menu **Nuovo sfondo** (Bianco,
 Cielo stile anime, Raggi di luce, Onde giapponesi, Tinta unita) e all'IA viene chiesto di
-togliere lo sfondo della foto e metterci quello scelto. Gli sfondi si gestiscono in Impostazioni → Stili e prompt →
-Nuovo sfondo, in una tabella come quella dei filamenti: nome per il cliente, categoria (solo per te, con filtro),
+togliere lo sfondo della foto e metterci quello scelto. Gli sfondi si gestiscono in Impostazioni → Sfondi IA, in una tabella come quella dei filamenti: nome per il cliente, categoria (solo per te, con filtro),
 descrizione per l'IA (in inglese), *Attivo* (uno spento resta salvato ma il cliente non lo vede), frecce per l'ordine
 del menu (il primo attivo è quello proposto), ricerca, filtri "Solo spenti" / "Senza prova", **+ Aggiungi sfondo** e
 **+ Aggiungi i suggeriti** (una libreria di sfondi pronti: cielo stellato, tramonto, galassia, fiamme, pixel art…,

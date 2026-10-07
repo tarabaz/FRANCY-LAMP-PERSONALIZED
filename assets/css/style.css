@@ -165,7 +165,10 @@ html.flc-page .flc { height: 100%; }
 .flc .ai-box .ai-msg.error { background: #fdecea; color: #a12a1f; }
 .flc .ai-box .ai-msg.ok { background: #e8f5e9; color: #1e6b2a; }
 
-.flc .ai-box .ai-style { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: 6px; margin-bottom: 8px; }
+.flc .ai-box .ai-style { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin-bottom: 8px; }
+.flc .ai-box .ai-card { margin: 0 0 8px; font-size: 13px; }
+.flc .ai-box .ai-card[hidden] { display: none; }
+.flc .ai-box .ai-card .hint { margin: 4px 0 0; font-size: 11.5px; }
 .flc .ai-box .ai-style button[hidden] { display: none; }
 .flc .ai-box .ai-style button {
   background: var(--panel); color: var(--ink); border: 1.5px solid var(--line); padding: 6px 8px; font-weight: 600; font-size: 12px; text-align: left;

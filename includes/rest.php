@@ -88,12 +88,17 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	// Il tentativo conta anche se poi fallisce (evita raffiche di richieste)
 	set_transient($key, $used + 1, DAY_IN_SECONDS);
 
-	// Stile scelto dal cliente: fedele (predefinito), ritratto o anime; sfondo: -1 = lascia quello dell'immagine
+	// Stile scelto dal cliente: fedele (predefinito), ritratto, tombino o anime; sfondo: -1 = lascia quello dell'immagine
 	$bg  = $req->get_param('bg');
 	// formato dell'immagine mandata (la foto intera): il ridisegno torna nello stesso formato
 	$aspect = (string) $req->get_param('aspect');
 	if (in_array($aspect, array('1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'), true)) {
 		$s['aspect'] = $aspect;
+	}
+	// carta da gioco: via cornice, testi e simboli; si lavora in formato quadrato
+	if ($req->get_param('card') && !empty($s['card_enabled'])) {
+		$s['card']   = true;
+		$s['aspect'] = '1:1';
 	}
 	// sfondo scritto dal cliente ("Personalizza…")
 	if ($bg === 'custom' && !empty($s['bg_enabled']) && !empty($s['bg_custom'])) {
@@ -127,8 +132,11 @@ function flc_prompt_for_style($style, $s) {
 	if ($style === 'anime' && !empty($s['style_anime'])) {
 		return $s['prompt_anime'];
 	}
-	if ($style === 'ritratto') {
+	if ($style === 'ritratto' && !empty($s['style_ritratto'])) {
 		return $s['prompt_ritratto'];
+	}
+	if ($style === 'tombino' && !empty($s['style_tombino'])) {
+		return $s['prompt_tombino'];
 	}
 	return $style === 'stilizzato' ? $s['prompt_stylized'] : $s['prompt']; // "stilizzato": vecchie pagine ancora in cache
 }
@@ -137,6 +145,10 @@ function flc_prompt_for_style($style, $s) {
 // Ritorna array(mime, data, provider) oppure WP_Error con la lista degli errori in data['errors'].
 function flc_generate($bin, $mime, $style, $s, $bg = -1) {
 	$prompt    = flc_prompt_for_style($style, $s);
+	// carta da gioco: prima si pulisce la carta (via cornice e scritte), poi si applica lo stile all'illustrazione
+	if (!empty($s['card'])) {
+		$prompt = $s['prompt_card'] . "\n\nThen redraw that cleaned artwork following these instructions (where they talk about the framing of the input, use the cleaned artwork filling the square):\n\n" . $prompt;
+	}
 	$bgs       = flc_backgrounds($s);
 	if (!empty($s['bg_enabled']) && $bg >= 0 && isset($bgs[$bg])) {
 		$prompt .= flc_background_instruction($bgs[$bg]);

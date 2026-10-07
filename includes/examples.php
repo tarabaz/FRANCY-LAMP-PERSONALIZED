@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
 }
 
 const FLC_EX_OPTION = 'flc_examples';
-const FLC_EX_STYLES = array('fedele' => 'Fedele', 'ritratto' => 'Ritratto', 'anime' => 'Anime');
+const FLC_EX_STYLES = array('fedele' => 'Fedele', 'ritratto' => 'Ritratto', 'tombino' => 'Tombino Poké Lids', 'anime' => 'Anime');
 
 function flc_examples_dir() {
 	$up  = wp_upload_dir(null, false);
@@ -179,7 +179,7 @@ function flc_rest_example(WP_REST_Request $req) {
 		@set_time_limit(420);
 	}
 	$s   = flc_settings();
-	$s['style_anime'] = 1; // l'esempio Anime si genera anche se lo stile è nascosto ai clienti
+	$s['style_anime'] = $s['style_tombino'] = $s['style_ritratto'] = 1; // gli esempi si generano anche se lo stile è nascosto ai clienti
 	$gen = flc_generate(file_get_contents($src), 'image/jpeg', $style, $s);
 	if (is_wp_error($gen)) {
 		return new WP_Error('flc_fail', 'Generazione non riuscita: ' . $gen->get_error_message(), array('status' => 502));
