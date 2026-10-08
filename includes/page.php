@@ -57,7 +57,7 @@ function flc_frontend_config() {
 		'defaults'  => array(
 			'band'      => $s['def_band'],
 			'textColor' => $s['def_text_color'],
-			'texts'     => array('tl' => $s['def_tl'], 'tr' => $s['def_tr'], 'bl' => $s['def_bl'], 'br' => $s['def_br']),
+			'texts'     => array('tl' => $s['def_tl'], 'tr' => $s['def_tr'], 'bl' => $s['def_bl'], 'br' => $s['def_br'], 'size' => (int) $s['def_text_size']),
 			'sliders'   => array(
 				'mode' => $s['sl_mode'], 'colors' => $s['sl_colors'], 'line' => $s['sl_line'], 'addOutlines' => (bool) $s['sl_add'],
 				'thick' => $s['sl_thick'], 'smooth' => $s['sl_smooth'], 'feat' => $s['sl_feat'], 'area' => $s['sl_area'], 'ppmm' => $s['sl_ppmm'],

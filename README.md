@@ -60,7 +60,9 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    40 caratteri) ognuna con uno **slider di posizione**: quelle di sopra scorrono nella metà superiore (fino a quasi
    mezzo cerchio di lunghezza), quelle di sotto nella metà inferiore fermandosi ai lati dell'asola. Se il testo è più
    lungo dello spazio le lettere si rimpiccioliscono; se due scritte si accavallano compare un avviso. Le posizioni
-   finiscono nel riepilogo (`scritte.pos`, gradi: 0 = destra, -90 = in alto, 90 = in basso).
+   finiscono nel riepilogo (`scritte.pos`, gradi: 0 = destra, -90 = in alto, 90 = in basso). Lo slider
+   **Dimensione scritte** vale per tutte (35–85% dell'altezza della fascia, mostrato in mm; predefinito in
+   Impostazioni → Disco → Dimensione delle scritte); un testo troppo lungo per il suo spazio si rimpicciolisce da solo.
    **Fai uscire parti del disegno sopra la fascia** (come nei Poké Lids veri): il cliente tocca sull'anteprima 2D le
    zone che devono uscire dal cerchio (tocco su una linea nera = zona colorata più vicina; di nuovo = la toglie).
    La zona esce fino all'anello nero esterno (che resta sempre sopra) con un contorno nero dello spessore delle linee;

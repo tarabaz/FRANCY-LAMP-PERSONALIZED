@@ -505,6 +505,10 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
 
 let textTimer;
 for (const id of ['tTL', 'tTR', 'tBL', 'tBR']) $('#' + id).addEventListener('input', () => { clearTimeout(textTimer); textTimer = setTimeout(render, 150); });
+// dimensione di tutte le scritte (in % della fascia; mostrata in mm)
+const showTextSize = () => { $('#textSizeOut').textContent = (FRAME.band * $('#textSize').value / 100).toFixed(1).replace('.', ',') + ' mm'; };
+$('#textSize').addEventListener('input', () => { showTextSize(); clearTimeout(textTimer); textTimer = setTimeout(render, 40); });
+showTextSize();
 // slider di posizione: aggiornamento leggero mentre si trascina
 for (const id of ['pTL', 'pTR', 'pBL', 'pBR']) $('#' + id).addEventListener('input', () => { clearTimeout(textTimer); textTimer = setTimeout(render, 40); });
 
@@ -991,7 +995,8 @@ function texts() {
   // posizioni dagli slider: sopra il valore è già l'angolo (-180 sinistra … 0 destra);
   // sotto lo slider va da sinistra a destra, l'angolo da 180 (sinistra) a 0 (destra)
   return { topLeft: $('#tTL').value, topRight: $('#tTR').value, bottomLeft: $('#tBL').value, bottomRight: $('#tBR').value,
-    pos: { topLeft: +$('#pTL').value, topRight: +$('#pTR').value, bottomLeft: 180 - +$('#pBL').value, bottomRight: 180 - +$('#pBR').value } };
+    pos: { topLeft: +$('#pTL').value, topRight: +$('#pTR').value, bottomLeft: 180 - +$('#pBL').value, bottomRight: 180 - +$('#pBR').value },
+    height: +$('#textSize').value / 100 };
 }
 
 // ---------------- sopra la fascia: forme ----------------
@@ -1976,6 +1981,7 @@ if (CFG.defaults) {
   if (sl.mode === 'keep') selectMode('keep');
   const t = d.texts || {};
   for (const [id, k] of [['tTL', 'tl'], ['tTR', 'tr'], ['tBL', 'bl'], ['tBR', 'br']]) if (typeof t[k] === 'string') $('#' + id).value = t[k];
+  if (+t.size >= 35 && +t.size <= 85) { $('#textSize').value = +t.size; showTextSize(); }
 }
 
 // footer: anno sempre aggiornato e link alle policy dalle impostazioni

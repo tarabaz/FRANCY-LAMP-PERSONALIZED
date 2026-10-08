@@ -193,7 +193,8 @@ function slotBorderShapes(F, g) {
 export function buildFrame(font, texts, F = FRAME) {
   const g = geometry(F);
   const rMid = (g.rBandOut + g.rBandIn) / 2;
-  const size = F.band * F.textHeight;
+  // altezza delle lettere: frazione della fascia (una per tutte le scritte), regolabile dal configuratore
+  const size = F.band * Math.min(0.85, Math.max(0.35, texts.height || F.textHeight));
   const capOffset = size * 0.36; // baseline spostata per centrare verticalmente il testo nella fascia
   // ampiezza massima: sopra quasi mezzo cerchio, sotto un quarto meno l'asola
   const slotGap = Math.asin(Math.min(1, (F.bottomSlot.diameter / 2 + F.slotBorder) / rMid)) * 180 / Math.PI + 2;

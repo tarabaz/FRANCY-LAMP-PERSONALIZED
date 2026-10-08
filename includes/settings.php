@@ -242,6 +242,7 @@ function flc_defaults() {
 		'def_tr'       => 'Testo 2',
 		'def_bl'       => 'Testo 3',
 		'def_br'       => '',
+		'def_text_size' => 62, // altezza delle scritte, % della fascia
 		'sl_mode'      => 'outline',
 		'sl_colors'    => 10,
 		'sl_line'      => 1.2,
@@ -375,6 +376,7 @@ function flc_sanitize_settings($in) {
 		'def_tr'       => mb_substr(sanitize_text_field($in['def_tr'] ?? ''), 0, 40),
 		'def_bl'       => mb_substr(sanitize_text_field($in['def_bl'] ?? ''), 0, 40),
 		'def_br'       => mb_substr(sanitize_text_field($in['def_br'] ?? ''), 0, 40),
+		'def_text_size' => min(85, max(35, (int) ($in['def_text_size'] ?? 62))),
 		'sl_mode'      => ($in['sl_mode'] ?? '') === 'keep' ? 'keep' : 'outline',
 		'sl_colors'    => min(13, max(2, (int) ($in['sl_colors'] ?? $d['sl_colors']))),
 		'sl_line'      => min(2.5, max(0.6, round((float) ($in['sl_line'] ?? $d['sl_line']), 1))),
@@ -714,6 +716,8 @@ function flc_settings_page() {
 								<label>Sotto 2 (in basso a destra)<br><input type="text" maxlength="40" name="<?php echo $n('def_br'); ?>" value="<?php echo esc_attr($s['def_br']); ?>" style="width:100%"></label>
 							</div>
 							<p class="description">Lascia vuoto un testo per non mostrarlo.</p></td></tr>
+						<tr><th>Dimensione delle scritte</th><td><input type="number" min="35" max="85" step="1" name="<?php echo $n('def_text_size'); ?>" value="<?php echo (int) $s['def_text_size']; ?>" style="width:80px"> % dell'altezza della fascia
+							<p class="description">Vale per tutte le scritte (62% ≈ 7,4 mm di lettere su una fascia da 12 mm). Il cliente la cambia con lo slider "Dimensione scritte"; un testo troppo lungo si rimpicciolisce da solo.</p></td></tr>
 					</table>
 				</div>
 				<details class="flc-card flc-adv">
