@@ -18,6 +18,7 @@ function flc_frontend_config() {
 		'nonce'     => wp_create_nonce('wp_rest'),
 		// i download diretti dei file restano solo agli amministratori
 		'isAdmin'   => current_user_can('manage_options'),
+		'version'   => FLC_VERSION, // nel footer: "Powered by FrancyStore3D v…"
 		// "Elabora questo disegno" → salva immagine e file di stampa dentro il disegno pronto
 		'tplSaveUrl' => current_user_can('manage_options') ? esc_url_raw(rest_url('francy-lamp/v1/disegni/')) : '',
 		// ai clienti niente nomi veri (marche): solo nome pubblico + codice neutro; l'admin riceve anche il nome vero

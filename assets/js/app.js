@@ -2246,6 +2246,7 @@ if (CFG.defaults) {
 // footer: anno sempre aggiornato e link alle policy dalle impostazioni
 $('#footYear').textContent = new Date().getFullYear();
 if (CFG.copyrightName) $('#footName').textContent = CFG.copyrightName;
+$('#footVer').textContent = 'Powered by FrancyStore3D' + (CFG.version ? ' v' + CFG.version : '');
 if (CFG.privacyUrl) { $('#footPrivacy').href = CFG.privacyUrl; $('#consentPrivacy').href = CFG.privacyUrl; }
 if (CFG.cookieUrl) $('#footCookie').href = CFG.cookieUrl;
 if (CFG.logoUrl) {

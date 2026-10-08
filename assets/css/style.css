@@ -295,6 +295,9 @@ html.flc-page .flc { height: 100%; }
 }
 .flc .flc-footer a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 .flc .flc-footer a:hover { color: var(--ink); }
+.flc .flc-footer { position: relative; }
+.flc .flc-footer .foot-ver { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); opacity: .8; }
+@media (max-width: 900px) { .flc .flc-footer .foot-ver { position: static; transform: none; flex-basis: 100%; } }
 .flc.flc-embedded .flc-footer { display: none; } /* dentro una pagina del tema c'è già il footer del sito */
 .flc .check.small a { color: inherit; }
 
