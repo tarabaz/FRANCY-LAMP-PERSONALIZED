@@ -244,6 +244,12 @@ nuova scheda il configuratore con quel disegno già in elaborazione (dal suo pro
 **✏️ Apri nel configuratore** (nuova scheda, riapre il disco del cliente com'era: immagine, ridisegno IA, colori,
 pennellate, scritte… da lì anche 📌 Crea template) e il download del `.francy`. Indirizzo: `?flc_prj=ID`. I progetti
 inviati prima di questa versione non hanno il .francy.
+**📌 Converti in template** (Progetti, colonna File "📌 Template" e riquadro laterale): apre il progetto del cliente nel
+configuratore con la finestra "Crea template" già aperta (`?flc_prj=ID&flc_mk=1`). Solo per i progetti con il .francy.
+Template, file di stampa e progetti si creano, modificano e scaricano solo da amministratore (pulsanti nascosti agli
+altri e richieste rifiutate dal server). Gli indirizzi dei file per il configuratore non sono codificati per l'HTML
+(prima `&amp;` faceva perdere la chiave di sicurezza: errore 403 aprendo un progetto o il progetto di un template).
+La prima volta che si apre l'anteprima 3D la lampada è accesa.
 
 **Importa in blocco** (Disegni pronti → "Importa in blocco (immagini o ZIP)", oppure menu → Importa disegni): si
 trascinano più immagini (PNG/JPG/WEBP) e/o file ZIP; il nome del file diventa il nome del disegno (`_` e `-` diventano

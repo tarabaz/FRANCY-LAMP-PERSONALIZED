@@ -502,6 +502,8 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
   $('#view3d').hidden = state.view !== '3d';
   if (state.view === '3d') {
     if (!preview3d) {
+      // la prima volta che si apre il 3D la lampada si mostra accesa (fa più effetto); poi decide il cliente
+      if (!state.lit && feature('feat_lit')) document.querySelector('.lit-toggle button[data-lit="1"]').click();
       preview3d = new Preview3D($('#view3d'), STAGE_BG, lampConfig(), { ...(CFG.scene || {}), on: sceneOn() });
       preview3d.setLampColors(state.lampColors);
       initSceneBtn();
@@ -2332,12 +2334,18 @@ if (CFG.isAdmin && CFG.openTemplate) {
 // ✏️ Apri nel configuratore (da Progetti in admin): il progetto inviato dal cliente, com'era
 if (CFG.isAdmin && CFG.openProject && CFG.openProject.url) {
   (async () => {
-    try { const u = new URL(location.href); u.searchParams.delete('flc_prj'); history.replaceState(null, '', u); } catch (e) { /* facoltativo */ }
+    try { const u = new URL(location.href); u.searchParams.delete('flc_prj'); u.searchParams.delete('flc_mk'); history.replaceState(null, '', u); } catch (e) { /* facoltativo */ }
     setStatus('Apro il progetto del cliente…');
     try {
       const r = await fetch(CFG.openProject.url, { credentials: 'same-origin' });
       if (!r.ok) throw new Error('errore ' + r.status);
       await openProject(new File([await r.blob()], (CFG.openProject.code || 'progetto') + '.francy'));
+      // 📌 Converti in template (da Progetti): appena il disco è pronto si apre la finestra "Crea template"
+      if (CFG.openProject.makeTemplate) {
+        const t0 = Date.now();
+        const wait = () => { if (state.result && !$('#tplNewBtn').hidden) openTplNew(); else if (Date.now() - t0 < 90000) setTimeout(wait, 400); };
+        wait();
+      }
     } catch (e) { console.error(e); setStatus('Non riesco ad aprire il progetto del cliente: ' + e.message); }
   })();
 }

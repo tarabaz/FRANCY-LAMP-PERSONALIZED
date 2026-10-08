@@ -92,7 +92,9 @@ function flc_design_open_url($post_id) {
 }
 
 function flc_file_url($post_id, $which) {
-	return wp_nonce_url(admin_url('admin-post.php?action=flc_file&id=' . (int) $post_id . '&f=' . $which), 'flc_file_' . (int) $post_id);
+	// URL "grezzo" (non codificato per l'HTML): serve anche al configuratore per scaricare il .francy con fetch;
+	// wp_nonce_url restituirebbe &amp; e la chiave di sicurezza andrebbe persa (errore 403). Nell'HTML passa da esc_url.
+	return add_query_arg(array('action' => 'flc_file', 'id' => (int) $post_id, 'f' => $which, '_wpnonce' => wp_create_nonce('flc_file_' . (int) $post_id)), admin_url('admin-post.php'));
 }
 
 add_action('admin_post_flc_file', function () {
@@ -365,6 +367,7 @@ add_action('manage_flc_design_posts_custom_column', function ($col, $post_id) {
 			echo '<a class="button button-small" href="' . esc_url(flc_file_url($post_id, 'zip')) . '">Scarica zip</a>';
 			if (flc_design_has_francy($post_id)) {
 				echo ' <a class="button button-small" href="' . esc_url(flc_design_open_url($post_id)) . '" target="_blank" title="Riapre il progetto del cliente nel configuratore">✏️ Apri</a>'
+					. ' <a class="button button-small" href="' . esc_url(add_query_arg('flc_mk', 1, flc_design_open_url($post_id))) . '" target="_blank" title="Apre il progetto e la finestra per farne un template (disegno pronto)">📌 Template</a>'
 					. ' <a href="' . esc_url(flc_file_url($post_id, 'francy')) . '" title="Scarica il progetto .francy">.francy</a>';
 			}
 			if ($size) {
@@ -476,7 +479,8 @@ function flc_stato_box($post) {
 	<p><a class="button button-primary" style="width:100%;text-align:center" href="<?php echo esc_url(flc_file_url($post->ID, 'zip')); ?>">Scarica zip completo</a>
 		<?php if ($size) : ?><br><span class="description"><?php echo esc_html(size_format($size, 1)); ?> – anteprime, originale, ridisegno IA, SVG/EPS, STL, lista filamenti</span><?php endif; ?></p>
 	<?php if (flc_design_has_francy($post->ID)) : ?>
-		<p><a class="button" style="width:100%;text-align:center" href="<?php echo esc_url(flc_design_open_url($post->ID)); ?>" target="_blank">✏️ Apri nel configuratore</a><br>
+		<p><a class="button" style="width:100%;text-align:center" href="<?php echo esc_url(flc_design_open_url($post->ID)); ?>" target="_blank">✏️ Apri nel configuratore</a></p>
+		<p><a class="button" style="width:100%;text-align:center" href="<?php echo esc_url(add_query_arg('flc_mk', 1, flc_design_open_url($post->ID))); ?>" target="_blank">📌 Converti in template</a><br>
 			<span class="description">Riapre il progetto del cliente com'era (immagine, colori, scritte…) per modificarlo; da lì puoi anche crearne un template. <a href="<?php echo esc_url(flc_file_url($post->ID, 'francy')); ?>">Scarica il .francy</a></span></p>
 	<?php endif; ?>
 	<p class="description">Premi "Aggiorna" per salvare lo stato.</p>
@@ -603,5 +607,5 @@ function flc_design_open_for_admin() {
 	if (!$id || !current_user_can('manage_options') || get_post_type($id) !== 'flc_design' || !flc_design_has_francy($id)) {
 		return null;
 	}
-	return array('id' => $id, 'code' => get_post_meta($id, '_flc_code', true) ?: ('progetto-' . $id), 'url' => flc_file_url($id, 'francy'));
+	return array('id' => $id, 'code' => get_post_meta($id, '_flc_code', true) ?: ('progetto-' . $id), 'url' => flc_file_url($id, 'francy'), 'makeTemplate' => !empty($_GET['flc_mk']));
 }

@@ -404,7 +404,8 @@ function flc_tpl_dir($post_id, $create = false) {
 }
 
 function flc_tpl_file_url($post_id, $which) {
-	return wp_nonce_url(admin_url('admin-post.php?action=flc_tpl_file&id=' . (int) $post_id . '&f=' . $which), 'flc_tpl_file_' . (int) $post_id);
+	// URL "grezzo" come flc_file_url: il configuratore lo usa con fetch per il progetto del template
+	return add_query_arg(array('action' => 'flc_tpl_file', 'id' => (int) $post_id, 'f' => $which, '_wpnonce' => wp_create_nonce('flc_tpl_file_' . (int) $post_id)), admin_url('admin-post.php'));
 }
 
 // apre il configuratore con questo disegno già in elaborazione (solo admin)
