@@ -156,6 +156,13 @@ Cancellando definitivamente un progetto si cancellano anche i suoi file.
 **Disegni pronti:** in **Francy Lamp Factory → Disegni pronti** aggiungi un disegno con nome e "Immagine del disco
 (PNG)": PNG quadrato del disco frontale completo, cornice compresa, sfondo trasparente fuori dal disco
 (consigliato 1200×1200 px o più). Pubblicato = visibile ai clienti, bozza = nascosto, "Ordine" = posizione.
+**Elabora questo disegno** (solo amministratore): con un disegno pronto scelto, nella barra in alto compare
+"⚙️ Elabora questo disegno". Il disegno diventa la sorgente di tutto il disco (Ø200, immagine presa pari pari): fascia,
+scritte e anello disegnati nell'immagine vengono convertiti come il resto, la cornice del plugin non viene aggiunta;
+resta solo la sagoma fisica del disco (contorno, fori laterali, asola). Colori, contorni, sostituzione colori,
+pennello, penna e lucchetti funzionano come sempre e si esportano STL/3MF/SVG. Scritte, colore fascia, "sopra la
+fascia" e grafiche sono nascosti; "✕ Esci dall'elaborazione" torna al normale.
+
 **Importa in blocco** (Disegni pronti → "Importa in blocco (immagini o ZIP)", oppure menu → Importa disegni): si
 trascinano più immagini (PNG/JPG/WEBP) e/o file ZIP; il nome del file diventa il nome del disegno (`_` e `-` diventano
 spazi, modificabile prima di importare). Pubblica subito o bozza; se esiste già un disegno con lo stesso nome lo salta

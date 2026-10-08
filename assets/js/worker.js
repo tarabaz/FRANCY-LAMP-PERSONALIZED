@@ -41,6 +41,8 @@ function convert(rgba, size, ppmm, opts, progress) {
     // fuori dal cerchio del disegno conta solo dove c'è davvero l'immagine (oltre il bordo della foto non esce niente)
     const ir = opts.ov && opts.ov.imgRect;
     if (ir && d2 > rIn * rIn && (x < ir[0] || y < ir[1] || x >= ir[2] || y >= ir[3])) inside[y * size + x] = 0;
+    // disco intero (disegno pronto elaborato): solo dentro la sagoma vera del disco
+    if (opts.discMask && !opts.discMask[y * size + x]) { inside[y * size + x] = 0; if (opts.ov) kin[y * size + x] = 0; }
     // grafiche aggiuntive: contano sempre (anche fuori dalla foto) e i loro colori entrano nella scelta della palette
     if (opts.ov && opts.ov.mask && opts.ov.mask[y * size + x]) { inside[y * size + x] = 1; kin[y * size + x] = 0; }
   }

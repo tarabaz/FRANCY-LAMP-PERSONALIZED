@@ -220,6 +220,7 @@ function loadImage(src, zoom = 1) {
   img.onload = () => {
     originalImg = null; state.aiImageSrc = null; state.aiCrop = null; state.originalSrc = src;
     state.locks = []; // immagine nuova: le bobine bloccate ripartono da zero
+    if (state.fullDisc) { state.fullDisc = null; root.classList.remove('full-disc'); }
     $('#aiUndo').hidden = true;
     setImage(img, zoom, 0, 0);
   };
@@ -717,12 +718,15 @@ function run() {
   const ppmm = +$('#ppmm').value;
   // con "sopra la fascia" (o con grafiche aggiuntive, che possono andare sulla fascia) il raster arriva oltre la
   // fascia; l'immagine resta inquadrata sul cerchio del disegno
-  const layersOn = state.layers.length > 0;
-  const ovActive = state.overflow || layersOn;
-  const inner = Math.round(2 * g.rImgArt * ppmm);
+  // disegno pronto elaborato (solo admin): l'immagine copre TUTTO il disco (Ø200) e non si aggiunge la cornice
+  const fullDisc = !!state.fullDisc;
+  const rArtEff = fullDisc ? g.R : g.rImgArt;
+  const layersOn = !fullDisc && state.layers.length > 0;
+  const ovActive = !fullDisc && (state.overflow || layersOn);
+  const inner = Math.round(2 * rArtEff * ppmm);
   // stessa scala e margine di pixel interi: il disegno dentro il cerchio resta identico con o senza raster grande
   // (altrimenti mezzo pixel di spostamento cambia la scelta automatica dei colori)
-  const pxmm = inner / (2 * g.rImgArt);
+  const pxmm = inner / (2 * rArtEff);
   const margin = ovActive ? Math.ceil((g.rBandOut + 1 - g.rImgArt) * pxmm) : 0;
   const size = inner + 2 * margin;
   const rRaster = size / (2 * pxmm);
@@ -775,7 +779,19 @@ function run() {
     for (let i = 0; i < mask.length; i++) mask[i] = md[i * 4 + 3] > 110 ? 1 : 0;
   }
   const imageData = ctx.getImageData(0, 0, size, size).data;
+  // disco intero: si lavora solo dentro la sagoma vera del disco (fori laterali e asola esclusi)
+  let discMask = null;
+  if (fullDisc) {
+    const m = document.createElement('canvas'); m.width = m.height = size;
+    const mc = m.getContext('2d');
+    mc.setTransform(pxmm, 0, 0, pxmm, size / 2, size / 2);
+    mc.fill(new Path2D(buildFrame(null, {}).outline), 'evenodd');
+    const md = mc.getImageData(0, 0, size, size).data;
+    discMask = new Uint8Array(size * size);
+    for (let i = 0; i < discMask.length; i++) discMask[i] = md[i * 4 + 3] > 127 ? 1 : 0;
+  }
   const opts = {
+    discMask,
     mode: state.mode,
     colors: +$('#colors').value,
     lineMm: +$('#line').value,
@@ -788,7 +804,7 @@ function run() {
     minAreaMm2: +$('#area').value,
     seed: state.seed,
     // ciò che decide i colori dell'immagine: se non cambia, il worker riusa gli stessi colori
-    paletteKey: JSON.stringify([state.imgId, state.mode, +$('#colors').value, $('#portrait').checked, state.seed, +$('#smooth').value, adjust, Math.round(state.zoom * 1000), Math.round(state.ox), Math.round(state.oy), ppmm, +$('#line').value, $('#addOutlines').checked]),
+    paletteKey: JSON.stringify([fullDisc, state.imgId, state.mode, +$('#colors').value, $('#portrait').checked, state.seed, +$('#smooth').value, adjust, Math.round(state.zoom * 1000), Math.round(state.ox), Math.round(state.oy), ppmm, +$('#line').value, $('#addOutlines').checked]),
     scale: (2 * rRaster) / size,
     offset: -rRaster,
     ov: ovActive ? {
@@ -1103,6 +1119,7 @@ function parts() {
     pal.forEach((p, i) => { if (!p.black && p.area > 0) art({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i), area: p.area }); });
     pal.forEach((p, i) => { if (p.black && p.area > 0) art({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), black: true, area: p.area }); });
   }
+  if (state.fullDisc && !state.template) return list; // disegno pronto elaborato: la cornice è già nel disegno
   art({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, black: true });
   art({ id: 'cornice-fascia', d: frame.band, color: band });
   if (frame.slotBorder) art({ id: 'cornice-contorno-asola', d: frame.slotBorder, color: BLACK, black: true });
@@ -1133,6 +1150,7 @@ function render() {
     dirty3d = true;
     if (state.view === '3d' && preview3d) update3d();
     $('#textWarn').hidden = true;
+    updateFullDiscBtn();
     updateSteps();
     return;
   }
@@ -1155,6 +1173,7 @@ function render() {
   if (state.view === '3d' && preview3d) update3d(ps);
   updateOvUi();
   updatePaintUi();
+  updateFullDiscBtn();
   $('#textWarn').hidden = !state.textOverlap;
   $('#textWarn').textContent = state.textOverlap ? `Le due scritte di ${state.textOverlap} si sovrappongono: spostane una con il suo slider.` : '';
   updateSteps();
@@ -1329,6 +1348,37 @@ function paintAt(x, y) {
   state.paints = [...state.paints, { x, y, to, hex: state.brush }];
   sendPaints();
 }
+
+// ---------------- elabora un disegno pronto (solo admin) ----------------
+function updateFullDiscBtn() {
+  const b = $('#fullDiscBtn');
+  b.hidden = !CFG.isAdmin || !feature('feat_full_disc') || !(state.template || state.fullDisc);
+  b.textContent = state.fullDisc && !state.template ? '✕ Esci dall\'elaborazione' : '⚙️ Elabora questo disegno';
+}
+async function enterFullDisc() {
+  const t = state.template;
+  if (!t) return;
+  let img;
+  try { img = await loadLayerImg(t.dataUrl); } catch (e) { setStatus('Disegno non disponibile'); return; }
+  $('#tplExit').click(); // esce dalla vetrina del disegno pronto
+  state.fullDisc = { name: t.name };
+  root.classList.add('full-disc');
+  state.layers = []; state.layerSel = null; renderLayers();
+  state.overflow = false; $('#ovOn').checked = false; updateOvUi();
+  state.originalSrc = t.dataUrl; state.originalFile = null; // nello zip va come "originale" (dal data URL)
+  originalImg = null; state.aiImageSrc = null; state.aiCrop = null;
+  selectMode('keep'); // il disegno ha già i contorni neri
+  setImage(img, 1, 0, 0);
+  openStep(3);
+  setStatus('Disegno pronto in elaborazione: colori, contorni, pennello e penna funzionano come sempre');
+}
+function exitFullDisc() {
+  state.fullDisc = null;
+  root.classList.remove('full-disc');
+  updateFullDiscBtn();
+  run();
+}
+$('#fullDiscBtn').addEventListener('click', () => { if (state.fullDisc && !state.template) exitFullDisc(); else enterFullDisc(); });
 
 // ---------------- zoom dell'anteprima 2D ----------------
 // viewBox in mm: x, y = angolo in alto a sinistra, w = lato (200 = tutto il disco)
@@ -1812,7 +1862,7 @@ async function buildPackage(customer) {
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
     lampada: lampSummary(),
-    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, grafiche: state.layers.map((x) => ({ id: x.id, nome: x.name, x: x.x, y: x.y, larghezza_mm: x.size, rotazione: x.rot })), ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
+    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, disegno_pronto_elaborato: state.fullDisc ? state.fullDisc.name : null, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, grafiche: state.layers.map((x) => ({ id: x.id, nome: x.name, x: x.x, y: x.y, larghezza_mm: x.size, rotazione: x.rot })), ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
     'FrancyStore3D - disco lampada personalizzato', '',

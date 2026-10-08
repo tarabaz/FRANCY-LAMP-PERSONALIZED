@@ -122,6 +122,7 @@ function flc_features() {
 		'feat_upload_adjust' => array('Immagine', 'Regola immagine', 'Luminosità, contrasto e saturazione prima della conversione.'),
 		'feat_portrait'      => array('Immagine', 'È un volto (ritratto)', 'Interruttore per i volti: pelle in 3 toni, occhi e denti.'),
 		'templates_enabled'  => array('Immagine', 'Disegni pronti', 'Pulsante "Scegli un disegno pronto".'),
+		'feat_full_disc'     => array('Immagine', 'Elabora un disegno pronto (solo admin)', 'Pulsante in alto: il disegno pronto diventa la sorgente di tutto il disco.'),
 		'enabled'            => array('Ridisegno con IA', 'Ridisegno con IA', 'Tutto il passo "Ridisegno con IA".'),
 		'style_ritratto'     => array('Ridisegno con IA', 'Stile Ritratto', ''),
 		'style_tombino'      => array('Ridisegno con IA', 'Stile Tombino (Poké Lids)', ''),
