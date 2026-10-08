@@ -1159,6 +1159,7 @@ function render() {
     return;
   }
   const { svg, colors, parts: ps } = buildSvg(false);
+  if (state.fullDisc) state.fullDisc.cur = svg;
   // colora a mano: i confini di tutte le zone (anche tra due bianchi) tratteggiati, solo a schermo
   const guide = state.painting && state.baseLayers
     ? `<g id="guida-zone" fill="none" stroke="#d0342c" stroke-opacity=".75" stroke-width="${0.22 * zoomUnit()}" stroke-dasharray="${0.8 * zoomUnit()} ${0.5 * zoomUnit()}" pointer-events="none">${state.baseLayers.map((d) => (d ? `<path d="${d}"/>` : '')).join('')}</g>`
@@ -1359,14 +1360,68 @@ function updateFullDiscBtn() {
   const b = $('#fullDiscBtn');
   b.hidden = !CFG.isAdmin || !feature('feat_full_disc') || !(state.template || state.fullDisc);
   b.textContent = state.fullDisc && !state.template ? '✕ Esci dall\'elaborazione' : '⚙️ Elabora questo disegno';
+  // salva nel disegno pronto: compare quando il disco è diverso da quello salvato
+  const s = $('#tplSaveBtn'), fd = state.fullDisc;
+  s.hidden = !CFG.isAdmin || !CFG.tplSaveUrl || !fd || !fd.id || !!state.template || !state.result;
+  if (!s.hidden && !s.dataset.busy) {
+    const saved = fd.saved && fd.saved === fd.cur;
+    s.disabled = saved;
+    s.textContent = saved ? '✓ Salvato nel disegno pronto' : '💾 Salva nel disegno pronto';
+  }
 }
+// PNG (quello che vedranno i clienti), SVG, EPS, 3MF e progetto .francy dentro il disegno pronto
+async function saveToTemplate() {
+  const fd = state.fullDisc, btn = $('#tplSaveBtn');
+  if (!CFG.isAdmin || !CFG.tplSaveUrl || !fd || !fd.id || !state.result) return;
+  const svgNow = fd.cur;
+  btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Salvo…';
+  setStatus('Preparo PNG, EPS e 3MF del disegno…');
+  try {
+    const ps = parts();
+    const { colors } = buildSvg(false);
+    if (colors.size > MAX_FILAMENTS) throw new Error(`troppi colori (${colors.size} / ${MAX_FILAMENTS})`);
+    const previewOff = await svgToPng(false);
+    const mf = await make3mf(ps, previewOff, fd.name);
+    const form = new FormData();
+    form.append('png', await svgToPng(false, 1600, true), 'disegno.png');
+    form.append('svg', new Blob([buildSvg(true).svg], { type: 'image/svg+xml' }), 'disco.svg');
+    form.append('eps', new Blob([buildEps(ps, FRAME.diameter)], { type: 'application/postscript' }), 'disco.eps');
+    form.append('3mf', mf.blob, 'disco-lampada.3mf');
+    form.append('francy', await projectBlob(), 'progetto.francy');
+    form.append('colors', JSON.stringify([...colors]));
+    const r = await fetch(CFG.tplSaveUrl.replace(/\/?$/, '/') + fd.id + '/elaborato', { method: 'POST', credentials: 'same-origin', headers: CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}, body: form });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.message || 'errore ' + r.status);
+    fd.saved = svgNow;
+    // la galleria mostra subito la versione nuova
+    const t = (state.templates || []).find((x) => x.id === fd.id);
+    if (t && j.url) { t.url = j.url; t.thumb = j.url; t.ready = true; if (j.project) t.project = j.project; setTemplates(state.templates); }
+    setStatus('Salvato nel disegno pronto: i clienti vedono questa versione, 3MF ed EPS sono in Disegni pronti');
+  } catch (err) {
+    console.error(err);
+    setStatus('Non riesco a salvare nel disegno pronto: ' + err.message);
+  } finally {
+    delete btn.dataset.busy;
+    updateFullDiscBtn();
+  }
+}
+$('#tplSaveBtn').addEventListener('click', saveToTemplate);
 async function enterFullDisc() {
   const t = state.template;
   if (!t) return;
+  // già elaborato e salvato: riparte dal suo progetto (colori, pennello, penna…) invece che dal PNG
+  if (t.project) {
+    try {
+      const r = await fetch(t.project, { credentials: 'same-origin' });
+      if (!r.ok) throw new Error(r.status);
+      await openProject(new File([await r.blob()], 'progetto.francy'));
+      if (state.fullDisc) { state.fullDisc.id = t.id; state.fullDisc.name = t.name; openStep(3); updateFullDiscBtn(); return; }
+    } catch (e) { console.warn('progetto del disegno non disponibile, riparto dall\'immagine', e); }
+  }
   let img;
   try { img = await loadLayerImg(t.dataUrl); } catch (e) { setStatus('Disegno non disponibile'); return; }
   $('#tplExit').click(); // esce dalla vetrina del disegno pronto
-  state.fullDisc = { name: t.name };
+  state.fullDisc = { name: t.name, id: t.id };
   root.classList.add('full-disc');
   state.layers = []; state.layerSel = null; renderLayers();
   state.overflow = false; $('#ovOn').checked = false; updateOvUi();
@@ -1749,7 +1804,7 @@ function update3d(ps) {
 }
 
 // ---------------- file (anteprime, pacchetto completo) ----------------
-function svgToPng(lit, size = 1200) {
+function svgToPng(lit, size = 1200, transparent = false) {
   const svg = state.template ? templateSvg() : buildSvg(false).svg;
   return new Promise((ok, ko) => {
     const img = new Image();
@@ -1757,7 +1812,7 @@ function svgToPng(lit, size = 1200) {
       const c = document.createElement('canvas');
       c.width = c.height = size;
       const ctx = c.getContext('2d');
-      ctx.fillStyle = STAGE_BG; ctx.fillRect(0, 0, size, size);
+      if (!transparent) { ctx.fillStyle = STAGE_BG; ctx.fillRect(0, 0, size, size); }
       if (lit) ctx.filter = 'brightness(1.12) saturate(1.25)';
       ctx.drawImage(img, 0, 0, size, size);
       c.toBlob((b) => (b ? ok(b) : ko(new Error('PNG non creato'))), 'image/png');
@@ -1790,6 +1845,18 @@ function colorSummary(ps) {
   return [...byHex.values()].map((e) => ({ ...e, roles: [...e.roles], area: Math.round(e.area) }));
 }
 
+// progetto Bambu Studio con parti e filamenti già assegnati (profili dal progetto modello H2C)
+async function make3mf(ps, previewOff, title = 'Disco lampada FrancyStore3D') {
+  const tplUrl = CFG.bambuTemplateUrl || new URL('../bambu/h2c-template.json', import.meta.url).href;
+  const template = await (await fetch(tplUrl, { credentials: 'same-origin' })).json();
+  const thumb = await resizePng(previewOff, 512), thumbSmall = await resizePng(previewOff, 128);
+  return build3mf(ps, {
+    template, white: WHITE, black: BLACK, title,
+    filamentName: (h) => (state.filaments.length ? nearestFilament(h).name : ''),
+    baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness, thumb, thumbSmall,
+  });
+}
+
 // Disegno pronto: anteprime, PNG del disegno e riepilogo (gli STL di quel disegno li ha già l'admin)
 async function buildTemplatePackage(customer) {
   const t = state.template;
@@ -1801,7 +1868,8 @@ async function buildTemplatePackage(customer) {
     `Cliente: ${customer.name} <${customer.email}>${customer.phone ? ' tel. ' + customer.phone : ''}`,
     customer.note ? `Note: ${customer.note}` : '',
     `Disegno pronto: ${t.name} (ID ${t.id})`, '',
-    'Il cliente non ha modificato il disegno: usa i tuoi file di stampa di questo disegno.',
+    t.ready ? 'Il cliente non ha modificato il disegno: i file di stampa (3MF, EPS) sono in Disegni pronti → ' + t.name + '.'
+      : 'Il cliente non ha modificato il disegno: usa i tuoi file di stampa di questo disegno.',
   ];
   const files = [
     { name: '01_anteprime/anteprima-spenta.png', data: await bytes(previewOff) },
@@ -1844,14 +1912,7 @@ async function buildPackage(customer) {
   // progetto Bambu Studio con parti e filamenti già assegnati (profili dal progetto modello H2C)
   let bambu = null;
   try {
-    const tplUrl = CFG.bambuTemplateUrl || new URL('../bambu/h2c-template.json', import.meta.url).href;
-    const template = await (await fetch(tplUrl, { credentials: 'same-origin' })).json();
-    const thumb = await resizePng(previewOff, 512), thumbSmall = await resizePng(previewOff, 128);
-    bambu = await build3mf(ps, {
-      template, white: WHITE, black: BLACK, title: 'Disco lampada FrancyStore3D',
-      filamentName: (h) => (state.filaments.length ? nearestFilament(h).name : ''),
-      baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness, thumb, thumbSmall,
-    });
+    bambu = await make3mf(ps, previewOff);
     files.push({ name: '05_bambu/disco-lampada.3mf', data: await bytes(bambu.blob) });
   } catch (err) {
     console.error('3MF non creato', err); // lo zip resta valido anche senza
@@ -2218,33 +2279,36 @@ function projectName() {
   return base.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
     + `-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.francy`;
 }
+async function projectBlob() {
+  const P = { app: 'francy-lamp', v: 1, saved: new Date().toISOString() };
+  if (state.template) P.template = { id: state.template.id, name: state.template.name, dataUrl: state.template.dataUrl };
+  else {
+    P.image = state.originalFile ? await blobToDataUrl(state.originalFile) : await srcToDataUrl(state.originalSrc);
+    P.imageName = state.originalFile ? state.originalFile.name : 'originale';
+    if (state.aiImageSrc && originalImg) P.ai = { image: await srcToDataUrl(state.aiImageSrc), style: aiStyle, background: state.aiBackground || null, provider: state.aiProvider || '', crop: state.aiCrop, orig: { zoom: originalImg.zoom, ox: originalImg.ox, oy: originalImg.oy, mode: originalImg.mode, adj: originalImg.adj } };
+    P.view = { zoom: state.zoom, ox: state.ox, oy: state.oy };
+    P.adjust = { ...adjust };
+    P.mode = state.mode; P.seed = state.seed; P.portrait = $('#portrait').checked;
+    P.controls = Object.fromEntries(ctrlIds.map((id) => [id, +$('#' + id).value]));
+    P.addOutlines = $('#addOutlines').checked;
+    P.fullDisc = state.fullDisc ? { name: state.fullDisc.name, id: state.fullDisc.id || null } : null;
+    P.overflow = state.overflow; P.ovSeeds = state.ovSeeds;
+    P.paints = state.paints; P.locks = state.locks; P.centers = state.centers || null;
+    P.layers = await Promise.all(state.layers.map(async (L) => ({ id: L.id, name: L.name, image: await srcToDataUrl(L.url), x: L.x, y: L.y, size: L.size, rot: L.rot })));
+  }
+  P.band = state.bandColor; P.textColor = state.textColor;
+  P.texts = { tl: $('#tTL').value, tr: $('#tTR').value, bl: $('#tBL').value, br: $('#tBR').value, pTL: +$('#pTL').value, pTR: +$('#pTR').value, pBL: +$('#pBL').value, pBR: +$('#pBR').value, size: +$('#textSize').value };
+  P.lampColors = state.lampColors || {};
+  P.lit = state.lit;
+  let blob = new Blob([JSON.stringify(P)], { type: 'application/json' });
+  if (typeof CompressionStream !== 'undefined') blob = await new Response(blob.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+  return blob;
+}
 async function saveProject() {
   if (!state.img && !state.template) return;
   setStatus('Preparo il file del progetto…');
   try {
-    const P = { app: 'francy-lamp', v: 1, saved: new Date().toISOString() };
-    if (state.template) P.template = { id: state.template.id, name: state.template.name, dataUrl: state.template.dataUrl };
-    else {
-      P.image = state.originalFile ? await blobToDataUrl(state.originalFile) : await srcToDataUrl(state.originalSrc);
-      P.imageName = state.originalFile ? state.originalFile.name : 'originale';
-      if (state.aiImageSrc && originalImg) P.ai = { image: await srcToDataUrl(state.aiImageSrc), style: aiStyle, background: state.aiBackground || null, provider: state.aiProvider || '', crop: state.aiCrop, orig: { zoom: originalImg.zoom, ox: originalImg.ox, oy: originalImg.oy, mode: originalImg.mode, adj: originalImg.adj } };
-      P.view = { zoom: state.zoom, ox: state.ox, oy: state.oy };
-      P.adjust = { ...adjust };
-      P.mode = state.mode; P.seed = state.seed; P.portrait = $('#portrait').checked;
-      P.controls = Object.fromEntries(ctrlIds.map((id) => [id, +$('#' + id).value]));
-      P.addOutlines = $('#addOutlines').checked;
-      P.fullDisc = state.fullDisc || null;
-      P.overflow = state.overflow; P.ovSeeds = state.ovSeeds;
-      P.paints = state.paints; P.locks = state.locks; P.centers = state.centers || null;
-      P.layers = await Promise.all(state.layers.map(async (L) => ({ id: L.id, name: L.name, image: await srcToDataUrl(L.url), x: L.x, y: L.y, size: L.size, rot: L.rot })));
-    }
-    P.band = state.bandColor; P.textColor = state.textColor;
-    P.texts = { tl: $('#tTL').value, tr: $('#tTR').value, bl: $('#tBL').value, br: $('#tBR').value, pTL: +$('#pTL').value, pTR: +$('#pTR').value, pBL: +$('#pBL').value, pBR: +$('#pBR').value, size: +$('#textSize').value };
-    P.lampColors = state.lampColors || {};
-    P.lit = state.lit;
-    let blob = new Blob([JSON.stringify(P)], { type: 'application/json' });
-    if (typeof CompressionStream !== 'undefined') blob = await new Response(blob.stream().pipeThrough(new CompressionStream('gzip'))).blob();
-    download(projectName(), blob);
+    download(projectName(), await projectBlob());
     setStatus('Progetto salvato: riaprilo con 📂 Apri per riprendere da qui');
   } catch (err) { console.error(err); setStatus('Non riesco a salvare il progetto'); }
 }

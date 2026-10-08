@@ -173,6 +173,17 @@ resta solo la sagoma fisica del disco (contorno, fori laterali, asola). Colori, 
 pennello, penna e lucchetti funzionano come sempre e si esportano STL/3MF/SVG. Scritte, colore fascia, "sopra la
 fascia" e grafiche sono nascosti; "✕ Esci dall'elaborazione" torna al normale.
 
+**💾 Salva nel disegno pronto** (barra in alto, durante l'elaborazione): manda al sito il PNG del disco così com'è
+adesso (1600 px, trasparente fuori dal disco), SVG, EPS, 3MF Bambu e il progetto `.francy`. Il PNG diventa la
+versione che i clienti vedono nella galleria e nell'anteprima al posto dell'immagine caricata all'inizio, che resta
+come immagine in evidenza; SVG/EPS/3MF/progetto vanno nella cartella protetta (`uploads/francy-lamp/disegni/…`) e si
+scaricano solo da admin. Nell'elenco Disegni pronti la colonna **Pronto da stampare** mostra ✓ con data e link
+(3MF · EPS · SVG · Progetto · PNG); nella modifica del disegno il riquadro omonimo ha anche "Rimuovi elaborazione"
+(i clienti tornano a vedere l'originale). Rielaborando un disegno già salvato si riparte dal suo progetto (colori,
+pennello, penna, lucchetti), non dal PNG. Salvando di nuovo l'elaborazione vecchia viene sostituita. Il pulsante
+diventa "✓ Salvato" finché il disco non cambia. Se un cliente convalida un disegno pronto, nel LEGGIMI c'è scritto che
+i file di stampa sono già in Disegni pronti. Endpoint: `POST /disegni/{id}/elaborato` (solo admin).
+
 **Importa in blocco** (Disegni pronti → "Importa in blocco (immagini o ZIP)", oppure menu → Importa disegni): si
 trascinano più immagini (PNG/JPG/WEBP) e/o file ZIP; il nome del file diventa il nome del disegno (`_` e `-` diventano
 spazi, modificabile prima di importare). Pubblica subito o bozza; se esiste già un disegno con lo stesso nome lo salta

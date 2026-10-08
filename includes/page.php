@@ -18,6 +18,8 @@ function flc_frontend_config() {
 		'nonce'     => wp_create_nonce('wp_rest'),
 		// i download diretti dei file restano solo agli amministratori
 		'isAdmin'   => current_user_can('manage_options'),
+		// "Elabora questo disegno" → salva immagine e file di stampa dentro il disegno pronto
+		'tplSaveUrl' => current_user_can('manage_options') ? esc_url_raw(rest_url('francy-lamp/v1/disegni/')) : '',
 		// ai clienti niente nomi veri (marche): solo nome pubblico + codice neutro; l'admin riceve anche il nome vero
 		'filaments' => flc_filaments_public(flc_filaments(), 'D'),
 		'filamentsSpecial' => flc_filaments_public(flc_filaments_special(), 'S'), // solo pezzi della lampada

@@ -63,14 +63,18 @@ add_filter('manage_flc_template_posts_columns', function () {
 		'cb'           => '<input type="checkbox" />',
 		'flc_tpl_img'  => 'Disegno',
 		'title'        => 'Nome',
+		'flc_tpl_print' => 'Pronto da stampare',
 		'flc_tpl_ord'  => 'Ordine',
 		'date'         => 'Data',
 	);
 });
 add_action('manage_flc_template_posts_custom_column', function ($col, $post_id) {
 	if ($col === 'flc_tpl_img') {
-		$img = get_the_post_thumbnail_url($post_id, 'thumbnail');
+		$ed  = flc_tpl_print($post_id);
+		$img = $ed ? wp_get_attachment_image_url($ed['png'], 'thumbnail') : get_the_post_thumbnail_url($post_id, 'thumbnail');
 		echo $img ? '<img src="' . esc_url($img) . '" alt="" style="width:72px;height:72px;object-fit:contain">' : '<span class="description">manca l\'immagine</span>';
+	} elseif ($col === 'flc_tpl_print') {
+		echo flc_tpl_print_links($post_id);
 	} elseif ($col === 'flc_tpl_ord') {
 		echo (int) get_post_field('menu_order', $post_id);
 	}
@@ -95,8 +99,19 @@ function flc_templates_for_frontend() {
 		}
 		$full  = wp_get_attachment_image_url($id, 'full');
 		$thumb = wp_get_attachment_image_url($id, 'medium') ?: $full;
+		// elaborato dall'admin (colori ritoccati): i clienti vedono quello, l'originale resta
+		$ed = flc_tpl_print($p->ID);
+		if ($ed && ($eu = wp_get_attachment_image_url($ed['png'], 'full'))) {
+			$full  = $eu;
+			$thumb = wp_get_attachment_image_url($ed['png'], 'medium') ?: $eu;
+		}
 		if ($full) {
-			$out[] = array('id' => $p->ID, 'name' => get_the_title($p), 'url' => $full, 'thumb' => $thumb);
+			$t = array('id' => $p->ID, 'name' => get_the_title($p), 'url' => $full, 'thumb' => $thumb, 'ready' => (bool) $ed);
+			// all'admin anche il progetto salvato: "Elabora questo disegno" riparte dalle sue modifiche
+			if ($ed && !empty($ed['files']['francy']) && current_user_can('manage_options')) {
+				$t['project'] = flc_tpl_file_url($p->ID, 'francy');
+			}
+			$out[] = $t;
 		}
 	}
 	return $out;
@@ -305,3 +320,184 @@ function flc_templates_import_page() {
 	</script>
 	<?php
 }
+
+// ---------- Disegno pronto elaborato dall'admin: file di stampa + immagine con i colori ritoccati ----------
+// Dal configuratore ("⚙️ Elabora questo disegno" → "💾 Salva nel disegno pronto") arrivano PNG, SVG, EPS, 3MF e il
+// progetto .francy. Il PNG diventa un allegato (lo vedono i clienti al posto dell'originale, che resta l'immagine in
+// evidenza); gli altri file vanno nella cartella protetta e si scaricano solo da admin.
+
+const FLC_TPL_FILES = array(
+	'eps'    => array('disco.eps', 'application/postscript'),
+	'3mf'    => array('disco-lampada.3mf', 'model/3mf'),
+	'svg'    => array('disco.svg', 'image/svg+xml'),
+	'francy' => array('progetto.francy', 'application/octet-stream'),
+);
+
+// dati dell'elaborazione o null: { png: id allegato, dir, files: { eps: true… }, time }
+function flc_tpl_print($post_id) {
+	$m = get_post_meta($post_id, '_flc_tpl_print', true);
+	return is_array($m) && !empty($m['png']) && get_post($m['png']) ? $m : null;
+}
+
+function flc_tpl_dir($post_id, $create = false) {
+	$m   = get_post_meta($post_id, '_flc_tpl_print', true);
+	$dir = is_array($m) && !empty($m['dir']) && preg_match('/^[a-f0-9-]{36}$/', $m['dir']) ? $m['dir'] : '';
+	if (!$dir) {
+		if (!$create) {
+			return '';
+		}
+		$dir = wp_generate_uuid4();
+	}
+	$path = flc_storage_base() . '/disegni/' . $dir;
+	if ($create && !is_dir($path)) {
+		wp_mkdir_p($path);
+	}
+	return $path;
+}
+
+function flc_tpl_file_url($post_id, $which) {
+	return wp_nonce_url(admin_url('admin-post.php?action=flc_tpl_file&id=' . (int) $post_id . '&f=' . $which), 'flc_tpl_file_' . (int) $post_id);
+}
+
+function flc_tpl_print_links($post_id) {
+	$ed = flc_tpl_print($post_id);
+	if (!$ed) {
+		return '<span class="description">non ancora: apri il disegno nel configuratore, ⚙️ Elabora e 💾 Salva</span>';
+	}
+	$links = array();
+	foreach (array('3mf' => '3MF', 'eps' => 'EPS', 'svg' => 'SVG', 'francy' => 'Progetto') as $k => $label) {
+		if (!empty($ed['files'][$k])) {
+			$links[] = '<a href="' . esc_url(flc_tpl_file_url($post_id, $k)) . '">' . $label . '</a>';
+		}
+	}
+	$png = wp_get_attachment_url($ed['png']);
+	if ($png) {
+		$links[] = '<a href="' . esc_url($png) . '" target="_blank">PNG</a>';
+	}
+	return '<strong style="color:#00a32a">✓ Pronto</strong> <span class="description">' . esc_html(wp_date('d/m/Y H:i', (int) $ed['time'])) . '</span><br>' . implode(' · ', $links);
+}
+
+add_action('admin_post_flc_tpl_file', function () {
+	$id = absint($_GET['id'] ?? 0);
+	$f  = sanitize_key($_GET['f'] ?? '');
+	if (!current_user_can('manage_options') || !wp_verify_nonce($_GET['_wpnonce'] ?? '', 'flc_tpl_file_' . $id)) {
+		wp_die('Non autorizzato.', 403);
+	}
+	$dir = flc_tpl_dir($id);
+	if (!$dir || !isset(FLC_TPL_FILES[$f]) || !is_file($dir . '/' . FLC_TPL_FILES[$f][0])) {
+		wp_die('File non trovato.', 404);
+	}
+	list($file, $type) = FLC_TPL_FILES[$f];
+	$path = $dir . '/' . $file;
+	$name = sanitize_file_name(flc_file_slug(get_the_title($id) ?: 'disegno-' . $id) . '-' . $file);
+	nocache_headers();
+	header('Content-Type: ' . $type);
+	header('Content-Length: ' . filesize($path));
+	header('Content-Disposition: attachment; filename="' . $name . '"');
+	header('X-Content-Type-Options: nosniff');
+	readfile($path);
+	exit;
+});
+
+function flc_tpl_print_delete($post_id) {
+	$m = get_post_meta($post_id, '_flc_tpl_print', true);
+	if (is_array($m) && !empty($m['png'])) {
+		wp_delete_attachment((int) $m['png'], true);
+	}
+	$dir  = flc_tpl_dir($post_id);
+	$base = realpath(flc_storage_base());
+	if ($dir && is_dir($dir) && $base && strpos(realpath($dir), $base) === 0) {
+		foreach (glob($dir . '/*') as $file) {
+			@unlink($file);
+		}
+		@rmdir($dir);
+	}
+	delete_post_meta($post_id, '_flc_tpl_print');
+}
+
+add_action('rest_api_init', function () {
+	register_rest_route('francy-lamp/v1', '/disegni/(?P<id>\d+)/elaborato', array(
+		'methods'             => 'POST',
+		'permission_callback' => function () { return current_user_can('manage_options'); },
+		'callback'            => 'flc_rest_tpl_print',
+	));
+});
+
+function flc_rest_tpl_print(WP_REST_Request $req) {
+	$id = (int) $req->get_param('id');
+	if (get_post_type($id) !== 'flc_template') {
+		return new WP_Error('flc_tpl', 'Disegno pronto non trovato.', array('status' => 404));
+	}
+	$files = $req->get_file_params();
+	if (empty($files['png']['tmp_name']) || !flc_is_png($files['png']['tmp_name'])) {
+		return new WP_Error('flc_tpl', 'Manca l\'immagine PNG del disegno.', array('status' => 400));
+	}
+	if (empty($files['eps']['tmp_name']) || empty($files['3mf']['tmp_name'])) {
+		return new WP_Error('flc_tpl', 'Mancano i file di stampa (EPS e 3MF).', array('status' => 400));
+	}
+	$old = get_post_meta($id, '_flc_tpl_print', true);
+	$dir = flc_tpl_dir($id, true);
+	$got = array();
+	foreach (FLC_TPL_FILES as $k => $f) {
+		if (!empty($files[$k]['tmp_name']) && is_uploaded_file($files[$k]['tmp_name'])) {
+			if (!@move_uploaded_file($files[$k]['tmp_name'], $dir . '/' . $f[0])) {
+				return new WP_Error('flc_tpl', 'Non riesco a salvare ' . $f[0] . '.', array('status' => 500));
+			}
+			$got[$k] = true;
+		}
+	}
+	// immagine nuova come allegato (la vecchia elaborazione si cancella, l'originale non si tocca)
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	require_once ABSPATH . 'wp-admin/includes/media.php';
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	$title = get_the_title($id);
+	$att   = media_handle_sideload(array('name' => sanitize_file_name(flc_file_slug($title ?: 'disegno') . '-elaborato.png'), 'tmp_name' => $files['png']['tmp_name']), $id, $title . ' (elaborato)');
+	if (is_wp_error($att)) {
+		return new WP_Error('flc_tpl', $att->get_error_message(), array('status' => 500));
+	}
+	if (is_array($old) && !empty($old['png']) && (int) $old['png'] !== (int) $att) {
+		wp_delete_attachment((int) $old['png'], true);
+	}
+	$colors = json_decode((string) $req->get_param('colors'), true);
+	update_post_meta($id, '_flc_tpl_print', array(
+		'png'    => (int) $att,
+		'dir'    => basename($dir),
+		'files'  => $got,
+		'time'   => time(),
+		'colors' => is_array($colors) ? array_slice(array_map('sanitize_text_field', $colors), 0, 30) : array(),
+	));
+	return array('ok' => true, 'id' => $id, 'url' => wp_get_attachment_url($att), 'project' => flc_tpl_file_url($id, 'francy'), 'links' => flc_tpl_print_links($id));
+}
+
+// riquadro nella modifica del disegno: file di stampa, immagine elaborata, "Rimuovi elaborazione"
+add_action('add_meta_boxes_flc_template', function () {
+	add_meta_box('flc_tpl_print', 'Pronto da stampare', function ($post) {
+		$ed = flc_tpl_print($post->ID);
+		echo '<p>' . flc_tpl_print_links($post->ID) . '</p>';
+		if ($ed) {
+			$img = wp_get_attachment_image_url($ed['png'], 'medium');
+			if ($img) {
+				echo '<p><img src="' . esc_url($img) . '" alt="" style="width:100%;height:auto;border-radius:8px;background:#f6f7f7"><br><span class="description">Questa è l\'immagine che vedono i clienti; l\'originale resta l\'immagine in evidenza.</span></p>';
+			}
+			$url = wp_nonce_url(admin_url('admin-post.php?action=flc_tpl_reset&id=' . $post->ID), 'flc_tpl_reset_' . $post->ID);
+			echo '<p><a class="button" href="' . esc_url($url) . '" onclick="return confirm(\'Rimuovere immagine elaborata e file di stampa? I clienti torneranno a vedere l\\\'originale.\')">Rimuovi elaborazione</a></p>';
+		}
+	}, 'flc_template', 'side');
+});
+
+add_action('admin_post_flc_tpl_reset', function () {
+	$id = absint($_GET['id'] ?? 0);
+	if (!current_user_can('manage_options') || !wp_verify_nonce($_GET['_wpnonce'] ?? '', 'flc_tpl_reset_' . $id) || get_post_type($id) !== 'flc_template') {
+		wp_die('Non autorizzato.', 403);
+	}
+	flc_tpl_print_delete($id);
+	wp_safe_redirect(get_edit_post_link($id, 'url'));
+	exit;
+});
+
+// cancellando il disegno (svuotando il cestino) si cancellano anche i suoi file di stampa
+add_action('before_delete_post', function ($post_id) {
+	if (get_post_type($post_id) === 'flc_template') {
+		flc_tpl_print_delete($post_id);
+	}
+});
