@@ -1,7 +1,5 @@
+========== FILE: assets/js/app.js ==========
 
-// ======================================================================
-// FILE: assets/js/app.js
-// ======================================================================
 import { FRAME, geometry, loadFont, buildFrame } from './frame.js';
 import { Preview3D } from './preview3d.js';
 import { stlFiles, stlReadme, zipAsync } from './export-stl.js';
@@ -2149,9 +2147,9 @@ if (CFG.debug) window.__flc = { state, parts, svgToPolys, tracedToPolys, minusOv
   off('#submitBox', 'feat_submit');
 }
 
-// ======================================================================
-// FILE: assets/js/export-3mf.js
-// ======================================================================
+
+========== FILE: assets/js/export-3mf.js ==========
+
 // Progetto Bambu Studio (.3mf) pronto da aprire: un oggetto con una parte per colore, ogni parte già
 // assegnata al suo filamento, colori degli slot impostati, profili di stampante/processo copiati dal
 // progetto modello (assets/bambu/h2c-template.json, ricavato da un progetto vero dell'admin).
@@ -2348,9 +2346,9 @@ export async function build3mf(parts, opts) {
   return { blob: await zipAsync(files), colors, list };
 }
 
-// ======================================================================
-// FILE: assets/js/export-eps.js
-// ======================================================================
+
+========== FILE: assets/js/export-eps.js ==========
+
 // Export EPS (PostScript vettoriale) dalle stesse parti dell'SVG.
 // Converte i comandi SVG usati dal configuratore (M L Q C A Z assoluti) in moveto/lineto/curveto.
 // Unità: punti tipografici, disco Ø200 mm = 566,93 pt, origine in basso a sinistra.
@@ -2453,9 +2451,9 @@ export function buildEps(parts, diameter) {
   return ps + 'showpage\n%%EOF\n';
 }
 
-// ======================================================================
-// FILE: assets/js/export-stl.js
-// ======================================================================
+
+========== FILE: assets/js/export-stl.js ==========
+
 // Export per Bambu Studio: un STL per colore, tutti con la stessa origine (si importano come
 // "oggetto con più parti" e si posizionano da soli). mm, Y in alto, Z da 0 (piano di stampa).
 import * as THREE from '../vendor/three/three.module.js';
@@ -2651,9 +2649,9 @@ export async function buildStlZip(parts, opts, extraFiles = []) {
   return { blob: await zipAsync(files), count: list.length };
 }
 
-// ======================================================================
-// FILE: assets/js/face.js
-// ======================================================================
+
+========== FILE: assets/js/face.js ==========
+
 // Riconoscimento del volto nel browser (MediaPipe Face Landmarker, Apache 2.0, file in assets/vendor/mediapipe).
 // Gira tutto sul dispositivo del cliente: la foto non viene inviata da nessuna parte.
 // I file (~17 MB) vengono scaricati solo la prima volta che si accende "È un ritratto".
@@ -2711,9 +2709,9 @@ export function faceFeatures(pts) {
   return { eyes, mouth: MOUTH_IN.map((i) => pts[i]) };
 }
 
-// ======================================================================
-// FILE: assets/js/frame.js
-// ======================================================================
+
+========== FILE: assets/js/frame.js ==========
+
 // Cornice fissa del disco (anello nero con tacche + fascia colorata con scritte).
 // Tutte le misure sono in mm, centro del disco in (0,0), asse Y verso il basso (come SVG).
 // Quote reali fornite da Valerio: bordo nero 9,25, banda 12, bordino interno 3, contorno asola 4, fori e asola Ø10.
@@ -2945,9 +2943,9 @@ export function buildFrame(font, texts, F = FRAME) {
   };
 }
 
-// ======================================================================
-// FILE: assets/js/preview3d.js
-// ======================================================================
+
+========== FILE: assets/js/preview3d.js ==========
+
 // Anteprima 3D: disco estruso dalle parti SVG montato sul modello reale della lampada.
 import * as THREE from '../vendor/three/three.module.js';
 import { SVGLoader } from '../vendor/three/addons/SVGLoader.js';
@@ -3174,9 +3172,9 @@ export class Preview3D {
   snapshot() { return this.renderer.domElement.toDataURL('image/png'); }
 }
 
-// ======================================================================
-// FILE: assets/js/worker.js
-// ======================================================================
+
+========== FILE: assets/js/worker.js ==========
+
 // Worker di conversione: immagine (già ritagliata sul cerchio interno) -> mappa a max N colori
 // pieni, pulita per la stampa 3D, poi vettorializzata per colore.
 // Gira in un Web Worker così la pagina resta reattiva e la foto non lascia mai il browser.

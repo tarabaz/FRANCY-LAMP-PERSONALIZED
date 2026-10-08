@@ -1,8 +1,4 @@
-
-
----
-
-# FILE: README.md
+========== FILE: README.md ==========
 
 # Francy Lamp – plugin WordPress
 
@@ -338,9 +334,7 @@ Nota sulla cache: se la pagina del configuratore viene messa in cache per più d
 scade e il ridisegno risponde "Sessione scaduta". Escludi quella pagina dalla cache.
 
 
----
-
-# FILE: assets/README.md
+========== FILE: assets/README.md ==========
 
 # Configuratore lampada – prototipo
 

@@ -1,9 +1,6 @@
-<?php exit; // raccolta da leggere (una tantum): non va eseguita
+========== FILE: francy-lamp.php ==========
 
-/* ======================================================================
-   FILE: francy-lamp.php
-   ====================================================================== */
-
+<?php
 /**
  * Plugin Name: Francy Lamp Factory
  * Description: Configuratore delle lampade "tombino" FrancyStore3D: ridisegno IA, convalida dei clienti, archivio progetti con zip (SVG/EPS/STL), catalogo filamenti. Shortcode: [francy_lamp]
@@ -40,10 +37,10 @@ register_activation_hook(__FILE__, function () {
 	update_option('flc_flush_rules', 1);
 });
 
-/* ======================================================================
-   FILE: includes/backgrounds.php
-   ====================================================================== */
 
+========== FILE: includes/backgrounds.php ==========
+
+<?php
 // Sfondi che il cliente può scegliere con "Rimuovi lo sfondo" (Impostazioni → Stili e prompt).
 // Si gestiscono in una tabella (nome, categoria, descrizione per l'IA, attivo, ordine) e per ognuno si può
 // generare un'immagine di PROVA: solo lo sfondo, senza soggetto, per vedere che tipo di risultato dà l'IA.
@@ -464,10 +461,10 @@ function flc_bg_table_html($s) {
 	<?php
 }
 
-/* ======================================================================
-   FILE: includes/designs.php
-   ====================================================================== */
 
+========== FILE: includes/designs.php ==========
+
+<?php
 // Progetti convalidati dai clienti: menu "Francy Lamp Factory" → Progetti.
 // Ogni convalida salva uno zip con tutto il materiale (anteprime, originale, ridisegno IA, SVG/EPS, STL,
 // lista filamenti) in una cartella protetta e crea una voce nella tabella. I file si scaricano solo da admin.
@@ -1032,10 +1029,10 @@ function flc_resolve_3mf_tokens($bin, $map) {
 }
 
 
-/* ======================================================================
-   FILE: includes/examples.php
-   ====================================================================== */
 
+========== FILE: includes/examples.php ==========
+
+<?php
 // Esempi dei 3 stili di ridisegno (Fedele, Ritratto, Anime): per ogni stile una coppia "originale → risultato"
 // che il cliente vede sotto i pulsanti degli stili, così capisce cosa cambia senza spendere ridisegni.
 // Ogni stile può avere la sua foto originale (es. un volto per Ritratto); se non ce l'ha usa la foto comune.
@@ -1351,10 +1348,10 @@ function flc_examples_page() {
 	<?php
 }
 
-/* ======================================================================
-   FILE: includes/filaments.php
-   ====================================================================== */
 
+========== FILE: includes/filaments.php ==========
+
+<?php
 // Catalogo filamenti: le bobine che hai davvero. Il configuratore riduce i colori del disegno a queste
 // e lo zip di ogni progetto dice quali bobine montare.
 // Formato: una riga per bobina, "Nome | #rrggbb" (es. "Bambu PLA Basic Rosso | #C12E1F"),
@@ -1778,10 +1775,10 @@ function flc_filaments_page() {
 }
 
 
-/* ======================================================================
-   FILE: includes/page.php
-   ====================================================================== */
 
+========== FILE: includes/page.php ==========
+
+<?php
 // Pagina dedicata a schermo intero (es. tuosito.it/lampade-personalizzate/), senza il tema intorno.
 // L'indirizzo si sceglie in Impostazioni. Ogni file JS viene caricato con la sua versione (importmap),
 // così dopo un aggiornamento del plugin il browser non usa file vecchi dalla cache.
@@ -1987,10 +1984,10 @@ add_action('template_redirect', function () {
 	exit;
 });
 
-/* ======================================================================
-   FILE: includes/parts.php
-   ====================================================================== */
 
+========== FILE: includes/parts.php ==========
+
+<?php
 // Parti della lampada per l'anteprima 3D (base, perni, tappo frontale, cover…): si caricano da
 // Impostazioni → Lampada 3D. Il file STL viene convertito NEL BROWSER dell'admin in un formato compatto
 // (.flm, coordinate quantizzate): al server arriva solo quello, mai lo STL. I file stanno in una cartella
@@ -2182,10 +2179,10 @@ add_action('rest_api_init', function () {
 	));
 });
 
-/* ======================================================================
-   FILE: includes/providers.php
-   ====================================================================== */
 
+========== FILE: includes/providers.php ==========
+
+<?php
 // Adattatori per i fornitori di image editing. Ognuno riceve l'immagine (binario + mime) e il prompt
 // e ritorna array('mime' => ..., 'data' => binario) oppure WP_Error.
 // Per aggiungere un fornitore: una funzione qui + una voce in flc_providers().
@@ -2401,10 +2398,10 @@ function flc_run_fal($image, $mime, $prompt, $s) {
 	);
 }
 
-/* ======================================================================
-   FILE: includes/rest.php
-   ====================================================================== */
 
+========== FILE: includes/rest.php ==========
+
+<?php
 // Endpoint REST: POST /wp-json/francy-lamp/v1/ridisegna  { image: "data:image/jpeg;base64,..." }
 // Risposta: { image: "data:image/png;base64,...", remaining: n, provider: "gemini" }
 // L'immagine non viene salvata sul server: entra, va al fornitore, torna al browser.
@@ -2594,10 +2591,10 @@ function flc_generate($bin, $mime, $style, $s, $bg = -1) {
 	return new WP_Error('flc_fail', implode(' | ', $errors), array('errors' => $errors));
 }
 
-/* ======================================================================
-   FILE: includes/settings.php
-   ====================================================================== */
 
+========== FILE: includes/settings.php ==========
+
+<?php
 // Pagina "Francy Lamp Factory → Impostazioni": fornitori IA, chiavi, prompt, limiti anti-abuso e convalida.
 
 if (!defined('ABSPATH')) {
@@ -3998,10 +3995,10 @@ function flc_today_count() {
 	return (int) ($log[$day]['ok'] ?? 0) + (int) ($log[$day]['err'] ?? 0);
 }
 
-/* ======================================================================
-   FILE: includes/shortcode.php
-   ====================================================================== */
 
+========== FILE: includes/shortcode.php ==========
+
+<?php
 // Shortcode [francy_lamp]: inserisce il configuratore in una pagina del tema (stesso markup di assets/index.html).
 // Di solito è meglio la pagina dedicata a schermo intero (vedi page.php).
 
@@ -4036,10 +4033,10 @@ function flc_shortcode() {
 	return $out;
 }
 
-/* ======================================================================
-   FILE: includes/templates.php
-   ====================================================================== */
 
+========== FILE: includes/templates.php ==========
+
+<?php
 // Disegni pronti: PNG del disco frontale completo caricati dall'admin.
 // Nel configuratore il cliente li vede in una galleria, li applica al modello per l'anteprima
 // e può convalidarli; non si modificano. Si mostrano solo se attivi nelle impostazioni.
