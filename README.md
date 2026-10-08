@@ -52,7 +52,8 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
 1. **La tua immagine**: disegni pronti, caricamento, inquadratura, zoom, "Regola immagine", "È un volto".
 2. **Ridisegno con IA** (facoltativo): stili, "È una carta da gioco", cambio sfondo, esempi. Il pulsante dice lo stile
    scelto ("Ridisegna in stile Tombino") e dopo il primo ridisegno diventa "Ridisegna di nuovo".
-3. **Colori e contorni**: "Foto o disegno" / "Grafica con contorni", numero di colori, spessore, regolazioni avanzate.
+3. **Colori e contorni**: "Grafica con contorni" (predefinita: al primo caricamento dà il risultato più pulito) /
+   "Foto o disegno", numero di colori, spessore, regolazioni avanzate.
    La conversione lavora a **10 px/mm** (1 pixel = 0,1 mm; regolabile 4–12, Impostazioni → Disco); le linee nere più
    sottili di ~0,45 mm (meno di una passata dell'ugello 0,4) diventano il colore accanto, così non restano filamenti
    neri quasi invisibili.
@@ -73,6 +74,15 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    Una zona che riempirebbe gran parte della fascia (sfondo) non esce; se una parte copre una scritta compare un
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
+
+**Progetto .francy** (💾 Salva e 📂 Apri nella barra in alto): il cliente scarica sul suo computer un file `.francy`
+(JSON compresso gzip) con dentro tutto il lavoro: immagine originale, ridisegno IA (con stile, sfondo e inquadratura
+della foto, così "Torna all'originale" funziona ancora), zoom e posizione, regolazioni, modalità, numero di colori e
+slider, colori calcolati dalla conversione (riaprendo escono identici), bobine bloccate, colorazioni a mano e penna,
+parti sopra la fascia, grafiche aggiuntive (immagini incluse), fascia, scritte con posizione e dimensione, colori della
+lampada, accesa/spenta. Con un disegno pronto salva il disegno e la cornice. Riaprendolo (anche su un altro
+computer) il configuratore riparte da dove si era rimasti, senza passare dal server. 💾 compare quando c'è qualcosa
+da salvare; si spegne in Impostazioni → Funzioni → Salva / apri progetto.
 
 **Penna** (in "Colora a mano", accanto al 🪣 Secchiello): ✏️ disegno a mano libera con la bobina scelta (pupille,
 riflessi, piccoli ritocchi); punta da 0,5 a 6 mm. Il tratto diventa zona vera nei file, resta dopo i ricalcoli e si

@@ -332,6 +332,12 @@ html.flc-page .flc { height: 100%; }
 /* modalità disegno pronto: i passi che non servono restano visibili ma spenti */
 .flc.template-mode .step[data-step="2"] .step-head, .flc.template-mode .step[data-step="3"] .step-head { opacity: .55; }
 
+/* progetto .francy */
+.flc .proj-btns { display: inline-flex; gap: 4px; margin-right: 8px; }
+.flc .proj-btns button, .flc .proj-btns .proj-open { border: 1.5px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--ink); }
+.flc .proj-btns button:hover, .flc .proj-btns .proj-open:hover { border-color: var(--ink); }
+@media (max-width: 640px) { .flc .proj-btns button, .flc .proj-btns .proj-open { padding: 5px 9px; font-size: 12px; } }
+
 /* elaborazione di un disegno pronto (solo admin) */
 .flc .full-disc-btn { border: 0; border-radius: 999px; padding: 7px 14px; background: var(--accent); color: var(--accent-ink); font-weight: 700; cursor: pointer; margin-right: 8px; }
 .flc.full-disc #ovBox, .flc.full-disc #stkBox, .flc.full-disc #bandPicker, .flc.full-disc #textPicker,

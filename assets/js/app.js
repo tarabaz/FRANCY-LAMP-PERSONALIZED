@@ -25,7 +25,7 @@ let WHITE = '#ffffff';
 
 const state = {
   img: null, zoom: 1, ox: 0, oy: 0,
-  mode: 'outline', seed: 1, lit: false, view: '2d',
+  mode: 'keep', seed: 1, lit: false, view: '2d',
   result: null, colorOverrides: {}, font: null,
   bandColor: '#5b9bd5', textColor: BLACK,
   filaments: [], originalFile: null, originalSrc: null, aiImageSrc: null, aiProvider: '',
@@ -803,6 +803,7 @@ function run() {
     minFeatureMm: +$('#feat').value,
     minAreaMm2: +$('#area').value,
     seed: state.seed,
+    centers: state.restoreCenters || null,
     // ciò che decide i colori dell'immagine: se non cambia, il worker riusa gli stessi colori
     paletteKey: JSON.stringify([fullDisc, state.imgId, state.mode, +$('#colors').value, $('#portrait').checked, state.seed, +$('#smooth').value, adjust, Math.round(state.zoom * 1000), Math.round(state.ox), Math.round(state.oy), ppmm, +$('#line').value, $('#addOutlines').checked]),
     scale: (2 * rRaster) / size,
@@ -829,6 +830,8 @@ worker.onmessage = (e) => {
   if (error) { console.error(error); return setStatus('Errore nella conversione'); }
   state.result = result;
   if (!result.keep) {
+    if (result.centers) state.centers = result.centers;
+    state.restoreCenters = null;
     state.colorOverrides = {}; state.resultOv = !!state.pendingOv; state.baseLayers = result.layers; applyLocks(result.palette);
     state.autoFrozen = null;
     state.autoFrozen = { r: result, list: autoColors().slice() }; // da qui in poi le bobine automatiche restano queste
@@ -1151,6 +1154,7 @@ function render() {
     if (state.view === '3d' && preview3d) update3d();
     $('#textWarn').hidden = true;
     updateFullDiscBtn();
+    $('#projSave').hidden = false;
     updateSteps();
     return;
   }
@@ -1174,6 +1178,7 @@ function render() {
   updateOvUi();
   updatePaintUi();
   updateFullDiscBtn();
+  $('#projSave').hidden = !state.result && !state.template;
   $('#textWarn').hidden = !state.textOverlap;
   $('#textWarn').textContent = state.textOverlap ? `Le due scritte di ${state.textOverlap} si sovrappongono: spostane una con il suo slider.` : '';
   updateSteps();
@@ -2194,3 +2199,137 @@ if (CFG.debug) window.__flc = { state, parts, svgToPolys, tracedToPolys, minusOv
   off('.lit-toggle', 'feat_lit');
   off('#submitBox', 'feat_submit');
 }
+
+// ---------------- progetto .francy: salva e riapri tutto il lavoro ----------------
+// Un file JSON compresso (gzip) con dentro le immagini (originale, ridisegno IA, grafiche) e tutte le scelte.
+// Riaprendolo il configuratore riparte da dove si era rimasti. Indipendente dal sito (niente dati sul server).
+const blobToDataUrl = (blob) => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(blob); });
+async function srcToDataUrl(src) {
+  if (!src) return null;
+  if (src.startsWith('data:')) return src;
+  return blobToDataUrl(await (await fetch(src, { credentials: 'same-origin' })).blob());
+}
+const loadImg = (src) => new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = src; });
+const ctrlIds = ['colors', 'line', 'thick', 'smooth', 'feat', 'area', 'ppmm'];
+function projectName() {
+  const t = texts();
+  const base = (state.template && state.template.name) || (state.fullDisc && state.fullDisc.name) || [t.topLeft, t.topRight, t.bottomLeft, t.bottomRight].find((x) => x.trim()) || 'progetto';
+  const d = new Date(), pad = (n) => String(n).padStart(2, '0');
+  return base.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
+    + `-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.francy`;
+}
+async function saveProject() {
+  if (!state.img && !state.template) return;
+  setStatus('Preparo il file del progetto…');
+  try {
+    const P = { app: 'francy-lamp', v: 1, saved: new Date().toISOString() };
+    if (state.template) P.template = { id: state.template.id, name: state.template.name, dataUrl: state.template.dataUrl };
+    else {
+      P.image = state.originalFile ? await blobToDataUrl(state.originalFile) : await srcToDataUrl(state.originalSrc);
+      P.imageName = state.originalFile ? state.originalFile.name : 'originale';
+      if (state.aiImageSrc && originalImg) P.ai = { image: await srcToDataUrl(state.aiImageSrc), style: aiStyle, background: state.aiBackground || null, provider: state.aiProvider || '', crop: state.aiCrop, orig: { zoom: originalImg.zoom, ox: originalImg.ox, oy: originalImg.oy, mode: originalImg.mode, adj: originalImg.adj } };
+      P.view = { zoom: state.zoom, ox: state.ox, oy: state.oy };
+      P.adjust = { ...adjust };
+      P.mode = state.mode; P.seed = state.seed; P.portrait = $('#portrait').checked;
+      P.controls = Object.fromEntries(ctrlIds.map((id) => [id, +$('#' + id).value]));
+      P.addOutlines = $('#addOutlines').checked;
+      P.fullDisc = state.fullDisc || null;
+      P.overflow = state.overflow; P.ovSeeds = state.ovSeeds;
+      P.paints = state.paints; P.locks = state.locks; P.centers = state.centers || null;
+      P.layers = await Promise.all(state.layers.map(async (L) => ({ id: L.id, name: L.name, image: await srcToDataUrl(L.url), x: L.x, y: L.y, size: L.size, rot: L.rot })));
+    }
+    P.band = state.bandColor; P.textColor = state.textColor;
+    P.texts = { tl: $('#tTL').value, tr: $('#tTR').value, bl: $('#tBL').value, br: $('#tBR').value, pTL: +$('#pTL').value, pTR: +$('#pTR').value, pBL: +$('#pBL').value, pBR: +$('#pBR').value, size: +$('#textSize').value };
+    P.lampColors = state.lampColors || {};
+    P.lit = state.lit;
+    let blob = new Blob([JSON.stringify(P)], { type: 'application/json' });
+    if (typeof CompressionStream !== 'undefined') blob = await new Response(blob.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+    download(projectName(), blob);
+    setStatus('Progetto salvato: riaprilo con 📂 Apri per riprendere da qui');
+  } catch (err) { console.error(err); setStatus('Non riesco a salvare il progetto'); }
+}
+async function openProject(file) {
+  setStatus('Apro il progetto…');
+  let P;
+  try {
+    let buf = new Uint8Array(await file.arrayBuffer());
+    if (buf[0] === 0x1f && buf[1] === 0x8b) buf = new Uint8Array(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+    P = JSON.parse(new TextDecoder().decode(buf));
+    if (P.app !== 'francy-lamp') throw new Error('non è un progetto Francy');
+  } catch (err) { setStatus('File non valido: ' + err.message); return; }
+  try {
+    // scritte, fascia e lampada valgono anche per i disegni pronti
+    const applyFrame = () => {
+      const t = P.texts || {};
+      for (const [id, k] of [['tTL', 'tl'], ['tTR', 'tr'], ['tBL', 'bl'], ['tBR', 'br']]) if (typeof t[k] === 'string') $('#' + id).value = t[k];
+      for (const id of ['pTL', 'pTR', 'pBL', 'pBR']) if (t[id] !== undefined) $('#' + id).value = t[id];
+      if (t.size) { $('#textSize').value = t.size; showTextSize(); }
+      if (P.band) state.bandColor = P.band;
+      if (P.textColor) state.textColor = P.textColor;
+      state.lampColors = P.lampColors || {};
+      if (typeof renderLampPickers === 'function') renderLampPickers();
+      if (preview3d) preview3d.setLampColors(state.lampColors);
+      if (!!P.lit !== state.lit) document.querySelector(`.lit-toggle button[data-lit="${P.lit ? 1 : 0}"]`).click();
+    };
+    if (P.template) {
+      if (state.template) $('#tplExit').click();
+      await selectTemplate({ id: P.template.id, name: P.template.name, url: P.template.dataUrl, thumb: P.template.dataUrl });
+      applyFrame(); render(); openStep(5);
+      setStatus('Progetto riaperto');
+      return;
+    }
+    if (state.template) $('#tplExit').click();
+    const orig = await loadImg(P.image);
+    const blob = await (await fetch(P.image)).blob();
+    state.originalFile = new File([blob], P.imageName || 'originale.jpg', { type: blob.type });
+    state.originalSrc = P.image;
+    state.locks = P.locks || [];
+    state.paints = P.paints || [];
+    state.restoreCenters = P.centers || null;
+    state.fullDisc = P.fullDisc || null;
+    root.classList.toggle('full-disc', !!state.fullDisc);
+    state.overflow = !!P.overflow; $('#ovOn').checked = state.overflow; state.ovSeeds = P.ovSeeds || [];
+    // ridisegno IA: la foto originale resta per "Torna all'immagine originale" e per i nuovi ridisegni
+    if (P.ai) {
+      const aiImg = await loadImg(P.ai.image);
+      originalImg = { img: orig, zoom: P.ai.orig.zoom, ox: P.ai.orig.ox, oy: P.ai.orig.oy, mode: P.ai.orig.mode, adj: P.ai.orig.adj };
+      state.aiImageSrc = P.ai.image; state.aiCrop = P.ai.crop; state.aiProvider = P.ai.provider || ''; state.aiBackground = P.ai.background || null;
+      const sb = document.querySelector(`#aiStyle button[data-style="${P.ai.style}"]`);
+      if (sb) { aiStyle = P.ai.style; document.querySelectorAll('#aiStyle button').forEach((x) => x.classList.toggle('active', x === sb)); }
+      state.img = aiImg;
+      $('#aiUndo').hidden = false;
+    } else {
+      originalImg = null; state.aiImageSrc = null; state.aiCrop = null;
+      state.img = orig;
+      $('#aiUndo').hidden = true;
+    }
+    state.zoom = P.view.zoom; state.ox = P.view.ox; state.oy = P.view.oy; $('#zoom').value = state.zoom;
+    state.imgId = (state.imgId || 0) + 1;
+    state.seed = P.seed || 1;
+    setAdjust(P.adjust || { b: 0, c: 0, s: 0 });
+    setPortrait(!!P.portrait);
+    for (const id of ctrlIds) if (P.controls && P.controls[id] !== undefined) { $('#' + id).value = P.controls[id]; if (sliders[id]) $('#' + sliders[id]).textContent = P.controls[id]; }
+    $('#addOutlines').checked = P.addOutlines !== false;
+    // grafiche aggiuntive
+    state.layers = [];
+    for (const L of P.layers || []) {
+      try { const img = await loadImg(L.image); state.layers.push({ uid: ++layerUid, id: L.id, name: L.name, url: L.image, thumb: L.image, x: L.x, y: L.y, size: L.size, rot: L.rot, img }); } catch (e) { /* grafica illeggibile: si salta */ }
+    }
+    state.layerSel = null; renderLayers();
+    applyFrame();
+    updateOvUi(); updateAiBtn();
+    document.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('active', x.dataset.mode === P.mode));
+    state.mode = P.mode;
+    $('#addRow').hidden = state.mode !== 'keep';
+    $('#lineRow').hidden = state.mode === 'keep' && !$('#addOutlines').checked;
+    $('#thickRow').hidden = state.mode === 'outline';
+    $('#aiBtn').disabled = !!state.aiExhausted;
+    drawCrop(); run();
+    openStep(5);
+    setStatus('Progetto riaperto: riprendi da dove eri rimasto');
+  } catch (err) { console.error(err); setStatus('Non riesco ad aprire il progetto'); }
+}
+if (feature('feat_project')) {
+  $('#projSave').addEventListener('click', saveProject);
+  $('#projOpen').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) openProject(f); });
+} else $('#projBtns').setAttribute('data-feat-off', '');

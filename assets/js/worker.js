@@ -70,6 +70,8 @@ function convert(rgba, size, ppmm, opts, progress) {
   let skinSet = new Set();
   // stessi colori se cambiano solo cose che non riguardano l'immagine (grafiche aggiuntive, "sopra la fascia"…):
   // il campionamento casuale del k-means darebbe colori diversi solo perché cambia il numero di pixel
+  // progetto .francy riaperto: i colori calcolati allora (il k-means a campione darebbe toni un po' diversi)
+  if (opts.centers && opts.centers.centers && opts.centers.centers.length) lastCenters = { key: opts.paletteKey, centers: opts.centers.centers, skin: opts.centers.skin || [] };
   const reuse = opts.paletteKey && lastCenters && lastCenters.key === opts.paletteKey;
   const skin = !reuse && opts.portrait ? skinMask(lab, kin, n, opts.seed || 1) : null;
   if (reuse) {
@@ -213,7 +215,7 @@ function convert(rgba, size, ppmm, opts, progress) {
   const layers = tr.layers;
   framePath = tr.framePath;
 
-  return { labels, palette, layers, size, ppmm, framePath, ovSeeds: seedsOut };
+  return { labels, palette, layers, size, ppmm, framePath, ovSeeds: seedsOut, centers: { centers: lastCenters.centers, skin: lastCenters.skin } };
 }
 
 // ---------- sopra la fascia ----------
