@@ -92,6 +92,10 @@ le parti di funzioni spente o non presenti sul sito (template, grafiche, sopra l
 la sezione amministratore la vede solo l'admin. Il testo è in `assets/js/guide.js`. Accanto ai comandi meno ovvi c'è
 un piccolo **?** con un popup (titolo, spiegazione e "Approfondisci nella guida →" che apre la sezione giusta); i
 popup sono nell'elenco `HELP` in fondo a `assets/js/app.js`. Alla prima visita il pulsante Guida pulsa.
+Sezioni: come funziona, com'è fatto il disco, i 5 passi, colori del disco, colora a mano, anteprima, salvataggio,
+consigli, problemi comuni e soluzioni, glossario, domande frequenti (+ strumenti admin). I titoli della guida non sono
+h2/h3/h4 ma elementi propri (`.w-title`, `.w-sub`) e tutto il configuratore ha font, maiuscole e spaziatura propri:
+il CSS del tema di WordPress non li cambia.
 Nel passo 1 un consiglio spiega che il risultato migliore arriva da un disegno a colori pieni con contorni neri (anche
 fatto con un'IA esterna: si carica e si va dritti ai colori, senza consumare ridisegni); per le foto c'è il passo 2.
 

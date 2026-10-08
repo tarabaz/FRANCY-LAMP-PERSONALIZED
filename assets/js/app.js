@@ -2595,7 +2595,9 @@ function buildWiki() {
     if (g.show && !g.show(ctx)) continue;
     const sec = document.createElement('section');
     sec.id = 'guida-' + g.id; sec.className = 'wiki-sec';
-    sec.innerHTML = `<h3><span aria-hidden="true">${g.icon}</span> ${g.title}</h3>` + g.html;
+    // titoli con elementi propri (non h3/h4): il CSS del tema del sito non li tocca
+    sec.innerHTML = `<div class="w-title" role="heading" aria-level="3"><span aria-hidden="true">${g.icon}</span> ${g.title}</div>`
+      + g.html.replace(/<h4(\s[^>]*)?>/g, (m, at) => `<div class="w-sub" role="heading" aria-level="4"${at || ''}>`).replace(/<\/h4>/g, '</div>');
     sec.querySelectorAll('[data-feat]').forEach((el) => { if (!feature(el.dataset.feat)) el.remove(); });
     sec.querySelectorAll('[data-show]').forEach((el) => { if (el.isConnected && has[el.dataset.show] && !has[el.dataset.show]()) el.remove(); });
     body.append(sec);

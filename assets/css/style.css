@@ -471,7 +471,6 @@ html.flc-page .flc { height: 100%; }
 .flc .wiki { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; background: var(--panel); color: var(--ink); }
 .flc .wiki[hidden] { display: none; }
 .flc .wiki-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-.flc .wiki-head h2 { margin: 0; font-size: 17px; white-space: nowrap; }
 .flc .wiki-head input { flex: 1; min-width: 0; padding: 9px 14px; border: 1.5px solid var(--line); border-radius: 999px; font: inherit; font-size: 14px; background: var(--bg); color: var(--ink); }
 .flc .wiki-head input:focus { outline: none; border-color: var(--ink); }
 .flc .wiki-close { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--ink); color: var(--panel); font-size: 20px; font-weight: 700; cursor: pointer; line-height: 1; }
@@ -482,24 +481,54 @@ html.flc-page .flc { height: 100%; }
 .flc .wiki-nav button:hover { background: var(--panel); }
 .flc .wiki-nav button.active { background: var(--ink); color: var(--panel); font-weight: 700; }
 .flc .wiki-nav button[hidden] { display: none; }
-.flc .wiki-body { overflow-y: auto; padding: 4px 28px 40px; font-size: 14.5px; line-height: 1.6; scroll-behavior: smooth; }
 .flc .wiki-sec { max-width: 760px; padding-top: 14px; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
 .flc .wiki-sec[hidden] { display: none; }
 .flc .wiki-sec:last-child { border-bottom: 0; }
-.flc .wiki-sec h3 { font-size: 20px; margin: 6px 0 10px; }
-.flc .wiki-sec h4 { font-size: 15px; margin: 16px 0 4px; }
-.flc .wiki-sec p { margin: 4px 0 8px; }
-.flc .wiki-sec ul, .flc .wiki-sec ol { padding-left: 22px; margin: 4px 0 8px; }
-.flc .wiki-sec li { margin-bottom: 4px; }
 .flc .wiki-sec a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 2px; }
 .flc .wiki-none { padding: 20px 0; }
 @media (max-width: 900px) {
   .flc .wiki { position: fixed; z-index: 70; }
   .flc .wiki-head { padding: 10px 12px; flex-wrap: wrap; }
-  .flc .wiki-head h2 { flex: 1; font-size: 16px; }
+  .flc .w-head-t { flex: 1; font-size: 16px; }
   .flc .wiki-head input { order: 3; flex-basis: 100%; }
   .flc .wiki-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .flc .wiki-nav { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line); }
   .flc .wiki-nav button { flex: none; width: auto; white-space: nowrap; border: 1.5px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; background: var(--panel); }
   .flc .wiki-body { padding: 0 16px 40px; }
 }
+
+/* Titoli del configuratore isolati dal tema del sito (niente font condensati / maiuscoli del tema) */
+.flc h1, .flc h2, .flc h3, .flc h4, .flc h5, .flc h6 {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important;
+  text-transform: none !important; letter-spacing: normal !important; font-style: normal; color: var(--ink); line-height: 1.3;
+}
+/* Gerarchia della guida: sezione 22 / sottotitolo 16 / testo 15 / note 13, stesso font */
+.flc .w-head-t { margin: 0; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.flc .wiki-body { overflow-y: auto; padding: 4px 32px 48px; font-size: 15px; line-height: 1.65; scroll-behavior: smooth; }
+.flc .w-title { font-size: 22px; font-weight: 800; line-height: 1.3; margin: 8px 0 12px; }
+.flc .w-sub { font-size: 16px; font-weight: 700; line-height: 1.35; margin: 22px 0 6px; padding-left: 10px; border-left: 3px solid var(--accent); }
+.flc .wiki-sec p { margin: 0 0 10px; }
+.flc .wiki-sec ul, .flc .wiki-sec ol { padding-left: 22px; margin: 0 0 12px; }
+.flc .wiki-sec li { margin-bottom: 6px; }
+.flc .wiki-sec li::marker { color: var(--muted); }
+.flc .wiki-sec .note { font-size: 13.5px; color: var(--muted); background: var(--bg); border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; }
+.flc .wiki-sec .note strong { color: var(--ink); }
+.flc .wiki-sec dl { margin: 0 0 12px; }
+.flc .wiki-sec dt { font-weight: 700; margin-top: 10px; }
+.flc .wiki-sec dd { margin: 2px 0 0 0; }
+.flc .wiki-sec table { border-collapse: collapse; width: 100%; margin: 4px 0 14px; font-size: 14px; }
+.flc .wiki-sec th, .flc .wiki-sec td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.flc .wiki-sec th { font-weight: 700; background: var(--bg); }
+.flc .wiki-nav button { font-size: 14px; line-height: 1.35; }
+@media (max-width: 900px) { .flc .wiki-body { padding: 0 16px 40px; } .flc .w-title { font-size: 20px; } }
+/* testo della guida isolato dal tema: font, dimensione e spaziatura del configuratore anche se il tema stila p, li, a… */
+.flc .wiki, .flc .wiki :is(p, li, dd, dt, td, th, a, strong, em, span, div, code, input, button) {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-transform: none; letter-spacing: normal;
+}
+.flc .wiki-body :is(p, li, dd, dt, td, th, a, strong, em, span) { font-size: inherit; line-height: inherit; }
+.flc .wiki-body code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9em; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+/* tutto il configuratore isolato dai font del tema (dentro WordPress il tema stila p, li, label… con i suoi font) */
+.flc.flc :is(p, li, ul, ol, label, small, strong, em, b, i, a, span, dd, dt, td, th, summary, output, figcaption, legend, nav, button, input, select, textarea) {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-transform: none; letter-spacing: normal;
+}
+.flc p, .flc li { font-size: inherit; line-height: inherit; }
