@@ -206,7 +206,11 @@ export class Preview3D {
       t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
       return t;
     };
-    const wood = this.sceneCfg.wood ? loadTex(this.sceneCfg.wood) : woodTexture();
+    // texture caricata: una ripetizione ogni ~60 cm in larghezza, altezza secondo le proporzioni dell'immagine
+    // (le UV del piano valgono 1 ogni 420 x 140 mm)
+    const wood = this.sceneCfg.wood
+      ? loadTex(this.sceneCfg.wood, (t) => { const k = t.image.width / t.image.height || 1; t.repeat.set(420 / 600, 140 / (600 / k)); t.needsUpdate = true; })
+      : woodTexture();
     const woodMat = new THREE.MeshStandardMaterial({ map: wood, roughness: 0.62, metalness: 0 });
     // piano con bordi arrotondati
     const sh = new THREE.Shape();
