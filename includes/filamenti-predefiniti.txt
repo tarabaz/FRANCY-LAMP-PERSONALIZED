@@ -19,6 +19,8 @@ Bambu Marine Blue | #0078BF
 Bambu Sky Blue | #56B7E6
 Bambu Ice Blue | #A3D8E1
 Bambu Dark Blue | #042F56
+Bambu Ash Gray | #9B9EA0
+Bambu Nardo Gray | #757575
 Poly Matte Lava Red | #ED2F2E | 1.9
 Poly Matte Army Red | #BF312E | 0.3
 Poly Matte Muted Red | #D84B2E | 1.4
