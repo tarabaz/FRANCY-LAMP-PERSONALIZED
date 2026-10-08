@@ -126,6 +126,10 @@ Tutto generato dal codice (nessun modello da scaricare). Impostazioni: accesa al
 "🏠 Ambientazione" per il cliente sì/no, texture del legno e del muro dalla Libreria media (vuote = legno generato e
 muro chiaro in tinta unita).
 
+**Disco nel modello 3D**: la posizione si calcola sul modello della lampada (raggi dal davanti dentro l'area del disco):
+il disco sta 0,5 mm davanti alla superficie su cui appoggia (cover/diffusore), mai coincidente; senza modello vale
+l'incasso delle impostazioni. Profondità logaritmica nel 3D: niente sfarfallio guardando da lontano.
+
 **Curve lisce in 3D e nei file**: ogni curva viene divisa in base alla sua lunghezza (anteprima 3D un tratto ogni
 1,2 mm, STL/3MF ogni 0,4 mm) invece che in un numero fisso di tratti: il bordo del disco e della fascia sono tondi
 come in 2D, le curve piccole (lettere, contorni) restano leggere. Zip di stampa praticamente della stessa dimensione.

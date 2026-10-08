@@ -93,13 +93,14 @@ export class Preview3D {
     this.partMats = {};
     this.container = container;
     this.bg = bg; // sfondo fisso: uguale da spenta e da accesa (colore scelto nelle impostazioni)
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    // profondità logaritmica: niente sfarfallio (z-fighting) tra disco e lampada guardando da lontano
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, logarithmicDepthBuffer: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(35, 1, 1, 5000);
+    this.camera = new THREE.PerspectiveCamera(35, 1, 5, 6000);
     // con l'ambientazione l'inquadratura è un po' più larga (si vede il tavolino)
     if (this.roomOn) this.camera.position.set(230, 70, 780); else this.camera.position.set(190, 40, 620);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -154,6 +155,7 @@ export class Preview3D {
       const size = new THREE.Vector3(), c = new THREE.Vector3();
       box.getSize(size); box.getCenter(c);
       this.placeShadow([Math.max(60, size.x), Math.max(30, size.z)], box.min.y, c.z);
+      this.findSeat();
       this.buildRoom(box);
     };
     if (!pending) placeShadow();
@@ -191,6 +193,28 @@ export class Preview3D {
     this.scene.add(shadow);
     this.shadow = shadow;
     this.setLit(this.lit);
+  }
+
+  // Dove appoggia il disco: la superficie della lampada subito dietro (cover/diffusore), trovata con raggi sparati dal
+  // davanti dentro l'area del disco. Il disco si mette 0,5 mm davanti a quella superficie: mai coincidenti (sfarfallio).
+  findSeat() {
+    const meshes = this.lamp.children.filter((m) => m.isMesh && m.geometry && !this.disc.children.includes(m));
+    this.seatZ = null;
+    if (!meshes.length) return;
+    const ray = new THREE.Raycaster();
+    let best = -Infinity;
+    for (const [x, y] of [[0, 40], [30, 10], [-30, 10], [0, -30], [40, 45], [-40, 45]]) {
+      ray.set(new THREE.Vector3(x, y, 200), new THREE.Vector3(0, 0, -1));
+      // la prima superficie dietro il frontale (z < -0.5): salta il tappo frontale che sta davanti
+      const hit = ray.intersectObjects(meshes, false).find((h) => h.point.z < -0.5);
+      if (hit) best = Math.max(best, hit.point.z);
+    }
+    if (best > -Infinity && best > -40) this.seatZ = best;
+    if (this.disc.children.length) this.disc.position.z = this.discZ(this.discDepth || 1);
+  }
+  discZ(depth) {
+    // senza modello della lampada (o superficie non trovata): incasso dalle impostazioni
+    return this.seatZ != null ? this.seatZ + 0.5 : -this.ref.recess - depth;
   }
 
   // ---------- ambientazione: tavolino da muro, cavo, alimentatore 12 V nella presa, muro che sparisce da dietro ----------
@@ -376,7 +400,7 @@ export class Preview3D {
     }
     this.disc.scale.set(1, -1, 1); // SVG ha Y verso il basso
     // Il disco sta tra cover e tappo frontale: faccia anteriore 2 mm dietro il frontale della scocca
-    this.disc.position.z = -this.ref.recess - this.discDepth;
+    this.disc.position.z = this.discZ(this.discDepth);
     this.setLit(this.lit);
   }
 
@@ -402,7 +426,7 @@ export class Preview3D {
     this.colorMats.push(face);
     this.disc.add(new THREE.Mesh(geo, [face, side]));
     this.disc.scale.set(1, -1, 1);
-    this.disc.position.z = -this.ref.recess - depth;
+    this.disc.position.z = this.discZ(depth);
     this.setLit(this.lit);
   }
 
