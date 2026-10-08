@@ -140,6 +140,12 @@
               <p class="ai-msg" id="ovWarn" hidden>Una parte copre una scritta: sposta l'immagine, accorcia il testo o togli quella parte.</p>
             </div>
           </div>
+          <div class="stk-box" id="stkBox" hidden>
+            <p class="picker-label">Grafiche aggiuntive <small>(tocca per aggiungerla)</small></p>
+            <div class="stk-pick" id="stkPick"></div>
+            <ul class="stk-layers" id="stkLayers"></ul>
+            <p class="hint" id="stkHint" hidden>Trascina la grafica sul disegno per spostarla, usa le maniglie (o gli slider) per ingrandirla e ruotarla. Può andare anche sopra la fascia, mai sopra l'anello nero esterno.</p>
+          </div>
           <div class="picker" id="bandPicker"><span class="picker-label">Colore fascia</span><div class="swatches"></div></div>
           <div class="picker" id="textPicker"><span class="picker-label">Colore scritte</span><div class="swatches"></div></div>
           <div id="lampPickers"></div>
@@ -201,7 +207,7 @@
     <aside class="panel right">
       <section class="lockable" id="paletteSection">
         <h2>Colori del disco</h2>
-        <p class="hint" id="paletteHint">Tocca un colore per cambiarlo. Massimo 13 colori in tutto, compresi il bianco della base e il nero dei contorni.</p>
+        <p class="hint" id="paletteHint">Tocca un colore per sostituirlo con un'altra bobina: cambia ovunque (disegno, fascia, scritte). Scegliendo un colore già presente le zone si uniscono. Massimo 13 colori in tutto, compresi bianco e nero.</p>
         <p class="hint palette-empty" id="paletteEmpty">I colori compaiono qui appena carichi un'immagine.</p>
         <div class="paint-bar" id="paintBar" hidden>
           <button type="button" class="ghost small" id="paintOn">🖌️ Colora a mano</button>

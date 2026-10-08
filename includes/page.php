@@ -27,7 +27,12 @@ function flc_frontend_config() {
 		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,
 		'aiStyles'  => array_values(array_filter(array('fedele', !empty($s['style_ritratto']) ? 'ritratto' : '', !empty($s['style_tombino']) ? 'tombino' : '', !empty($s['style_anime']) ? 'anime' : ''))),
 		'aiCard'    => !empty($s['card_enabled']),
-		'overflow'  => !empty($s['overflow_enabled']), // "sopra la fascia": parti del disegno che escono dal cerchio
+		'overflow'  => !empty($s['overflow_enabled']),
+		// grafiche aggiuntive (Poké Ball…): il cliente le mette sul disegno; immagine grande per la conversione
+		'stickers'  => array_values(array_filter(array_map(function ($id) {
+			$u = wp_get_attachment_image_url($id, 'large') ?: wp_get_attachment_url($id);
+			return $u ? array('id' => $id, 'name' => get_the_title($id), 'url' => $u, 'thumb' => wp_get_attachment_image_url($id, 'thumbnail') ?: $u) : null;
+		}, array_filter(array_map('intval', explode(',', (string) $s['stickers'])))))), // "sopra la fascia": parti del disegno che escono dal cerchio
 		'aiBackgrounds' => !empty($s['bg_enabled']) ? array_column(flc_backgrounds($s), 'label') : array(),
 		// immagine di prova di ogni sfondo (Impostazioni → Nuovo sfondo), mostrata come esempio
 		'aiBgExamples' => !empty($s['bg_enabled']) && function_exists('flc_bg_test_url') ? array_map(function ($b) { return $b['id'] ? flc_bg_test_url($b['id']) : ''; }, flc_backgrounds($s)) : array(),

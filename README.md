@@ -72,6 +72,22 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
 
+**Grafiche aggiuntive** (Impostazioni → Grafiche: immagini dalla Libreria media, meglio PNG trasparenti con colori
+pieni e contorno nero): nel passo "Cornice e scritte" il cliente tocca una grafica per aggiungerla come livello.
+Sul disegno la sposta trascinandola, la ingrandisce con la maniglia gialla e la ruota con quella bianca (o con gli
+slider della lista); la lista dei livelli ha anche ordine (▲▼) ed elimina. Le grafiche possono andare sopra la fascia
+fino all'anello nero esterno (sempre sopra), l'asola resta libera. Prima della conversione vengono disegnate
+sull'immagine e convertite con le bobine come il resto (contorno nero e buco esatto nella fascia come "sopra la
+fascia"), quindi in SVG/STL/3MF sono forme vere, separate per colore. I colori del disegno non cambiano: della grafica
+si aggiungono solo i colori che nel disco mancano.
+
+**Sostituisci un colore**: toccando un colore nell'elenco si sceglie un'altra bobina (anche una già presente): il
+colore vecchio viene sostituito ovunque (zone del disegno, fascia, scritte, tocchi del pennello) e la scelta resta 🔒.
+Scegliendo una bobina già usata, le zone diventano dello stesso colore e nei file si uniscono.
+
+**Colori stabili**: i colori dell'immagine si ricalcolano solo se cambia qualcosa che li riguarda (immagine, numero di
+colori, modalità, zoom, regolazioni…); grafiche, "sopra la fascia" e pennello riusano gli stessi colori.
+
 **Le modifiche restano**: le parti sopra la fascia e le colorazioni a mano sono salvate come "punto toccato +
 bobina" e vengono riapplicate da sole dopo ogni nuova conversione (accendere/spegnere "Fai uscire", numero di colori,
 contorni, zoom…); si tolgono solo con Annulla, un nuovo tocco, "Togli tutte" o un'immagine nuova. Anche le bobine

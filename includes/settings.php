@@ -201,6 +201,7 @@ function flc_defaults() {
 		'style_ritratto' => 1,
 		'card_enabled' => 1,
 		'overflow_enabled' => 1,
+		'stickers'     => '', // grafiche aggiuntive: id della Libreria media separati da virgola
 		'tombino_refs' => '',
 		'tombino_refs_default' => 1,
 		'prompts_v'    => 0,
@@ -333,6 +334,7 @@ function flc_sanitize_settings($in) {
 		'style_ritratto' => empty($in['style_ritratto']) ? 0 : 1,
 		'card_enabled' => empty($in['card_enabled']) ? 0 : 1,
 		'overflow_enabled' => empty($in['overflow_enabled']) ? 0 : 1,
+		'stickers'     => implode(',', array_slice(array_values(array_unique(array_filter(array_map('intval', explode(',', (string) ($in['stickers'] ?? '')))))), 0, 60)),
 		'tombino_refs' => implode(',', array_slice(array_filter(array_map('intval', explode(',', (string) ($in['tombino_refs'] ?? '')))), 0, 3)),
 		'tombino_refs_default' => empty($in['tombino_refs_default']) ? 0 : 1,
 		'prompts_v'    => 2,
@@ -446,6 +448,7 @@ function flc_settings_page() {
 		'stili'         => array('dashicons-art', 'Stili IA', 'Fedele, Ritratto, Tombino…'),
 		'sfondi'        => array('dashicons-cover-image', 'Sfondi IA', 'Sfondi e prove'),
 		'ia'            => array('dashicons-admin-network', 'Motore IA', 'Chiave, modello, spesa'),
+		'grafiche'      => array('dashicons-star-filled', 'Grafiche', 'Poké Ball, adesivi…'),
 		'anteprima'     => array('dashicons-shield-alt', 'Anteprima e watermark', 'Immagine da condividere'),
 		'lampada'       => array('dashicons-lightbulb', 'Lampada 3D', 'Pezzi e colori'),
 		'ordini'        => array('dashicons-email-alt', 'Ordini', 'Notifiche e anti-spam'),
@@ -545,6 +548,11 @@ function flc_settings_page() {
 		.flc-refs-list { display: flex; gap: 6px; flex-wrap: wrap; }
 		.flc-refs-list img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dcdcde; }
 		.flc-refs-list img.def { opacity: .8; }
+		.flc-stickers { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+		.flc-stickers figure { margin: 0; width: 96px; text-align: center; position: relative; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 8px; padding: 6px; }
+		.flc-stickers img { width: 80px; height: 80px; object-fit: contain; }
+		.flc-stickers figcaption { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.flc-stickers button { position: absolute; top: 2px; right: 4px; text-decoration: none; }
 		.flc-dirty { color: #8a5a00; background: #fcf3dc; border-radius: 10px; padding: 2px 10px; margin-left: 10px; vertical-align: middle; }
 		.flc-set .flc-tab { display: none; padding-top: 6px; }
 		.flc-set .flc-tab.on { display: block; }
@@ -877,6 +885,24 @@ function flc_settings_page() {
 				</details>
 			</section>
 
+			<!-- ===================== GRAFICHE AGGIUNTIVE ===================== -->
+			<section class="flc-tab" data-tab="grafiche">
+				<div class="flc-head"><h2>Grafiche aggiuntive</h2><p>Elementi semplici (Poké Ball, stelline, loghi…) che il cliente aggiunge al disegno, sposta, ingrandisce e ruota.</p></div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-star-filled"></span> Grafiche disponibili</h2>
+					<p class="intro">Funzionano meglio i <strong>PNG con sfondo trasparente</strong>, colori pieni e contorno nero (come un adesivo): nel disco vengono convertiti con le tue bobine come il resto del disegno.
+						Il nome è il titolo dell'immagine nella Libreria media. Si mostrano nel passo "Cornice e scritte" del configuratore.</p>
+					<?php $st_ids = array_filter(array_map('intval', explode(',', (string) $s['stickers']))); ?>
+					<div class="flc-stickers" id="flcStickers">
+						<?php foreach ($st_ids as $sid) : $u = wp_get_attachment_image_url($sid, 'thumbnail'); if (!$u) continue; ?>
+							<figure data-id="<?php echo (int) $sid; ?>"><img src="<?php echo esc_url($u); ?>" alt=""><figcaption><?php echo esc_html(get_the_title($sid)); ?></figcaption><button type="button" class="button-link-delete" title="Togli">✕</button></figure>
+						<?php endforeach; ?>
+					</div>
+					<input type="hidden" name="<?php echo $n('stickers'); ?>" id="flcStickersIds" value="<?php echo esc_attr(implode(',', $st_ids)); ?>">
+					<p><button type="button" class="button" id="flcStickersAdd">+ Aggiungi dalla Libreria media</button> <span class="description" id="flcStickersNote"><?php echo $st_ids ? count($st_ids) . ' grafiche' : 'Nessuna grafica: il cliente non vede la sezione.'; ?></span></p>
+				</div>
+			</section>
+
 			<!-- ===================== ANTEPRIMA E WATERMARK ===================== -->
 			<section class="flc-tab" data-tab="anteprima">
 				<div class="flc-head"><h2>Anteprima e watermark</h2><p>L'immagine della lampada che il cliente può scaricare e condividere.</p></div>
@@ -1113,6 +1139,34 @@ function flc_settings_page() {
 
 		// watermark: scelta dalla Libreria media e anteprima dal vivo (stesso disegno del configuratore)
 		const $id = (x) => document.getElementById(x);
+		// grafiche aggiuntive dalla Libreria media
+		const stHost = $id('flcStickers'), stIds = $id('flcStickersIds');
+		const stSync = () => {
+			stIds.value = [...stHost.querySelectorAll('figure')].map((f) => f.dataset.id).join(',');
+			const n = stHost.querySelectorAll('figure').length;
+			$id('flcStickersNote').textContent = n ? n + ' grafiche (salva le impostazioni)' : 'Nessuna grafica: il cliente non vede la sezione.';
+			stIds.dispatchEvent(new Event('change', { bubbles: true }));
+		};
+		if (stHost) {
+			stHost.addEventListener('click', (e) => { if (e.target.matches('button')) { e.target.closest('figure').remove(); stSync(); } });
+			$id('flcStickersAdd').addEventListener('click', () => {
+				if (!window.wp || !wp.media) { alert('Libreria media non disponibile.'); return; }
+				const frame = wp.media({ title: 'Grafiche aggiuntive', library: { type: 'image' }, multiple: true, button: { text: 'Aggiungi' } });
+				frame.on('select', () => {
+					const have = new Set(stIds.value.split(',').filter(Boolean));
+					frame.state().get('selection').toJSON().forEach((x) => {
+						if (have.has(String(x.id))) return;
+						const f = document.createElement('figure'); f.dataset.id = x.id;
+						const u = (x.sizes && x.sizes.thumbnail && x.sizes.thumbnail.url) || x.url;
+						f.innerHTML = '<img alt=""><figcaption></figcaption><button type="button" class="button-link-delete" title="Togli">✕</button>';
+						f.querySelector('img').src = u; f.querySelector('figcaption').textContent = x.title || '';
+						stHost.append(f);
+					});
+					stSync();
+				});
+				frame.open();
+			});
+		}
 		// tombini di riferimento (max 3) dalla Libreria media
 		const refPick = $id('flcRefsPick');
 		if (refPick) refPick.addEventListener('click', () => {

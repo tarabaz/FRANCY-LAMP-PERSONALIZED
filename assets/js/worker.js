@@ -8,6 +8,7 @@ const NONE = 255; // pixel fuori dal cerchio
 let last = null; // ultima conversione, per riunire le zone senza rifare tutto
 let lastFull = null; // "sopra la fascia": etichette PRIMA del taglio al cerchio (anche fuori dal cerchio)
 let paintBase = null; // etichette appena convertite, prima delle colorazioni a mano (per rifarle / annullarle)
+let lastCenters = null; // { key, centers, skin }: colori scelti per l'immagine, riusati se cambiano solo grafiche/"sopra la fascia"
 
 self.onmessage = (e) => {
   const { id, imageData, size, ppmm, opts, merge, ovToggle, ovSeeds, paints } = e.data;
@@ -40,6 +41,8 @@ function convert(rgba, size, ppmm, opts, progress) {
     // fuori dal cerchio del disegno conta solo dove c'è davvero l'immagine (oltre il bordo della foto non esce niente)
     const ir = opts.ov && opts.ov.imgRect;
     if (ir && d2 > rIn * rIn && (x < ir[0] || y < ir[1] || x >= ir[2] || y >= ir[3])) inside[y * size + x] = 0;
+    // grafiche aggiuntive: contano sempre (anche fuori dalla foto) e i loro colori entrano nella scelta della palette
+    if (opts.ov && opts.ov.mask && opts.ov.mask[y * size + x]) { inside[y * size + x] = 1; kin[y * size + x] = 0; }
   }
 
   // 1. Semplificazione: filtro Kuwahara, appiattisce texture e pennellate mantenendo i bordi netti
@@ -63,8 +66,14 @@ function convert(rgba, size, ppmm, opts, progress) {
   let centers;
   // Modalità ritratto: la pelle ha una palette tutta sua (3 toni garantiti), il resto si divide gli altri colori
   let skinSet = new Set();
-  const skin = opts.portrait ? skinMask(lab, kin, n, opts.seed || 1) : null;
-  if (skin && k >= 4) {
+  // stessi colori se cambiano solo cose che non riguardano l'immagine (grafiche aggiuntive, "sopra la fascia"…):
+  // il campionamento casuale del k-means darebbe colori diversi solo perché cambia il numero di pixel
+  const reuse = opts.paletteKey && lastCenters && lastCenters.key === opts.paletteKey;
+  const skin = !reuse && opts.portrait ? skinMask(lab, kin, n, opts.seed || 1) : null;
+  if (reuse) {
+    centers = lastCenters.centers.map((c) => c.slice());
+    skinSet = new Set(lastCenters.skin);
+  } else if (skin && k >= 4) {
     const other = new Uint8Array(n);
     for (let i = 0; i < n; i++) other[i] = kin[i] && !skin[i] ? 1 : 0;
     centers = kmeans(lab, other, n, k - 3, opts.seed || 1);
@@ -72,6 +81,21 @@ function convert(rgba, size, ppmm, opts, progress) {
     for (const c of sc) { skinSet.add(centers.length); centers.push(c); }
   } else {
     centers = kmeans(lab, kin, n, k, opts.seed || 1);
+  }
+  if (!reuse) lastCenters = { key: opts.paletteKey, centers: centers.map((c) => c.slice()), skin: [...skinSet] };
+  // grafiche aggiuntive: i colori del disegno restano quelli dell'immagine; quelli della grafica si aggiungono
+  // solo se nel disco non c'è già un colore simile (es. Poké Ball: rosso, bianco e nero di solito ci sono già)
+  if (opts.ov && opts.ov.mask) {
+    let cnt = 0;
+    for (let i = 0; i < n; i++) if (opts.ov.mask[i]) cnt++;
+    if (cnt > 50) {
+      const extra = kmeans(lab, opts.ov.mask, n, Math.min(4, Math.max(1, Math.round(cnt / 2000))), (opts.seed || 1) + 13);
+      for (const c of extra) {
+        const near = centers.some((d) => (d[0] - c[0]) ** 2 + (d[1] - c[1]) ** 2 + (d[2] - c[2]) ** 2 < 15 * 15);
+        if (!near) centers.push(c); // (un nero o un bianco aggiunto qui diventa poi IL nero / IL bianco del disco)
+      }
+      k = centers.length;
+    }
   }
 
   // Bianco e nero sono le bobine fisse: si usano volentieri anche come colori del disegno.
@@ -233,7 +257,10 @@ function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
   }
   const isSel = new Uint8Array(n);
   if (sel.size) for (let i = 0; i < n; i++) if (full[i] !== NONE && sel.has(comp[i])) isSel[i] = 1;
-  const dist = sel.size ? distanceFrom(isSel, size) : null;
+  // grafiche aggiuntive: la loro sagoma esce sempre dal cerchio (fino all'anello nero), con il contorno nero
+  let anySel = sel.size > 0;
+  if (ov.mask) for (let i = 0; i < n; i++) if (ov.mask[i] && full[i] !== NONE) { isSel[i] = 1; anySel = true; }
+  const dist = anySel ? distanceFrom(isSel, size) : null;
   const lineW = Math.max(1, opts.lineMm * ppmm);
   const labels = new Uint8Array(full);
   const rArt2 = ov.rArt * ov.rArt, rKeep2 = ov.rKeep * ov.rKeep;
@@ -243,7 +270,7 @@ function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
     const dx = x - cx, dy = y - cx, d2 = dx * dx + dy * dy;
     if (d2 <= rArt2) continue;
     const slot = dy > 0 && Math.abs(dx) < ov.slotHalf;
-    if (d2 > rKeep2 || slot || !sel.size) { labels[i] = NONE; continue; }
+    if (d2 > rKeep2 || slot || !anySel) { labels[i] = NONE; continue; }
     if (isSel[i]) continue;
     if (dist[i] <= lineW) { labels[i] = blackIdx; continue; }
     labels[i] = NONE;
@@ -252,7 +279,7 @@ function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
   const counts = new Uint32Array(palette.length);
   for (let i = 0; i < n; i++) if (labels[i] !== NONE) counts[labels[i]]++;
   palette.forEach((p, i) => { p.area = counts[i] / (ppmm * ppmm); });
-  return { labels, fgPath: '', seeds, tooBig, frameLabels: sel.size ? frameLabelsOf(labels, size, ov, palette.length) : null };
+  return { labels, fgPath: '', seeds, tooBig, frameLabels: anySel ? frameLabelsOf(labels, size, ov, palette.length) : null };
 }
 
 // Etichette con la "zona cornice" (tutto ciò che fuori dal cerchio del disegno NON è disegno) come colore in più:

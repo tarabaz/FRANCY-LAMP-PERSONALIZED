@@ -28,6 +28,7 @@ const state = {
   filaments: [], originalFile: null, originalSrc: null, aiImageSrc: null, aiProvider: '',
   templates: [], template: null, // disegno pronto scelto: { id, name, url, dataUrl }
   overflow: false, ovSeeds: [], // "sopra la fascia": zone toccate (punti in mm) che escono dal cerchio
+  layers: [], layerSel: null, // grafiche aggiuntive: { uid, id, name, url, thumb, x, y (centro, mm), size (larghezza mm), rot (gradi), img }
   painting: false, brush: -1, paints: [], // colora a mano: pennello = indice della palette, tocchi in mm
   locks: [], // bobine scelte a mano: [{ lab (colore originale della zona), hex }], restano anche se si riconverte
 };
@@ -224,6 +225,7 @@ function loadImage(src, zoom = 1) {
 
 function setImage(img, zoom, ox, oy) {
   state.img = img; state.zoom = zoom; state.ox = ox; state.oy = oy;
+  state.imgId = (state.imgId || 0) + 1;
   state.ovSeeds = []; state.paints = []; // immagine nuova: parti sopra la fascia e colorazioni a mano da capo
   setAdjust({ b: 0, c: 0, s: 0 }); // immagine nuova (o risultato IA, che ha già le regolazioni): si riparte da zero
   $('#zoom').value = zoom;
@@ -706,10 +708,17 @@ function run() {
   if (!state.img) return;
   const g = geometry();
   const ppmm = +$('#ppmm').value;
-  // con "sopra la fascia" il raster arriva oltre la fascia; l'immagine resta inquadrata sul cerchio del disegno
-  const rRaster = state.overflow ? g.rBandOut + 1 : g.rImgArt;
+  // con "sopra la fascia" (o con grafiche aggiuntive, che possono andare sulla fascia) il raster arriva oltre la
+  // fascia; l'immagine resta inquadrata sul cerchio del disegno
+  const layersOn = state.layers.length > 0;
+  const ovActive = state.overflow || layersOn;
   const inner = Math.round(2 * g.rImgArt * ppmm);
-  const size = state.overflow ? Math.round(2 * rRaster * ppmm) : inner;
+  // stessa scala e margine di pixel interi: il disegno dentro il cerchio resta identico con o senza raster grande
+  // (altrimenti mezzo pixel di spostamento cambia la scelta automatica dei colori)
+  const pxmm = inner / (2 * g.rImgArt);
+  const margin = ovActive ? Math.ceil((g.rBandOut + 1 - g.rImgArt) * pxmm) : 0;
+  const size = inner + 2 * margin;
+  const rRaster = size / (2 * pxmm);
   const shift = (size - inner) / 2;
   // ritratto: prima cerco il volto (la prima volta scarica il riconoscimento, ~17 MB), poi converto
   let face = null;
@@ -739,6 +748,25 @@ function run() {
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size);
   ctx.save(); ctx.translate(shift, shift); drawImageTo(ctx, inner, false); ctx.restore();
   applyAdjust(ctx, size); // le regolazioni (luminosità…) su tutto il raster
+  // grafiche aggiuntive: disegnate sopra l'immagine (dopo le regolazioni), poi convertite insieme al disegno;
+  // la loro sagoma (mask) può uscire dal cerchio come le parti di "sopra la fascia"
+  let mask = null;
+  if (layersOn) {
+    const k = size / (2 * rRaster), px = (v) => (v + rRaster) * k;
+    const m = document.createElement('canvas'); m.width = m.height = size;
+    const mctx = m.getContext('2d');
+    for (const L of state.layers) {
+      if (!L.img || !L.img.naturalWidth) continue;
+      for (const cx of [ctx, mctx]) {
+        cx.save(); cx.translate(px(L.x), px(L.y)); cx.rotate(L.rot * Math.PI / 180);
+        const w = L.size * k, h = w * L.img.naturalHeight / L.img.naturalWidth;
+        cx.drawImage(L.img, -w / 2, -h / 2, w, h); cx.restore();
+      }
+    }
+    const md = mctx.getImageData(0, 0, size, size).data;
+    mask = new Uint8Array(size * size);
+    for (let i = 0; i < mask.length; i++) mask[i] = md[i * 4 + 3] > 110 ? 1 : 0;
+  }
   const imageData = ctx.getImageData(0, 0, size, size).data;
   const opts = {
     mode: state.mode,
@@ -752,18 +780,21 @@ function run() {
     minFeatureMm: +$('#feat').value,
     minAreaMm2: +$('#area').value,
     seed: state.seed,
+    // ciò che decide i colori dell'immagine: se non cambia, il worker riusa gli stessi colori
+    paletteKey: JSON.stringify([state.imgId, state.mode, +$('#colors').value, $('#portrait').checked, state.seed, +$('#smooth').value, adjust, Math.round(state.zoom * 1000), Math.round(state.ox), Math.round(state.oy), ppmm, +$('#line').value, $('#addOutlines').checked]),
     scale: (2 * rRaster) / size,
     offset: -rRaster,
-    ov: state.overflow ? {
+    ov: ovActive ? {
       rArt: g.rImgArt * size / (2 * rRaster), rImg: g.rImg * size / (2 * rRaster),
       rKeep: (g.rBandOut + 0.3) * size / (2 * rRaster),          // l'anello nero esterno ci va sopra
       slotHalf: (FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder + 0.6) * size / (2 * rRaster),
-      seeds: state.ovSeeds,
+      seeds: state.overflow ? state.ovSeeds : [],
       imgRect: imgRect(inner, shift),
+      mask,
     } : null,
   };
   const id = ++jobId;
-  state.pendingOv = state.overflow;
+  state.pendingOv = ovActive;
   setStatus('Elaborazione…');
   worker.postMessage({ id, imageData, size, ppmm, opts }, [imageData.buffer]);
 }
@@ -919,8 +950,10 @@ function renderPalette() {
       ctrl.className = 'swatch-btn';
       ctrl.dataset.popover = '1';
       ctrl.style.background = artColor(i);
-      ctrl.addEventListener('click', (ev) => { if (state.painting) return; openFilamentPopover(ctrl, (hex) => { state.colorOverrides[i] = hex; lockColor(i, hex); renderPalette(); render(); },
-        (hex) => !otherDrawingColors(i).has(hex) && (colorSet().has(hex) || colorSet().size < MAX_FILAMENTS)); });
+      // sostituzione: il colore scelto prende il posto del vecchio OVUNQUE (zone, fascia, scritte), anche se è una
+      // bobina già usata (in quel caso le zone diventano dello stesso colore e nei file si uniscono)
+      ctrl.addEventListener('click', (ev) => { if (state.painting) return; openFilamentPopover(ctrl, (hex) => replaceColor(artColor(i), hex),
+        (hex) => colorSet().has(hex) || colorSet().size < MAX_FILAMENTS); });
     } else {
       ctrl = document.createElement('input');
       ctrl.type = 'color'; ctrl.value = artColor(i);
@@ -1042,7 +1075,7 @@ function parts() {
   const bx = frame.textBoxes || {};
   const hit = (a, b) => bx[a] && bx[b] && bx[a].from < bx[b].to + 1 && bx[b].from < bx[a].to + 1;
   state.textOverlap = hit('topLeft', 'topRight') ? 'sopra' : hit('bottomLeft', 'bottomRight') ? 'sotto' : '';
-  const fgPath = state.overflow && state.result ? state.result.framePath : '';
+  const fgPath = state.result ? state.result.framePath || '' : '';
   state.ovTextHit = false;
   if (fgPath) {
     const text = minusOverflow(frame.text, fgPath);
@@ -1101,6 +1134,7 @@ function render() {
     ? `<g id="guida-zone" fill="none" stroke="#d0342c" stroke-opacity=".75" stroke-width="0.22" stroke-dasharray="0.8 0.5" pointer-events="none">${state.baseLayers.map((d) => (d ? `<path d="${d}"/>` : '')).join('')}</g>`
     : '';
   $('#svgHost').innerHTML = guide ? svg.replace('</svg>', guide + '</svg>') : svg;
+  renderOverlay();
   const n = colors.size;
   const over = n > MAX_FILAMENTS;
   $('#count').textContent = `Colori totali: ${n} / ${MAX_FILAMENTS}` + (over ? ' – troppi, riduci i colori del disegno' : '');
@@ -1115,6 +1149,22 @@ function render() {
   $('#textWarn').hidden = !state.textOverlap;
   $('#textWarn').textContent = state.textOverlap ? `Le due scritte di ${state.textOverlap} si sovrappongono: spostane una con il suo slider.` : '';
   updateSteps();
+}
+
+// ---------------- sostituisci un colore ----------------
+function replaceColor(oldHex, newHex) {
+  oldHex = oldHex.toLowerCase(); newHex = newHex.toLowerCase();
+  if (!state.result || oldHex === newHex) return;
+  state.result.palette.forEach((p, i) => {
+    if (p.black || p.area <= 0 || artColor(i) !== oldHex) return;
+    state.colorOverrides[i] = newHex;
+    lockColor(i, newHex);
+  });
+  if (state.bandColor.toLowerCase() === oldHex) state.bandColor = newHex;
+  if (state.textColor.toLowerCase() === oldHex) state.textColor = newHex;
+  // i tocchi del pennello con il vecchio colore seguono la sostituzione
+  state.paints = state.paints.map((pt) => (pt.hex.toLowerCase() === oldHex ? { ...pt, hex: newHex } : pt));
+  renderPalette(); render();
 }
 
 // ---------------- colori bloccati ----------------
@@ -1216,6 +1266,150 @@ function paintAt(x, y) {
   sendPaints();
 }
 
+// ---------------- grafiche aggiuntive (livelli) ----------------
+const STK = Array.isArray(CFG.stickers) ? CFG.stickers : [];
+if (STK.length) {
+  $('#stkBox').hidden = false;
+  for (const s of STK) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.title = 'Aggiungi: ' + s.name; b.style.backgroundImage = `url("${s.thumb}")`;
+    b.addEventListener('click', () => addLayer(s));
+    $('#stkPick').append(b);
+  }
+}
+let layerUid = 0;
+function loadLayerImg(url) {
+  return new Promise((ok, ko) => {
+    const img = new Image();
+    if (new URL(url, location.href).origin !== location.origin) img.crossOrigin = 'anonymous';
+    img.onload = () => ok(img); img.onerror = ko; img.src = url;
+  });
+}
+async function addLayer(s) {
+  if (!state.img) { setStatus('Carica prima un\'immagine'); return; }
+  let img;
+  try { img = await loadLayerImg(s.url); } catch (e) { setStatus('Grafica non disponibile'); return; }
+  const L = { uid: ++layerUid, id: s.id, name: s.name, url: s.url, thumb: s.thumb, x: 0, y: 0, size: 30, rot: 0, img };
+  state.layers.push(L); state.layerSel = L.uid;
+  if (state.view === '3d') document.querySelector('.tabs button[data-view="2d"]').click();
+  renderLayers(); run();
+}
+const layerH = (L) => L.size * (L.img && L.img.naturalWidth ? L.img.naturalHeight / L.img.naturalWidth : 1);
+function selLayer() { return state.layers.find((x) => x.uid === state.layerSel) || null; }
+function renderLayers() {
+  const ul = $('#stkLayers');
+  ul.innerHTML = '';
+  $('#stkHint').hidden = !state.layers.length;
+  [...state.layers].reverse().forEach((L) => { // in alto nella lista = sopra nel disegno
+    const li = document.createElement('li');
+    li.className = L.uid === state.layerSel ? 'sel' : '';
+    li.innerHTML = `<img alt=""><span class="nm"></span><span class="ops"><button type="button" data-a="up" title="Sopra">▲</button><button type="button" data-a="dn" title="Sotto">▼</button><button type="button" data-a="del" title="Elimina">✕</button></span>
+      <span class="sl">Dim.<input type="range" min="5" max="150" step="1" data-k="size">Rot.<input type="range" min="-180" max="180" step="1" data-k="rot"></span>`;
+    li.querySelector('img').src = L.thumb;
+    li.querySelector('.nm').textContent = L.name;
+    li.querySelector('[data-k=size]').value = L.size;
+    li.querySelector('[data-k=rot]').value = L.rot;
+    li.addEventListener('click', (e) => {
+      const act = e.target.dataset && e.target.dataset.a;
+      if (act) {
+        const i = state.layers.indexOf(L);
+        if (act === 'del') { state.layers.splice(i, 1); if (state.layerSel === L.uid) state.layerSel = null; }
+        else if (act === 'up' && i < state.layers.length - 1) [state.layers[i], state.layers[i + 1]] = [state.layers[i + 1], state.layers[i]];
+        else if (act === 'dn' && i > 0) [state.layers[i], state.layers[i - 1]] = [state.layers[i - 1], state.layers[i]];
+        else return;
+        renderLayers(); run(); return;
+      }
+      if (e.target.tagName === 'INPUT') return;
+      state.layerSel = L.uid; renderLayers(); renderOverlay();
+    });
+    li.querySelectorAll('input').forEach((inp) => {
+      inp.addEventListener('input', () => { L[inp.dataset.k] = +inp.value; state.layerSel = L.uid; state.dragging = L.uid; renderOverlay(); });
+      inp.addEventListener('change', () => { state.dragging = null; run(); });
+    });
+    ul.append(li);
+  });
+}
+// riquadro con maniglie sulla grafica selezionata (e l'immagine vera mentre la si sposta): solo a schermo
+function overlaySvg() {
+  const L = selLayer();
+  if (!L || state.template) return '';
+  const w = L.size, h = layerH(L);
+  const img = state.dragging === L.uid ? `<image href="${escapeAttr(L.url)}" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" opacity="0.9" preserveAspectRatio="none"/>` : '';
+  return `<g id="stkOverlay" transform="translate(${L.x} ${L.y}) rotate(${L.rot})">${img}
+    <rect class="stk-ui" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="transparent" stroke="#f2b705" stroke-width="0.5" stroke-dasharray="1.5 1"/>
+    <line x1="0" y1="${-h / 2}" x2="0" y2="${-h / 2 - 7}" stroke="#f2b705" stroke-width="0.5"/>
+    <circle class="stk-rot" cx="0" cy="${-h / 2 - 7}" r="2.4" fill="#fff" stroke="#1d1b19" stroke-width="0.5"/>
+    <circle class="stk-handle" cx="${w / 2}" cy="${h / 2}" r="2.4" fill="#f2b705" stroke="#1d1b19" stroke-width="0.5"/></g>`;
+}
+function renderOverlay() {
+  const svg = $('#svgHost svg');
+  if (!svg) return;
+  const old = svg.querySelector('#stkOverlay');
+  if (old) old.remove();
+  const html = overlaySvg();
+  if (html) svg.insertAdjacentHTML('beforeend', html);
+}
+function svgPoint(e) {
+  const svg = $('#svgHost svg');
+  const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+function hitLayer(m) {
+  for (let k = state.layers.length - 1; k >= 0; k--) {
+    const L = state.layers[k], a = -L.rot * Math.PI / 180;
+    const dx = m.x - L.x, dy = m.y - L.y, lx = dx * Math.cos(a) - dy * Math.sin(a), ly = dx * Math.sin(a) + dy * Math.cos(a);
+    if (Math.abs(lx) <= L.size / 2 && Math.abs(ly) <= layerH(L) / 2) return L;
+  }
+  return null;
+}
+let stkDrag = null, swallowClick = false;
+$('#svgHost').addEventListener('pointerdown', (e) => {
+  if (!state.layers.length || state.template || state.painting || state.view !== '2d' || !$('#svgHost svg')) return; // col pennello si colora
+  const m = svgPoint(e), L0 = selLayer();
+  let mode = null, L = null;
+  if (L0) {
+    const a = L0.rot * Math.PI / 180, h = layerH(L0);
+    const loc = (x, y) => [L0.x + x * Math.cos(a) - y * Math.sin(a), L0.y + x * Math.sin(a) + y * Math.cos(a)];
+    const [rx, ry] = loc(0, -h / 2 - 7), [sx, sy] = loc(L0.size / 2, h / 2);
+    if (Math.hypot(m.x - rx, m.y - ry) < 4) { mode = 'rot'; L = L0; }
+    else if (Math.hypot(m.x - sx, m.y - sy) < 4) { mode = 'size'; L = L0; }
+  }
+  if (!mode) { L = hitLayer(m); if (L) mode = 'move'; }
+  if (!mode) return;
+  e.preventDefault();
+  $('#svgHost').setPointerCapture(e.pointerId);
+  state.layerSel = L.uid; state.dragging = L.uid;
+  stkDrag = { mode, L, m0: m, x0: L.x, y0: L.y, s0: L.size, d0: Math.hypot(m.x - L.x, m.y - L.y) || 1, moved: false };
+  renderLayers(); renderOverlay();
+});
+$('#svgHost').addEventListener('pointermove', (e) => {
+  if (!stkDrag) return;
+  const m = svgPoint(e), d = stkDrag, L = d.L, g = geometry();
+  if (d.mode === 'move') {
+    let x = d.x0 + m.x - d.m0.x, y = d.y0 + m.y - d.m0.y;
+    const r = Math.hypot(x, y);
+    if (r > g.rBandOut) { x *= g.rBandOut / r; y *= g.rBandOut / r; } // il centro resta dentro la fascia
+    L.x = Math.round(x * 10) / 10; L.y = Math.round(y * 10) / 10;
+  } else if (d.mode === 'size') {
+    L.size = Math.round(Math.min(150, Math.max(5, d.s0 * Math.hypot(m.x - L.x, m.y - L.y) / d.d0)));
+  } else {
+    L.rot = Math.round(Math.atan2(m.y - L.y, m.x - L.x) * 180 / Math.PI + 90);
+    if (L.rot > 180) L.rot -= 360;
+  }
+  d.moved = true;
+  renderOverlay();
+});
+const endDrag = () => {
+  if (!stkDrag) return;
+  const moved = stkDrag.moved;
+  stkDrag = null; state.dragging = null;
+  swallowClick = true; setTimeout(() => { swallowClick = false; }, 0);
+  renderLayers();
+  if (moved) run(); else renderOverlay();
+};
+$('#svgHost').addEventListener('pointerup', endDrag);
+$('#svgHost').addEventListener('pointercancel', endDrag);
+
 // ---------------- sopra la fascia: interfaccia ----------------
 if (CFG.overflow) $('#ovBox').hidden = false;
 function updateOvUi() {
@@ -1238,6 +1432,8 @@ $('#ovClear').addEventListener('click', () => {
   worker.postMessage({ id: ++jobId, ovSeeds: [] });
 });
 $('#svgHost').addEventListener('click', (e) => {
+  if (swallowClick) return;
+  if (state.layerSel && !stkDrag) { state.layerSel = null; renderLayers(); renderOverlay(); }
   if (!state.result || state.template) return;
   const svg = $('#svgHost svg');
   if (!svg) return;
@@ -1288,7 +1484,7 @@ function updateSteps() {
     1: tpl ? ['✓ Disegno pronto: ' + state.template.name, true] : img ? ['✓ Immagine caricata' + ($('#portrait').checked ? ' · volto' : ''), true] : ['Carica una foto o un disegno', false],
     2: tpl ? ['Non serve con un disegno pronto', false] : state.aiImageSrc ? ['✓ Ridisegnata in stile ' + (AI_STYLE_NAMES[aiStyle] || aiStyle), true] : ['Facoltativo: fai ridisegnare la foto', false],
     3: tpl ? ['Già scelti nel disegno pronto', false] : res ? [`✓ ${nColors} colori · ${state.mode === 'keep' ? 'grafica con contorni' : 'foto o disegno'}`, true] : ['Si sistemano dopo il caricamento', false],
-    4: ['Fascia ' + bandLabel(state.bandColor).toLowerCase() + (words.length ? ' · ' + words.join(', ') : ' · senza scritte') + (state.overflow && state.ovSeeds.length && !tpl ? ' · esce dal cerchio' : ''), img || tpl],
+    4: ['Fascia ' + bandLabel(state.bandColor).toLowerCase() + (words.length ? ' · ' + words.join(', ') : ' · senza scritte') + (state.overflow && state.ovSeeds.length && !tpl ? ' · esce dal cerchio' : '') + (state.layers.length && !tpl ? ` · ${state.layers.length} ${state.layers.length === 1 ? 'grafica' : 'grafiche'}` : ''), img || tpl],
     5: [state.submitted ? '✓ Inviato' : 'Invia il disco: lo controlliamo noi', !!state.submitted],
   };
   list.forEach((st, i) => {
@@ -1310,6 +1506,7 @@ function updateSteps() {
   if (img || tpl) {
     rows.push(['Fascia', bandLabel(state.bandColor)]);
     rows.push(['Scritte', words.length ? words.join(' · ') : 'nessuna']);
+    if (!tpl && state.layers.length) rows.push(['Grafiche', state.layers.map((x) => x.name).join(', ')]);
     if (!tpl && state.paints.length) rows.push(['Colorato a mano', `${state.paints.length} ${state.paints.length === 1 ? 'tocco' : 'tocchi'}`]);
     if (!tpl && state.overflow && state.ovSeeds.length) rows.push(['Sopra la fascia', `${state.ovSeeds.length} ${state.ovSeeds.length === 1 ? 'parte' : 'parti'}`]);
   }
@@ -1459,7 +1656,7 @@ async function buildPackage(customer) {
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
     lampada: lampSummary(),
-    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
+    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, grafiche: state.layers.map((x) => ({ id: x.id, nome: x.name, x: x.x, y: x.y, larghezza_mm: x.size, rotazione: x.rot })), ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
     'FrancyStore3D - disco lampada personalizzato', '',
