@@ -114,6 +114,9 @@ Scegliendo una bobina già usata, le zone diventano dello stesso colore e nei fi
 È una sostituzione, non un'aggiunta: anche con 13 colori su 13 si può scegliere una bobina nuova (il vecchio colore
 sparisce). Il **🗑** accanto a ogni colore (non per nero contorni e bianco) lo toglie: le sue zone, e fascia, scritte e
 pennellate di quel colore, diventano bianche; si ricolorano quando si vuole. Si spegne in Funzioni → Togli un colore.
+L'elenco "Colori del disco" ha **una riga per bobina**: zone diverse sulla stessa bobina (sostituzione su una bobina
+già usata, 🗑, toni della pelle) sono una riga sola con l'area sommata; toccarla, il 🗑 e il 🔒 valgono per tutte.
+Sostituendo con una bobina già usata, le zone che l'avevano la tengono (🔒) invece di essere spostate su un'altra.
 
 **Colori stabili**: i colori dell'immagine si ricalcolano solo se cambia qualcosa che li riguarda (immagine, numero di
 colori, modalità, zoom, regolazioni…); grafiche, "sopra la fascia" e pennello riusano gli stessi colori.

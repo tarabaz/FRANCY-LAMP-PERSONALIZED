@@ -1012,8 +1012,18 @@ function renderPalette() {
   $('#paletteEmpty').hidden = !!(state.result || state.template);
   $('#paletteHint').hidden = !state.result;
   if (!state.result) return;
+  // una riga per bobina: zone diverse finite sullo stesso colore (sostituzione, 🗑, toni della pelle) si sommano
+  const groups = new Map();
   state.result.palette.forEach((p, i) => {
     if (p.area <= 0) return; // non più nel disegno
+    const hex = artColor(i);
+    const g = groups.get(hex);
+    if (!g) { groups.set(hex, { i, idx: [i], area: p.area, black: !!p.black }); return; }
+    g.idx.push(i); g.area += p.area; g.black = g.black || !!p.black;
+    if (p.area > state.result.palette[g.i].area && !p.black) g.i = i; // rappresentante: la zona più grande
+  });
+  for (const g of groups.values()) {
+    const i = g.i, p = { ...state.result.palette[i], black: g.black, area: g.area };
     const li = document.createElement('li');
     if (state.painting) {
       li.classList.toggle('brush', state.brush === artColor(i));
@@ -1035,7 +1045,7 @@ function renderPalette() {
     } else {
       ctrl = document.createElement('input');
       ctrl.type = 'color'; ctrl.value = artColor(i);
-      ctrl.addEventListener('input', () => { state.colorOverrides[i] = ctrl.value; render(); });
+      ctrl.addEventListener('input', () => { for (const k of g.idx) state.colorOverrides[k] = ctrl.value; render(); });
     }
     if (p.black) { ctrl.disabled = true; ctrl.title = 'Le linee sono sempre nere'; }
     const name = document.createElement('span');
@@ -1046,15 +1056,18 @@ function renderPalette() {
     const area = document.createElement('span');
     area.className = 'area';
     area.textContent = `${Math.round(p.area)} mm²`;
-    if (isLocked(i) && !state.painting) {
+    if (g.idx.some(isLocked) && !state.painting) {
       const lk = document.createElement('button');
       lk.type = 'button'; lk.className = 'lock-btn'; lk.textContent = '🔒';
       lk.title = 'Bobina scelta da te: resta anche se aggiorni il disegno. Tocca per tornare automatico.';
       lk.addEventListener('click', (ev) => {
         ev.stopPropagation();
-        const hex = state.colorOverrides[i];
-        state.locks = state.locks.filter((l) => l.hex !== hex);
-        delete state.colorOverrides[i];
+        for (const k of g.idx) {
+          const hex = state.colorOverrides[k];
+          if (!hex) continue;
+          state.locks = state.locks.filter((l) => l.hex !== hex);
+          delete state.colorOverrides[k];
+        }
         renderPalette(); render();
       });
       name.append(' ', lk);
@@ -1070,8 +1083,9 @@ function renderPalette() {
     }
     li.append(ctrl, name, area);
     if (del) { li.append(del); li.classList.add('has-del'); }
+    if (g.idx.length > 1) li.title = `${g.idx.length} zone del disegno con questa bobina`;
     ul.append(li);
-  });
+  }
 }
 
 // ---------------- composizione ----------------
@@ -1251,6 +1265,13 @@ function render() {
 function replaceColor(oldHex, newHex) {
   oldHex = oldHex.toLowerCase(); newHex = newHex.toLowerCase();
   if (!state.result || oldHex === newHex) return;
+  // bobina già usata da altre zone: quelle la tengono (bloccata), altrimenti l'automatico le sposterebbe su
+  // un'altra bobina per lasciarla libera e i due colori non si unirebbero
+  if (newHex !== WHITE && newHex !== BLACK) state.result.palette.forEach((p, i) => {
+    if (p.black || p.area <= 0 || state.colorOverrides[i] || artColor(i) !== newHex) return;
+    state.colorOverrides[i] = newHex;
+    lockColor(i, newHex);
+  });
   state.result.palette.forEach((p, i) => {
     if (p.black || p.area <= 0 || artColor(i) !== oldHex) return;
     state.colorOverrides[i] = newHex;
