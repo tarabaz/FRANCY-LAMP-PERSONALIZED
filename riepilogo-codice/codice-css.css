@@ -1,0 +1,404 @@
+
+/* ======================================================================
+   FILE: assets/css/style.css
+   ====================================================================== */
+.flc [hidden] { display: none !important; }
+.flc {
+  --bg: #f4f2ee;
+  --panel: #ffffff;
+  --ink: #1d1b19;
+  --muted: #6f6a63;
+  --line: #e4e0d9;
+  --accent: #f2b705;
+  --accent-ink: #1d1b19;
+  --stage: #3a3d44;
+  --stage-lit: #3a3d44;
+  --radius: 12px;
+}
+/* Pagina autonoma (index.html) */
+html.flc-page, html.flc-page body { margin: 0; height: 100%; }
+html.flc-page .flc { height: 100%; }
+@media (max-width: 980px) { html.flc-page .flc { height: auto; min-height: 100%; } }
+/* Dentro WordPress */
+.flc.flc-embedded { height: min(920px, 94vh); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+
+.flc, .flc * { box-sizing: border-box; }
+.flc {
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex; flex-direction: column;
+}
+.flc button, .flc input { font: inherit; color: inherit; }
+
+.flc .top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px; border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.flc .brand { font-weight: 800; font-size: 16px; }
+.flc .brand { display: flex; align-items: center; gap: 6px; }
+.flc .brand .brand-sub { font-weight: 400; color: var(--muted); }
+
+.flc .lit-toggle, .flc .tabs { display: inline-flex; background: var(--bg); border-radius: 999px; padding: 3px; gap: 2px; }
+.flc .lit-toggle button, .flc .tabs button {
+  border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--muted);
+}
+.flc .lit-toggle button.active, .flc .tabs button.active { background: var(--ink); color: #fff; }
+
+.flc .layout {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: var(--flc-left, 330px) 1fr 280px; gap: 0;
+  position: relative;
+}
+/* bordo trascinabile del pannello sinistro (solo desktop) */
+.flc .panel-resizer {
+  position: absolute; top: 0; bottom: 0; left: calc(var(--flc-left, 330px) - 4px); width: 8px; z-index: 6;
+  cursor: col-resize; touch-action: none;
+}
+.flc .panel-resizer::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background .15s;
+}
+.flc .panel-resizer:hover::after, .flc .panel-resizer.drag::after { background: var(--accent); }
+.flc.resizing, .flc.resizing * { cursor: col-resize !important; user-select: none !important; }
+.flc .panel { background: var(--panel); overflow: auto; padding: 6px 16px 20px; border-right: 1px solid var(--line); }
+.flc .panel.right { border-right: 0; border-left: 1px solid var(--line); }
+.flc section + section { border-top: 1px solid var(--line); }
+.flc section { padding: 12px 0; }
+.flc h2 { font-size: 14px; margin: 4px 0 10px; display: flex; align-items: center; gap: 8px; }
+.flc h2 span {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+  display: inline-grid; place-items: center; font-size: 12px;
+}
+.flc .hint { color: var(--muted); font-size: 12px; margin: 6px 0; }
+
+.flc .upload { display: block; cursor: pointer; }
+.flc .upload input { display: none; }
+.flc .upload span {
+  display: block; text-align: center; padding: 10px; border: 1.5px dashed var(--line); border-radius: var(--radius);
+  font-weight: 600;
+}
+.flc .upload:hover span { border-color: var(--accent); }
+
+.flc .crop-wrap { margin-top: 10px; text-align: center; }
+.flc #crop { width: 100%; max-width: 300px; aspect-ratio: 1; border-radius: var(--radius); background: #ddd; cursor: grab; touch-action: none; }
+.flc #crop:active { cursor: grabbing; }
+
+.flc .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; margin: 10px 0; }
+.flc .row input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--ink); }
+.flc .row output { font-variant-numeric: tabular-nums; color: var(--muted); }
+.flc .row input[type=color] { width: 44px; height: 28px; border: 1px solid var(--line); border-radius: 6px; padding: 0; background: none; }
+
+.flc .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.flc .seg button {
+  border: 1.5px solid var(--line); background: var(--panel); border-radius: 10px; padding: 8px; cursor: pointer;
+  font-weight: 600; text-align: left;
+}
+.flc .seg button small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.flc .seg button.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+
+.flc details summary { cursor: pointer; color: var(--muted); margin-top: 8px; }
+.flc details.adjust { margin: 4px 0 10px; }
+.flc details.adjust summary #adjBadge { color: var(--ink); font-weight: 600; }
+.flc details.adjust .ghost.small { padding: 4px 10px; font-size: 12px; }
+.flc .texts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.flc .texts input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+
+.flc button#dlSvg, .flc button#dlPng, .flc button#dlStl, .flc button.ghost {
+  display: block; width: 100%; margin: 6px 0; padding: 10px; border-radius: 10px; cursor: pointer;
+  border: 0; background: var(--ink); color: #fff; font-weight: 600;
+}
+.flc button.ghost, .flc button#dlPng, .flc button#dlSvg { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+.flc button:disabled { opacity: .4; cursor: not-allowed; }
+
+.flc .stage { display: flex; flex-direction: column; align-items: center; min-height: 0; padding: 14px; background: var(--stage); transition: background .3s; }
+.flc.lit .stage { background: var(--stage-lit); }
+.flc.stage-dark .status { color: #b9b6b0; }
+.flc .view { flex: 1; width: 100%; min-height: 0; display: grid; place-items: center; }
+.flc #svgHost { width: min(100%, 70vh); aspect-ratio: 1; }
+.flc #svgHost svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 6px 14px rgba(0,0,0,.25)); transition: filter .3s; }
+.flc.lit #svgHost svg { filter: brightness(1.12) saturate(1.25) drop-shadow(0 0 22px rgba(255,236,190,.35)); }
+.flc #view3d canvas { width: 100% !important; height: 100% !important; display: block; border-radius: var(--radius); }
+.flc .status { color: var(--muted); font-size: 12px; padding-top: 8px; min-height: 20px; }
+.flc.lit .status { color: #aaa; }
+
+.flc .palette { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.flc .palette li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; }
+.flc .palette input[type=color] { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 0; cursor: pointer; }
+.flc .palette .area { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.flc .count { font-weight: 600; }
+
+@media (max-width: 980px) {
+.flc .layout { grid-template-columns: 1fr; }
+.flc .panel-resizer { display: none; }
+.flc .stage { order: -1; min-height: 70vh; }
+.flc .panel { border: 0; }
+}
+@media (max-width: 980px) {
+  .flc.flc-embedded { height: auto; }
+  .flc .panel { overflow: visible; }
+}
+
+/* Ridisegno con IA */
+.flc .ai-box { margin-top: 10px; padding: 10px; border-radius: var(--radius); background: var(--bg); }
+.flc .ai-box button {
+  display: block; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer; font-weight: 700;
+  border: 0; background: var(--accent); color: var(--accent-ink);
+}
+.flc .ai-box button.ghost { margin-top: 6px; background: transparent; color: var(--ink); border: 1.5px solid var(--line); font-weight: 600; }
+.flc .ai-box .hint { margin: 6px 0 0; }
+.flc .ai-box.busy button#aiBtn { opacity: .6; cursor: progress; }
+
+/* Scelta colore fascia/scritte tra i colori del disco */
+.flc .picker { margin: 10px 0; }
+.flc .picker-label { display: block; margin-bottom: 6px; }
+.flc .swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.flc .swatch {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); cursor: pointer; padding: 0;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.0);
+}
+.flc .swatch.active { outline: 2.5px solid var(--ink); outline-offset: 2px; }
+.flc .swatch-add { position: relative; width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--muted); display: grid; place-items: center; cursor: pointer; color: var(--muted); font-weight: 700; overflow: hidden; }
+.flc .swatch-add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.flc .swatch-add.disabled { opacity: .35; cursor: not-allowed; }
+.flc .swatch-add.disabled input { pointer-events: none; }
+
+.flc .ai-box .quota { margin: 6px 0 0; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.flc .ai-box .quota.empty { color: #c0392b; }
+
+.flc .ai-box .ai-msg { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.4; word-break: break-word; }
+.flc .ai-box .ai-msg.error { background: #fdecea; color: #a12a1f; }
+.flc .ai-box .ai-msg.ok { background: #e8f5e9; color: #1e6b2a; }
+
+.flc .ai-box .ai-style { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin-bottom: 8px; }
+.flc .ai-box .ai-card { margin: 0 0 8px; font-size: 13px; }
+.flc .ai-box .ai-card[hidden] { display: none; }
+.flc .ai-box .ai-card .hint { margin: 4px 0 0; font-size: 11.5px; }
+.flc .ai-box .ai-style button[hidden] { display: none; }
+.flc .ai-box .ai-style button {
+  background: var(--panel); color: var(--ink); border: 1.5px solid var(--line); padding: 6px 8px; font-weight: 600; font-size: 12px; text-align: left;
+}
+.flc .ai-box .ai-style button small { display: block; font-weight: 400; color: var(--muted); font-size: 10.5px; }
+.flc .ai-box .ai-bg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; font-size: 13px; }
+.flc .ai-box .ai-bg[hidden], .flc .ai-box .ai-bg-pick[hidden] { display: none; }
+.flc .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; user-select: none; }
+/* il checkbox vero resta DENTRO lo switch: se "scappa" fuori dal pannello, al clic il browser fa scorrere la pagina per raggiungerlo */
+.flc .switch { position: relative; }
+.flc .switch input { position: absolute; top: 0; left: 0; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.flc .switch .switch-ui { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9c5bd; transition: background .15s; flex: none; }
+.flc .switch .switch-ui::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.flc .switch input:checked + .switch-ui { background: var(--ink); }
+.flc .switch input:checked + .switch-ui::after { transform: translateX(16px); }
+.flc .switch input:focus-visible + .switch-ui { outline: 2px solid var(--ink); outline-offset: 2px; }
+.flc .portrait-switch { margin: 4px 0 2px; font-size: 13px; }
+.flc .portrait-row { margin: 6px 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.flc .portrait-row .hint { margin: 6px 0 0; }
+.flc .ai-box .ai-bg-text { flex: 1 1 100%; font: inherit; padding: 6px 8px; border: 1px solid #c9c5bd; border-radius: 8px; }
+.flc .ai-box .ai-bg-ex { flex: 1 1 100%; margin: 2px 0 0; display: flex; gap: 10px; align-items: center; }
+.flc .ai-box .ai-bg-ex[hidden] { display: none; }
+.flc .ai-box .ai-bg-ex img { width: 88px; height: 88px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); flex: none; background: #eee; }
+.flc .ai-box .ai-bg-ex figcaption { font-size: 11.5px; line-height: 1.35; color: var(--muted); }
+.flc .ai-bg-pick { display: inline-flex; align-items: center; gap: 6px; }
+.flc .ai-bg-pick select { font: inherit; padding: 4px 6px; border-radius: 8px; border: 1px solid #c9c5bd; background: #fff; max-width: 210px; }
+.flc .ai-box .ai-style button.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+
+.flc .check { display: flex; align-items: center; gap: 8px; margin: 10px 0; cursor: pointer; }
+
+/* Convalida */
+.flc .submit-form { display: grid; gap: 6px; position: relative; }
+.flc .submit-form input, .flc .submit-form textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font: inherit;
+}
+.flc .submit-form .hp { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; clip-path: inset(50%); }
+.flc .check.small { font-size: 12px; color: var(--muted); align-items: flex-start; margin: 4px 0; }
+.flc .check.small input { margin-top: 2px; }
+.flc button#submitBtn {
+  display: block; width: 100%; margin-top: 4px; padding: 11px; border-radius: 10px; cursor: pointer;
+  border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800;
+}
+.flc #submitMsg { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 13px; }
+.flc #submitMsg.error { background: #fdecea; color: #a12a1f; }
+.flc #submitMsg.ok { background: #e8f5e9; color: #1e6b2a; }
+
+/* Catalogo filamenti */
+.flc { position: relative; }
+.flc .fil-popover {
+  position: absolute; z-index: 20; width: 260px; max-height: 260px; overflow: auto; padding: 10px;
+  display: flex; flex-wrap: wrap; gap: 6px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.18);
+}
+.flc .fil-popover .swatch:disabled { opacity: .25; cursor: not-allowed; }
+.flc .swatch-btn { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; padding: 0; }
+
+/* Disegni pronti */
+.flc .tpl-box { margin-bottom: 10px; }
+.flc button.tpl-open {
+  display: block; width: 100%; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: 700;
+  border: 1.5px solid var(--ink); background: var(--panel); color: var(--ink);
+}
+.flc .tpl-or { text-align: center; margin: 8px 0 2px; }
+.flc .tpl-active { display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 10px; background: var(--bg); }
+.flc .tpl-active img { width: 64px; height: 64px; object-fit: contain; }
+.flc .tpl-active-txt small { display: block; color: var(--muted); font-size: 11px; }
+.flc #tplExit { display: block; width: 100%; margin-top: 6px; padding: 8px; border-radius: 10px; cursor: pointer; background: transparent; border: 1.5px solid var(--line); font-weight: 600; }
+.flc.template-mode .lockable { opacity: .35; filter: grayscale(.5); pointer-events: none; user-select: none; }
+.flc.template-mode #tplOpen, .flc.template-mode .tpl-or { display: none; }
+.flc .tpl-modal { position: absolute; inset: 0; z-index: 30; background: rgba(20,20,20,.45); display: grid; place-items: center; padding: 16px; }
+.flc .tpl-modal[hidden] { display: none !important; }
+.flc .tpl-dialog { background: var(--panel); border-radius: 14px; width: min(860px, 100%); max-height: 90%; overflow: auto; padding: 16px 18px; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+.flc .tpl-head { display: flex; justify-content: space-between; align-items: center; }
+.flc .tpl-head h2 { margin: 0; font-size: 18px; }
+.flc #tplClose { border: 0; background: none; font-size: 20px; cursor: pointer; padding: 4px 8px; }
+.flc .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 10px; }
+.flc .tpl-card { border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel); padding: 8px; cursor: pointer; text-align: center; font-weight: 600; }
+.flc .tpl-card:hover { border-color: var(--ink); }
+.flc .tpl-card img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; margin-bottom: 6px; }
+.flc .submit-form input[type=checkbox] { width: auto; padding: 0; flex: none; }
+
+.flc a.brand { color: inherit; text-decoration: none; }
+
+/* Intestazione: logo del sito e ritorno al sito */
+.flc .brand-logo { height: 32px; width: auto; max-width: 160px; object-fit: contain; margin-right: 4px; }
+.flc .top-right { display: flex; align-items: center; gap: 12px; }
+.flc a.back-site {
+  display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px; text-decoration: none;
+  border: 1.5px solid var(--ink); color: var(--ink); font-weight: 600; white-space: nowrap;
+}
+.flc a.back-site:hover { background: var(--ink); color: #fff; }
+@media (max-width: 640px) {
+  .flc .top { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+  .flc .brand .brand-sub { display: none; }
+  .flc a.back-site { padding: 5px 10px; font-size: 13px; }
+}
+
+/* Footer */
+.flc .flc-footer {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 8px;
+  padding: 8px 16px; border-top: 1px solid var(--line); background: var(--panel);
+  font-size: 12px; color: var(--muted); text-align: center;
+}
+.flc .flc-footer a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.flc .flc-footer a:hover { color: var(--ink); }
+.flc.flc-embedded .flc-footer { display: none; } /* dentro una pagina del tema c'è già il footer del sito */
+.flc .check.small a { color: inherit; }
+
+/* Esempio dello stile IA (generato una volta dall'admin) */
+.flc .ai-example { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; margin: 0 0 8px; }
+.flc .ai-example[hidden] { display: none; }
+.flc .ai-example figure { margin: 0; text-align: center; }
+.flc .ai-example img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; background: var(--line); }
+.flc .ai-example figcaption { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.flc .ai-example-arrow { font-size: 18px; color: var(--muted); }
+/* nero contorni bloccato: resta nero pieno, solo senza clic */
+.flc .swatch-btn:disabled { opacity: 1; cursor: not-allowed; }
+/* watermark sopra l'anteprima a schermo: non blocca i clic (zoom/rotazione del 3D restano attivi) */
+.flc .stage { position: relative; }
+.flc .wm-overlay { position: absolute; inset: 0; pointer-events: none; background-repeat: repeat; z-index: 2; }
+
+/* ---------- Passi del pannello sinistro (fisarmonica) ---------- */
+.flc .stepper { position: sticky; top: -6px; z-index: 3; display: flex; align-items: center; gap: 0; padding: 10px 0 8px; margin: 0 0 2px; background: var(--panel); }
+.flc .stepper span { flex: 1; height: 2px; background: var(--line); }
+.flc .stepper button { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--panel); color: var(--muted); font-weight: 700; font-size: 12px; cursor: pointer; padding: 0; }
+.flc .stepper button.done { border-color: var(--ink); color: var(--ink); }
+.flc .stepper button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.flc .step { padding: 0; }
+.flc .step + .step { border-top: 1px solid var(--line); }
+.flc .step-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 0; background: none; border: 0; cursor: pointer; text-align: left; }
+.flc .step-n { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--bg); color: var(--muted); border: 1.5px solid var(--line); }
+.flc .step.open .step-n { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.flc .step.done:not(.open) .step-n { background: var(--ink); border-color: var(--ink); color: #fff; }
+.flc .step-t { flex: 1; min-width: 0; }
+.flc .step-t strong { display: block; font-size: 14px; }
+.flc .step-t em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+.flc .step-sum { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flc .step.open .step-sum { display: none; }
+.flc .step-chev::after { content: '▾'; color: var(--muted); font-size: 13px; }
+.flc .step.open .step-chev::after { content: '▴'; }
+.flc .step-body { display: none; padding: 0 0 16px; }
+.flc .step.open .step-body { display: block; }
+.flc .step-next { display: block; width: 100%; margin-top: 14px; padding: 10px; border-radius: 10px; border: 0; background: var(--ink); color: #fff; font-weight: 700; cursor: pointer; }
+.flc .step .ai-box { margin-top: 0; }
+.flc .step .portrait-row { margin-bottom: 0; }
+/* scritte con l'etichetta sopra (niente segnaposto tagliati) */
+.flc p.picker-label { margin: 12px 0 6px; font-size: 13px; }
+.flc p.picker-label small { color: var(--muted); font-weight: 400; }
+.flc .texts label { display: grid; gap: 3px; font-size: 11.5px; color: var(--muted); }
+.flc .texts { grid-template-columns: 1fr; gap: 10px; }
+.flc .text-item .text-pos { width: 100%; margin: 4px 0 0; accent-color: var(--ink); }
+/* riepilogo prima di confermare */
+.flc .recap { list-style: none; margin: 0 0 12px; padding: 10px 12px; background: var(--bg); border-radius: 10px; display: grid; gap: 6px; }
+.flc .recap li { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.flc .recap li span { color: var(--muted); }
+.flc .recap li strong { text-align: right; font-weight: 600; }
+.flc .recap li.empty { color: var(--muted); }
+.flc #submitBox, .flc #shareBox { margin-top: 10px; }
+.flc .palette-empty { margin-top: 0; }
+.flc .lit-toggle button[data-lit="1"] { font-weight: 600; }
+/* modalità disegno pronto: i passi che non servono restano visibili ma spenti */
+.flc.template-mode .step[data-step="2"] .step-head, .flc.template-mode .step[data-step="3"] .step-head { opacity: .55; }
+
+/* zoom dell'anteprima 2D */
+.flc #view2d { position: relative; }
+.flc #svgHost { touch-action: none; }
+.flc .zoom-ctl { position: absolute; right: 8px; bottom: 6px; display: flex; align-items: center; gap: 2px; background: rgba(255,255,255,.92); border-radius: 999px; padding: 3px; box-shadow: 0 2px 8px rgba(0,0,0,.25); z-index: 3; }
+.flc .zoom-ctl button { width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; font-size: 17px; font-weight: 700; cursor: pointer; color: var(--ink); }
+.flc .zoom-ctl button:hover { background: var(--bg); }
+.flc .zoom-ctl span { min-width: 42px; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.flc.zoomed #svgHost { cursor: grab; }
+.flc.zoomed #svgHost.panning { cursor: grabbing; }
+
+/* grafiche aggiuntive */
+.flc .stk-box { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.flc .stk-box .picker-label { margin-top: 0; }
+.flc .stk-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.flc .stk-pick button { width: 52px; height: 52px; padding: 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel) center/contain no-repeat; background-origin: content-box; cursor: pointer; }
+.flc .stk-pick button:hover { border-color: var(--ink); }
+.flc .stk-layers { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.flc .stk-layers li { display: grid; grid-template-columns: 40px 1fr auto; gap: 4px 8px; align-items: center; padding: 6px; border-radius: 10px; background: var(--panel); border: 1.5px solid transparent; cursor: pointer; }
+.flc .stk-layers li.sel { border-color: var(--ink); }
+.flc .stk-layers img { width: 40px; height: 40px; object-fit: contain; grid-row: span 2; }
+.flc .stk-layers .nm { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flc .stk-layers .ops button { border: 0; background: none; cursor: pointer; padding: 2px 4px; font-size: 13px; }
+.flc .stk-layers .sl { grid-column: 2 / -1; display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 4px 6px; align-items: center; font-size: 11px; color: var(--muted); }
+.flc .stk-layers .sl input { width: 100%; accent-color: var(--ink); }
+.flc #svgHost .stk-ui { cursor: move; }
+.flc #svgHost .stk-handle { cursor: nwse-resize; }
+.flc #svgHost .stk-rot { cursor: grab; }
+
+/* colora a mano */
+.flc .paint-bar { margin: 4px 0 10px; }
+.flc .paint-bar button.small { padding: 6px 10px; font-size: 12.5px; width: auto; display: inline-block; margin: 0 6px 0 0; border-radius: 8px; cursor: pointer; }
+.flc .paint-bar #paintOff { border: 0; background: var(--ink); color: #fff; font-weight: 600; }
+.flc .paint-panel { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+.flc .paint-panel .hint { margin: 0 0 8px; }
+.flc .paint-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; }
+.flc .paint-swatches button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); padding: 0; cursor: pointer; }
+.flc .paint-swatches button.on { outline: 2px solid var(--ink); outline-offset: 2px; }
+.flc .paint-swatches button:disabled { opacity: .25; cursor: not-allowed; }
+.flc .paint-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 8px; }
+.flc .paint-tools button { padding: 7px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--panel); cursor: pointer; font-weight: 600; font-size: 12.5px; }
+.flc .paint-tools button.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.flc.pen-mode #view2d #svgHost { cursor: crosshair; }
+.flc [data-feat-off] { display: none !important; }
+.flc .paint-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.flc.paint-mode .palette li { cursor: pointer; border-radius: 8px; padding: 2px; }
+.flc.paint-mode .palette li.brush { background: var(--bg); box-shadow: inset 0 0 0 2px var(--ink); }
+.flc.paint-mode #view2d #svgHost { cursor: cell; }
+
+/* sopra la fascia */
+.flc .ov-box { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 13px; }
+.flc .ov-box .hint { margin: 8px 0 4px; }
+.flc .ov-status { margin: 4px 0 0; font-weight: 600; }
+.flc .link-btn { background: none; border: 0; padding: 0 0 0 8px; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 12px; }
+.flc.ov-pick #view2d #svgHost { cursor: crosshair; }
+
+/* ---------- Telefono: anteprima fissa in alto, comandi sotto ---------- */
+@media (max-width: 980px) {
+  .flc .stage { position: sticky; top: 0; z-index: 4; min-height: 0; height: 46vh; height: 46svh; padding: 8px; }
+  .flc #svgHost { width: min(100%, calc(46svh - 70px)); }
+  .flc .stage .tabs button { padding: 4px 12px; font-size: 13px; }
+  .flc .stepper { top: 46svh; }
+  .flc .step { scroll-margin-top: calc(46svh + 50px); }
+  .flc #paletteSlot #paletteSection { border-top: 0; padding-top: 4px; }
+  .flc .panel.right #paletteSection { display: none; }
+}
+.flc .lock-btn { border: 0; background: none; padding: 0 2px; cursor: pointer; font-size: 12px; line-height: 1; }
