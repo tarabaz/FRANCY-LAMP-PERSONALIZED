@@ -152,6 +152,7 @@ function flc_features() {
 		'feat_lit'           => array('Anteprima', 'Accesa / spenta', ''),
 		'wm_download'        => array('Anteprima', 'Scarica l\'anteprima', 'Immagine con watermark da condividere.'),
 		'feat_submit'        => array('Conferma', 'Convalida del disco', 'Modulo per inviare il disco (spento: solo vetrina).'),
+		'feat_help'          => array('Anteprima', 'Guida e punti interrogativi', 'Pulsante ❓ Guida in alto e i ? con la spiegazione accanto ai comandi.'),
 		'feat_project'       => array('Conferma', 'Salva / apri progetto (.francy)', 'Il cliente salva il lavoro sul suo dispositivo e lo riapre dopo.'),
 	);
 }

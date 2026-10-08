@@ -2481,3 +2481,100 @@ if (feature('feat_project')) {
   $('#projSave').addEventListener('click', saveProject);
   $('#projOpen').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) openProject(f); });
 } else $('#projBtns').setAttribute('data-feat-off', '');
+
+// ---------------- guida: ❓ Guida in alto e i "?" accanto ai comandi ----------------
+// [selettore, titolo, spiegazione, dove mettere il ? ('end' = in fondo all'elemento, 'after' = subito dopo)]
+const HELP = [
+  ['#tplOpen', 'Disegni pronti', 'Disegni già preparati da noi: ne scegli uno e lo vedi subito sulla lampada. Non si modificano.', 'after'],
+  ['.upload > span', 'Carica un\'immagine', 'Foto o disegno dal tuo dispositivo. Vengono meglio i disegni a colori pieni con contorni neri; le foto conviene ridisegnarle con l\'IA (passo 2).', 'end'],
+  ['#adjustBox > summary', 'Regola immagine', 'Luminosità, contrasto e saturazione della tua immagine prima della conversione. Più contrasto e saturazione = colori più separati.', 'end'],
+  ['.portrait-switch', 'È un volto', 'Accendilo per i ritratti: la pelle ha 3 toni dedicati e occhi, sopracciglia e bocca vengono protetti anche se piccoli.', 'end'],
+  ['#aiStyle button[data-style="fedele"]', 'Fedele', 'Ridisegna la foto mantenendo posa, espressione e colori, con contorni neri e colori pieni.', 'end'],
+  ['#aiStyle button[data-style="ritratto"]', 'Ritratto', 'Per le persone: un ritratto pop-art con pochi colori decisi.', 'end'],
+  ['#aiStyle button[data-style="tombino"]', 'Tombino', 'Lo stile dei tombini decorati giapponesi (Poké Lids): disegno piatto e pulito, perfetto per il disco.', 'end'],
+  ['#aiStyle button[data-style="anime"]', 'Anime', 'Ridisegna la foto come un personaggio di un cartone animato giapponese.', 'end'],
+  ['#aiCardRow .switch', 'Carta da gioco', 'Se hai fotografato una carta (es. Pokémon), l\'IA tiene solo l\'illustrazione e toglie cornice e scritte.', 'end'],
+  ['#aiBgRow .switch', 'Sfondo', 'Toglie lo sfondo della foto e ne mette uno nuovo a scelta (o descritto da te).', 'end'],
+  ['#mode button[data-mode="outline"]', 'Foto o disegno', 'Per immagini senza contorni neri: il configuratore li crea da solo tra un colore e l\'altro.', 'end'],
+  ['#mode button[data-mode="keep"]', 'Grafica con contorni', 'Per disegni che hanno già le linee nere (anche quelli dell\'IA): le tiene e colora le zone tra le linee. È la scelta migliore nella maggior parte dei casi.', 'end'],
+  ['#colorsOut', 'Colori', 'Quanti colori usare per il disegno. Più colori = più dettagli, ma servono più bobine (massimo 13 in tutto, compresi bianco e nero).', 'label'],
+  ['#addRow', 'Contorni dove mancano', 'Aggiunge le linee nere tra i colori che non le hanno già.', 'end'],
+  ['#lineOut', 'Spessore contorni', 'Quanto sono spesse le linee nere, in millimetri. Sotto 1 mm i dettagli piccoli rischiano di sparire in stampa.', 'label'],
+  ['#thickOut', 'Ingrossa il nero', 'Rende un po\' più spesse le linee nere già presenti nel disegno, così si stampano bene.', 'label'],
+  ['#ovBox .switch', 'Sopra la fascia', 'Fai uscire dal cerchio alcune parti del disegno (un orecchio, una coda…) come nei tombini veri: tocca le parti sull\'anteprima.', 'end'],
+  ['#stkBox .picker-label', 'Grafiche aggiuntive', 'Aggiungi un elemento (es. una Poké Ball) da spostare, ingrandire e ruotare sul disegno.', 'end'],
+  ['#bandPicker .picker-label', 'Colore fascia', 'Il colore dell\'anello dove stanno le scritte. Usare un colore già presente nel disegno non aggiunge bobine.', 'end'],
+  ['#textPicker .picker-label', 'Colore scritte', 'Il colore delle lettere sulla fascia.', 'end'],
+  ['.texts', 'Scritte', 'Fino a 4 scritte: 2 sopra e 2 sotto. Lo slider sotto ogni scritta la fa scorrere lungo la fascia; lascia vuoto per non metterla.', 'before'],
+  ['#textSizeOut', 'Dimensione scritte', 'L\'altezza di tutte le lettere. Un testo troppo lungo si rimpicciolisce da solo.', 'label'],
+  ['#paletteSection > h2', 'Colori del disco', 'Tutte le bobine del tuo disco con la superficie di ognuna. Tocca un colore per sostituirlo, 🗑 per toglierlo (diventa bianco), 🔒 indica una scelta tua.', 'end'],
+  ['#paintOn', 'Colora a mano', 'Scegli un colore e tocca le zone dell\'anteprima per ricolorarle (🪣 secchiello) oppure disegna piccoli dettagli (✏️ penna).', 'after'],
+  ['.lit-toggle', 'Spenta / Accesa', 'Guarda come appare la lampada con la luce spenta o accesa.', 'after'],
+  ['.tabs', 'Anteprima 2D / 3D', '2D: il disco piatto, dove tocchi e colori. 3D: la lampada intera da girare con il mouse.', 'end'],
+  ['#projBtns', 'Salva / Apri', 'Salva scarica un file .francy con tutto il lavoro; Apri lo ricarica e riprendi da dove eri rimasto.', 'end'],
+];
+function initHelp() {
+  const pop = $('#helpPop');
+  let openBtn = null;
+  const close = () => { pop.hidden = true; if (openBtn) openBtn.classList.remove('open'); openBtn = null; };
+  const show = (btn, title, text) => {
+    if (openBtn === btn) return close();
+    close();
+    pop.replaceChildren(Object.assign(document.createElement('strong'), { textContent: title }), document.createTextNode(text));
+    pop.hidden = false;
+    const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+    const left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8));
+    const top = r.bottom + 8 + h < innerHeight ? r.bottom + 8 : Math.max(8, r.top - h - 8);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+    btn.classList.add('open'); openBtn = btn;
+  };
+  for (const [sel, title, text, where] of HELP) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    const q = document.createElement('button');
+    q.type = 'button'; q.className = 'help-q'; q.textContent = '?';
+    q.setAttribute('aria-label', 'Cos\'è: ' + title);
+    // dentro label e pulsanti il ? non deve attivare l'interruttore o il pulsante
+    q.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); show(q, title, text); });
+    q.addEventListener('pointerdown', (e) => e.stopPropagation());
+    if (where === 'label') {
+      // slider: il ? va subito dopo il nome (es. "Colori ?"), non in una riga a sé
+      const row = el.closest('.row'), t = row && [...row.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+      if (!t) { el.after(q); continue; }
+      const span = document.createElement('span');
+      span.className = 'row-t'; span.textContent = t.textContent.trim();
+      t.replaceWith(span); span.append(q);
+    } else if (where === 'after') el.after(q);
+    else if (where === 'before') el.before(q);
+    else el.append(q);
+  }
+  document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !pop.contains(e.target)) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { close(); $('#helpModal').hidden = true; } });
+  document.addEventListener('scroll', close, true);
+  // finestra della guida; il pulsante pulsa alla prima visita
+  const btn = $('#helpBtn');
+  btn.addEventListener('click', () => {
+    $('#helpModal').hidden = false; btn.classList.remove('pulse');
+    try { localStorage.setItem('flcHelpSeen', '1'); } catch (e) { /* facoltativo */ }
+  });
+  $('#helpClose').addEventListener('click', () => { $('#helpModal').hidden = true; });
+  $('#helpModal').addEventListener('click', (e) => { if (e.target.id === 'helpModal') $('#helpModal').hidden = true; });
+  let seen = false;
+  try { seen = localStorage.getItem('flcHelpSeen') === '1'; } catch (e) { /* facoltativo */ }
+  if (!seen) btn.classList.add('pulse');
+}
+if (feature('feat_help')) initHelp();
+else { $('#helpBtn').hidden = true; }
+
+// Avviso solo da telefono (touch e lato corto piccolo; i tablet e i PC non lo vedono); si chiude con un tocco
+(function phoneNote() {
+  const note = $('#devNote');
+  const phone = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
+  let dismissed = false;
+  try { dismissed = sessionStorage.getItem('flcDevNote') === '1'; } catch (e) { /* facoltativo */ }
+  if (!phone || dismissed) return;
+  note.hidden = false;
+  const hide = () => { note.hidden = true; try { sessionStorage.setItem('flcDevNote', '1'); } catch (e) { /* facoltativo */ } };
+  note.addEventListener('click', hide);
+  note.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hide(); } });
+})();

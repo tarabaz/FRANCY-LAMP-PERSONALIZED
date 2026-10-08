@@ -357,7 +357,7 @@ html.flc-page .flc { height: 100%; }
 .flc.template-mode .step[data-step="2"] .step-head, .flc.template-mode .step[data-step="3"] .step-head { opacity: .55; }
 
 /* progetto .francy */
-.flc .proj-btns { display: inline-flex; gap: 4px; margin-right: 8px; }
+.flc .proj-btns { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
 .flc .proj-btns button, .flc .proj-btns .proj-open { border: 1.5px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--ink); }
 .flc .proj-btns button:hover, .flc .proj-btns .proj-open:hover { border-color: var(--ink); }
 @media (max-width: 640px) { .flc .proj-btns button, .flc .proj-btns .proj-open { padding: 5px 9px; font-size: 12px; } }
@@ -436,3 +436,27 @@ html.flc-page .flc { height: 100%; }
   .flc .panel.right #paletteSection { display: none; }
 }
 .flc .lock-btn { border: 0; background: none; padding: 0 2px; cursor: pointer; font-size: 12px; line-height: 1; }
+
+/* Guida: pulsante, finestra, punti interrogativi con popup, avviso telefono */
+.flc .help-btn { border: 0; border-radius: 999px; padding: 7px 14px; background: var(--ink); color: var(--panel); font-weight: 700; font-size: 14px; cursor: pointer; }
+.flc .help-btn.pulse { animation: flcPulse 1.6s ease-in-out 3; }
+@keyframes flcPulse { 50% { box-shadow: 0 0 0 6px rgba(240,180,0,.45); } }
+.flc .help-dialog { width: min(760px, 100%); }
+.flc .help-body { font-size: 14px; line-height: 1.5; }
+.flc .help-body h3 { font-size: 15px; margin: 18px 0 6px; }
+.flc .help-body ol, .flc .help-body ul { padding-left: 20px; margin: 0; }
+.flc .help-body li { margin-bottom: 6px; }
+.flc .help-lead { margin-top: 0; }
+.flc button.help-q, .flc span.help-q { display: inline-flex; box-sizing: border-box; box-shadow: none; text-transform: none; align-items: center; justify-content: center; width: 18px; height: 18px; flex: none; border-radius: 50%; border: 1.5px solid var(--muted); background: var(--panel); color: var(--muted); font: 700 11px/1 system-ui, sans-serif; cursor: pointer; padding: 0; margin-left: 6px; vertical-align: middle; }
+.flc button.help-q:hover, .flc button.help-q:focus-visible, .flc button.help-q.open { border-color: var(--ink); color: var(--ink); }
+.flc .help-q-demo { cursor: default; }
+.flc .help-pop { position: fixed; z-index: 60; max-width: 300px; padding: 10px 12px; background: var(--ink); color: var(--panel); border-radius: 10px; font-size: 13px; line-height: 1.45; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.flc .help-pop strong { display: block; margin-bottom: 2px; }
+.flc .help-pop[hidden] { display: none; }
+.flc .seg button button.help-q, .flc .ai-style button button.help-q, .flc .tabs button.help-q { position: absolute; top: 4px; right: 4px; margin: 0; width: 16px; height: 16px; font-size: 10px; }
+.flc .seg button, .flc .ai-style button, .flc .tabs { position: relative; }
+.flc .tabs button.help-q { top: 50%; right: -24px; transform: translateY(-50%); width: 18px; height: 18px; font-size: 11px; background: var(--panel); }
+.flc .dev-note { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 14px; background: #fff4cc; color: #3b2f00; font-size: 13px; line-height: 1.4; cursor: pointer; border-bottom: 1px solid #e8d38a; }
+.flc .dev-note[hidden] { display: none; }
+.flc .dev-note-ok { flex: none; font-weight: 700; white-space: nowrap; }
+.flc .img-tip { margin: 6px 0 10px; }

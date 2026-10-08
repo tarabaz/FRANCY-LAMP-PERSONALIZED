@@ -84,6 +84,16 @@ lampada, accesa/spenta. Con un disegno pronto salva il disegno e la cornice. Ria
 computer) il configuratore riparte da dove si era rimasti, senza passare dal server. 💾 compare quando c'è qualcosa
 da salvare; si spegne in Impostazioni → Funzioni → Salva / apri progetto.
 
+**Guida** (si spegne in Funzioni → Guida e punti interrogativi): pulsante **❓ Guida** in alto che apre una finestra
+con i 5 passi, i colori del disco, l'anteprima e il salvataggio (alla prima visita il pulsante pulsa per farsi notare).
+Accanto ai comandi meno ovvi c'è un piccolo **?**: toccandolo esce un popup con la spiegazione (non attiva
+l'interruttore o il pulsante su cui si trova). I testi sono nell'elenco `HELP` in fondo a `assets/js/app.js`.
+Nel passo 1 un consiglio spiega che il risultato migliore arriva da un disegno a colori pieni con contorni neri (anche
+fatto con un'IA esterna: si carica e si va dritti ai colori, senza consumare ridisegni); per le foto c'è il passo 2.
+
+**Avviso da telefono**: solo su telefono (schermo touch con lato corto sotto 600 px; tablet e PC no) compare in alto
+una striscia gialla che consiglia PC o tablet; si chiude con un tocco e non torna fino alla visita successiva.
+
 **Penna** (in "Colora a mano", accanto al 🪣 Secchiello): ✏️ disegno a mano libera con la bobina scelta (pupille,
 riflessi, piccoli ritocchi); punta da 0,5 a 6 mm. Il tratto diventa zona vera nei file, resta dopo i ricalcoli e si
 toglie con Annulla. Per spostarsi mentre si usa la penna: due dita oppure Maiusc + trascina.

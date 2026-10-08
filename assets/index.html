@@ -16,6 +16,7 @@
         <button data-lit="0" class="active">Spenta</button>
         <button data-lit="1">💡 Accesa</button>
       </div>
+      <button type="button" class="help-btn" id="helpBtn" title="Come funziona il configuratore">❓ Guida</button>
       <div class="proj-btns" id="projBtns">
         <button type="button" id="projSave" title="Salva il progetto sul tuo dispositivo (.francy) per riprenderlo dopo" hidden>💾 Salva</button>
         <label class="proj-open" title="Riapri un progetto salvato (.francy)">📂 Apri<input type="file" id="projOpen" accept=".francy" hidden></label>
@@ -25,6 +26,10 @@
       <a class="back-site" id="backSite" href="#" hidden>← Torna al sito</a>
     </div>
   </header>
+  <div class="dev-note" id="devNote" role="button" tabindex="0" hidden>
+    <span>🖥️ Questo configuratore è pensato per <strong>schermi grandi</strong>: per lavorare comodo usalo da <strong>PC o tablet</strong>. Dal telefono funziona, ma è più scomodo.</span>
+    <span class="dev-note-ok">Ho capito ✕</span>
+  </div>
 
   <main class="layout">
     <aside class="panel left">
@@ -45,6 +50,7 @@
             <input type="file" id="file" accept="image/*">
             <span>Carica un'immagine</span>
           </label>
+          <p class="hint img-tip lockable" id="imgTip">💡 Il risultato migliore arriva da un <strong>disegno a colori pieni con contorni neri</strong> (stile cartone o fumetto). Ce l'hai già, anche fatto con un'IA? Caricalo e vai dritto ai colori. Hai una foto? Usa il passo 2 «Ridisegno con IA».</p>
           <div class="crop-wrap lockable">
             <canvas id="crop" width="300" height="300"></canvas>
             <p class="hint" id="cropHint">Trascina per spostare, rotellina o cursore per lo zoom</p>
@@ -259,6 +265,39 @@
     <span>© <span id="footYear">2026</span> <span id="footName">FrancyStore3D</span> · Tutti i diritti riservati</span>
     <span class="foot-ver" id="footVer">Powered by FrancyStore3D</span>
   </footer>
+  <div class="tpl-modal help-modal" id="helpModal" hidden>
+    <div class="tpl-dialog help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="tpl-top"><div class="tpl-head"><h2 id="helpTitle">❓ Come funziona</h2><button type="button" id="helpClose" aria-label="Chiudi">✕</button></div></div>
+      <div class="tpl-scroll help-body">
+        <p class="help-lead">Crei il disco frontale della tua lampada partendo da un'immagine: il configuratore la trasforma in zone di colore stampabili, una per bobina. Segui i passi a sinistra dall'alto in basso; l'anteprima al centro si aggiorna da sola.</p>
+        <h3>I 5 passi</h3>
+        <ol>
+          <li><strong>La tua immagine</strong> – scegli un disegno pronto oppure carica la tua immagine. Trascinala nel cerchio per inquadrarla e usa lo zoom. Il risultato migliore arriva da un disegno a colori pieni con contorni neri; per i volti accendi «È un volto».</li>
+          <li><strong>Ridisegno con IA</strong> (facoltativo) – se hai una foto, l'IA la ridisegna in uno stile adatto alla stampa (Fedele, Ritratto, Tombino, Anime). Puoi anche cambiare lo sfondo. Se il risultato non ti piace, «Torna all'immagine originale».</li>
+          <li><strong>Colori e contorni</strong> – scegli quanti colori usare e lo spessore delle linee nere. «Grafica con contorni» va bene per disegni e immagini dell'IA; «Foto o disegno» crea i contorni da zero.</li>
+          <li><strong>Cornice e scritte</strong> – colore della fascia e delle scritte, fino a 4 scritte che puoi far scorrere con lo slider. Se disponibili: grafiche aggiuntive e parti del disegno che escono sopra la fascia.</li>
+          <li><strong>Conferma</strong> – controlli il riepilogo e invii il disco: lo verifichiamo noi prima della stampa e ti ricontattiamo.</li>
+        </ol>
+        <h3>A destra: i colori del disco</h3>
+        <ul>
+          <li><strong>Tocca un colore</strong> per sostituirlo con un'altra bobina: cambia ovunque. Scegliendo un colore già presente, le zone si uniscono.</li>
+          <li><strong>🗑</strong> toglie un colore: le sue zone diventano bianche. <strong>🔒</strong> indica una scelta tua che resta anche se aggiorni il disegno; toccalo per tornare automatico.</li>
+          <li><strong>🖌️ Colora a mano</strong>: con il 🪣 secchiello colori una zona intera con un tocco, con la ✏️ penna disegni piccoli dettagli. «Annulla» toglie l'ultimo tocco.</li>
+          <li>Massimo <strong>13 colori</strong> in tutto, compresi bianco e nero: è il limite della stampante.</li>
+        </ul>
+        <h3>Al centro: l'anteprima</h3>
+        <ul>
+          <li><strong>Anteprima 2D / 3D</strong>: il disco piatto oppure la lampada intera da girare.</li>
+          <li><strong>Spenta / 💡 Accesa</strong>: come appare la lampada con la luce.</li>
+          <li><strong>Zoom</strong>: rotellina del mouse o pulsanti − + ⤢; da ingrandito trascini per spostarti.</li>
+        </ul>
+        <h3>Salvare il lavoro</h3>
+        <p><strong>💾 Salva</strong> scarica un file <code>.francy</code> con tutto il progetto; con <strong>📂 Apri</strong> lo ricarichi e riprendi da dove eri rimasto, anche su un altro computer.</p>
+        <p class="hint">Vedi un <span class="help-q help-q-demo">?</span> accanto a un comando? Toccalo per sapere cosa fa.</p>
+      </div>
+    </div>
+  </div>
+  <div class="help-pop" id="helpPop" role="tooltip" hidden></div>
   <div class="tpl-modal" id="tplModal" hidden>
     <div class="tpl-dialog" role="dialog" aria-modal="true" aria-labelledby="tplTitle">
       <div class="tpl-top">
