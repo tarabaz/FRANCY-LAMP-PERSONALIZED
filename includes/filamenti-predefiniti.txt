@@ -15,6 +15,10 @@ Bambu Lilac Purple | #AE96D4
 Bambu Sakura Pink | #E8AFCF | 2.2
 Bambu Plum | #950051
 Bambu Dark Red | #BB3D43
+Bambu Marine Blue | #0078BF
+Bambu Sky Blue | #56B7E6
+Bambu Ice Blue | #A3D8E1
+Bambu Dark Blue | #042F56
 Poly Matte Lava Red | #ED2F2E | 1.9
 Poly Matte Army Red | #BF312E | 0.3
 Poly Matte Muted Red | #D84B2E | 1.4
