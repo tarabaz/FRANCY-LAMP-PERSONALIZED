@@ -26,6 +26,7 @@ function flc_frontend_config() {
 		'filamentsSpecial' => flc_filaments_public(flc_filaments_special(), 'S'), // solo pezzi della lampada
 		'fixedFilaments' => flc_filaments_fixed(), // bianco della base e nero delle linee scelti a mano
 		'templates' => flc_templates_for_frontend(),
+		'openTemplate' => function_exists('flc_tpl_open_for_admin') ? flc_tpl_open_for_admin() : null, // ✏️ Apri nel configuratore
 		'homeUrl'   => home_url('/'),
 		'examples'  => function_exists('flc_examples_for_frontend') ? flc_examples_for_frontend() : null,
 		'aiStyles'  => array_values(array_filter(array('fedele', !empty($s['style_ritratto']) ? 'ritratto' : '', !empty($s['style_tombino']) ? 'tombino' : '', !empty($s['style_anime']) ? 'anime' : ''))),

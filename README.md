@@ -220,6 +220,9 @@ con immagine (disco completo, sfondo trasparente), 3MF, EPS, SVG e progetto, qui
 compare subito nella galleria. Dopo la creazione "💾 Salva nel disegno pronto" lo aggiorna; riaprendolo con
 "⚙️ Elabora questo disegno" si riparte dal progetto vero (scritte, colori, pennellate), non dal PNG. L'immagine creata è
 anche l'immagine in evidenza: "Rimuovi elaborazione" toglie solo i file di stampa. Endpoint: `POST /disegni/nuovo`.
+**✏️ Apri nel configuratore** (Disegni pronti, colonna "Pronto da stampare" e riquadro nella modifica): apre in una
+nuova scheda il configuratore con quel disegno già in elaborazione (dal suo progetto se c'è, anche se è in bozza);
+"Progetto" accanto continua a scaricare il file `.francy`. Indirizzo: pagina del configuratore con `?flc_tpl=ID`.
 
 **Importa in blocco** (Disegni pronti → "Importa in blocco (immagini o ZIP)", oppure menu → Importa disegni): si
 trascinano più immagini (PNG/JPG/WEBP) e/o file ZIP; il nome del file diventa il nome del disegno (`_` e `-` diventano

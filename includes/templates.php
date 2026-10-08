@@ -407,10 +407,16 @@ function flc_tpl_file_url($post_id, $which) {
 	return wp_nonce_url(admin_url('admin-post.php?action=flc_tpl_file&id=' . (int) $post_id . '&f=' . $which), 'flc_tpl_file_' . (int) $post_id);
 }
 
+// apre il configuratore con questo disegno già in elaborazione (solo admin)
+function flc_tpl_open_url($post_id) {
+	return add_query_arg('flc_tpl', (int) $post_id, function_exists('flc_page_url') ? flc_page_url() : home_url('/'));
+}
+
 function flc_tpl_print_links($post_id) {
-	$ed = flc_tpl_print($post_id);
+	$ed   = flc_tpl_print($post_id);
+	$open = '<a class="button button-small" href="' . esc_url(flc_tpl_open_url($post_id)) . '" target="_blank">✏️ Apri nel configuratore</a>';
 	if (!$ed) {
-		return '<span class="description">non ancora: apri il disegno nel configuratore, ⚙️ Elabora e 💾 Salva</span>';
+		return '<span class="description">non ancora pronto da stampare</span><br>' . $open;
 	}
 	$links = array();
 	foreach (array('3mf' => '3MF', 'eps' => 'EPS', 'svg' => 'SVG', 'francy' => 'Progetto') as $k => $label) {
@@ -422,7 +428,7 @@ function flc_tpl_print_links($post_id) {
 	if ($png) {
 		$links[] = '<a href="' . esc_url($png) . '" target="_blank">PNG</a>';
 	}
-	return '<strong style="color:#00a32a">✓ Pronto</strong> <span class="description">' . esc_html(wp_date('d/m/Y H:i', (int) $ed['time'])) . '</span><br>' . implode(' · ', $links);
+	return '<strong style="color:#00a32a">✓ Pronto</strong> <span class="description">' . esc_html(wp_date('d/m/Y H:i', (int) $ed['time'])) . '</span><br>' . $open . '<br><span class="description">Scarica:</span> ' . implode(' · ', $links);
 }
 
 add_action('admin_post_flc_tpl_file', function () {
@@ -614,3 +620,27 @@ add_action('before_delete_post', function ($post_id) {
 		flc_tpl_print_delete($post_id);
 	}
 });
+
+// Configuratore aperto da "✏️ Apri nel configuratore" (?flc_tpl=ID): i dati del disegno, anche se in bozza (solo admin)
+function flc_tpl_open_for_admin() {
+	$id = absint($_GET['flc_tpl'] ?? 0);
+	if (!$id || !current_user_can('manage_options') || get_post_type($id) !== 'flc_template') {
+		return null;
+	}
+	$thumb_id = get_post_thumbnail_id($id);
+	$url      = $thumb_id ? wp_get_attachment_image_url($thumb_id, 'full') : '';
+	$ed       = flc_tpl_print($id);
+	if ($ed && ($eu = wp_get_attachment_image_url($ed['png'], 'full'))) {
+		$url = $eu;
+	}
+	if (!$url) {
+		return null;
+	}
+	$terms = get_the_terms($id, 'flc_tpl_cat');
+	$t = array('id' => $id, 'name' => get_the_title($id), 'url' => $url, 'thumb' => $url, 'ready' => (bool) $ed,
+		'cats' => is_array($terms) ? array_values(array_map(function ($x) { return $x->name; }, $terms)) : array());
+	if ($ed && !empty($ed['files']['francy'])) {
+		$t['project'] = flc_tpl_file_url($id, 'francy');
+	}
+	return $t;
+}

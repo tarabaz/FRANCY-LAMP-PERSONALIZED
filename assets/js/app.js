@@ -2318,6 +2318,14 @@ if (CFG.logoUrl) {
 }
 setFilaments(CFG.filaments);
 setTemplates(CFG.templates);
+// ✏️ Apri nel configuratore (da Disegni pronti in admin): il disegno si apre già in elaborazione, dal suo progetto se c'è
+if (CFG.isAdmin && CFG.openTemplate) {
+  (async () => {
+    try { const u = new URL(location.href); u.searchParams.delete('flc_tpl'); history.replaceState(null, '', u); } catch (e) { /* facoltativo */ }
+    await selectTemplate(CFG.openTemplate);
+    if (state.template) await enterFullDisc();
+  })();
+}
 state.examples = CFG.examples || null;
 showExample();
 // pezzi della lampada (Impostazioni → Lampada 3D); ?lampada=manifest.json solo per le prove
