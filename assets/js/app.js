@@ -1131,9 +1131,10 @@ function render() {
   const { svg, colors, parts: ps } = buildSvg(false);
   // colora a mano: i confini di tutte le zone (anche tra due bianchi) tratteggiati, solo a schermo
   const guide = state.painting && state.baseLayers
-    ? `<g id="guida-zone" fill="none" stroke="#d0342c" stroke-opacity=".75" stroke-width="0.22" stroke-dasharray="0.8 0.5" pointer-events="none">${state.baseLayers.map((d) => (d ? `<path d="${d}"/>` : '')).join('')}</g>`
+    ? `<g id="guida-zone" fill="none" stroke="#d0342c" stroke-opacity=".75" stroke-width="${0.22 * zoomUnit()}" stroke-dasharray="${0.8 * zoomUnit()} ${0.5 * zoomUnit()}" pointer-events="none">${state.baseLayers.map((d) => (d ? `<path d="${d}"/>` : '')).join('')}</g>`
     : '';
   $('#svgHost').innerHTML = guide ? svg.replace('</svg>', guide + '</svg>') : svg;
+  applyZoom();
   renderOverlay();
   const n = colors.size;
   const over = n > MAX_FILAMENTS;
@@ -1266,6 +1267,95 @@ function paintAt(x, y) {
   sendPaints();
 }
 
+// ---------------- zoom dell'anteprima 2D ----------------
+// viewBox in mm: x, y = angolo in alto a sinistra, w = lato (200 = tutto il disco)
+state.vb = { x: -100, y: -100, w: 200 };
+const ZMIN = 10, ZMAX = 200;
+function zoomUnit() { return state.vb.w / 200; }
+function applyZoom() {
+  const svg = $('#svgHost svg');
+  if (svg) svg.setAttribute('viewBox', `${state.vb.x} ${state.vb.y} ${state.vb.w} ${state.vb.w}`);
+  $('#zoomLbl').textContent = Math.round(200 / state.vb.w * 100) + '%';
+  root.classList.toggle('zoomed', state.vb.w < 199.9);
+}
+// zoom tenendo fermo il punto (cx, cy) in mm
+function zoomAt(f, cx, cy) {
+  const vb = state.vb, w = Math.min(ZMAX, Math.max(ZMIN, vb.w / f));
+  const k = w / vb.w;
+  vb.x = cx - (cx - vb.x) * k; vb.y = cy - (cy - vb.y) * k; vb.w = w;
+  clampZoom();
+  const old = state.vb.w;
+  applyZoom();
+  // maniglie e guida hanno spessori legati allo zoom: si ridisegnano
+  if (state.painting) render(); else renderOverlay();
+  return old;
+}
+function clampZoom() {
+  const vb = state.vb;
+  if (vb.w >= ZMAX - 0.01) { vb.x = -100; vb.y = -100; vb.w = 200; return; }
+  vb.x = Math.min(100 - vb.w * 0.25, Math.max(-100 - vb.w * 0.75, vb.x));
+  vb.y = Math.min(100 - vb.w * 0.25, Math.max(-100 - vb.w * 0.75, vb.y));
+}
+$('#zoomCtl').addEventListener('click', (e) => {
+  const z = e.target.dataset && e.target.dataset.z;
+  if (!z) return;
+  const c = { x: state.vb.x + state.vb.w / 2, y: state.vb.y + state.vb.w / 2 };
+  if (z === 'fit') { state.vb = { x: -100, y: -100, w: 200 }; applyZoom(); if (state.painting) render(); else renderOverlay(); }
+  else zoomAt(z === 'in' ? 1.6 : 1 / 1.6, c.x, c.y);
+});
+$('#svgHost').addEventListener('wheel', (e) => {
+  if (!$('#svgHost svg')) return;
+  e.preventDefault();
+  const m = svgPoint(e);
+  zoomAt(Math.exp(-e.deltaY * 0.0018), m.x, m.y);
+}, { passive: false });
+// spostamento (trascinando quando si è ingranditi) e pizzico a due dita
+const touches = new Map();
+let pan = null, pinch = null, panSwallow = false;
+$('#svgHost').addEventListener('pointerdown', (e) => {
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touches.size === 2) {
+    // due dita: zoom (annulla un eventuale spostamento di grafica in corso)
+    const [a, b] = [...touches.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), w: state.vb.w };
+    pan = null;
+    if (stkDrag) { stkDrag = null; state.dragging = null; renderOverlay(); }
+    return;
+  }
+  if (stkDrag || state.vb.w >= 199.9) return; // grafica afferrata, oppure non ingranditi: niente spostamento
+  pan = { x: e.clientX, y: e.clientY, vx: state.vb.x, vy: state.vb.y, moved: false };
+});
+$('#svgHost').addEventListener('pointermove', (e) => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && touches.size === 2) {
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    const svg = $('#svgHost svg'), mid = svgPoint({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
+    zoomAt(state.vb.w / (pinch.w * pinch.d / d), mid.x, mid.y);
+    panSwallow = true;
+    return;
+  }
+  if (!pan) return;
+  const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+  if (!pan.moved && Math.hypot(dx, dy) < 5) return;
+  pan.moved = true;
+  $('#svgHost').classList.add('panning');
+  const svg = $('#svgHost svg'), r = svg.getBoundingClientRect(), mmpx = state.vb.w / r.width;
+  state.vb.x = pan.vx - dx * mmpx; state.vb.y = pan.vy - dy * mmpx;
+  clampZoom(); applyZoom();
+});
+const endPan = (e) => {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = null;
+  if (pan && pan.moved) panSwallow = true;
+  pan = null;
+  $('#svgHost').classList.remove('panning');
+  if (panSwallow) setTimeout(() => { panSwallow = false; }, 0);
+};
+$('#svgHost').addEventListener('pointerup', endPan);
+$('#svgHost').addEventListener('pointercancel', endPan);
+
 // ---------------- grafiche aggiuntive (livelli) ----------------
 const STK = Array.isArray(CFG.stickers) ? CFG.stickers : [];
 if (STK.length) {
@@ -1333,13 +1423,13 @@ function renderLayers() {
 function overlaySvg() {
   const L = selLayer();
   if (!L || state.template) return '';
-  const w = L.size, h = layerH(L);
+  const w = L.size, h = layerH(L), u = zoomUnit(); // u: maniglie della stessa grandezza a schermo con qualsiasi zoom
   const img = state.dragging === L.uid ? `<image href="${escapeAttr(L.url)}" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" opacity="0.9" preserveAspectRatio="none"/>` : '';
   return `<g id="stkOverlay" transform="translate(${L.x} ${L.y}) rotate(${L.rot})">${img}
-    <rect class="stk-ui" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="transparent" stroke="#f2b705" stroke-width="0.5" stroke-dasharray="1.5 1"/>
-    <line x1="0" y1="${-h / 2}" x2="0" y2="${-h / 2 - 7}" stroke="#f2b705" stroke-width="0.5"/>
-    <circle class="stk-rot" cx="0" cy="${-h / 2 - 7}" r="2.4" fill="#fff" stroke="#1d1b19" stroke-width="0.5"/>
-    <circle class="stk-handle" cx="${w / 2}" cy="${h / 2}" r="2.4" fill="#f2b705" stroke="#1d1b19" stroke-width="0.5"/></g>`;
+    <rect class="stk-ui" x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="transparent" stroke="#f2b705" stroke-width="${0.5 * u}" stroke-dasharray="${1.5 * u} ${u}"/>
+    <line x1="0" y1="${-h / 2}" x2="0" y2="${-h / 2 - 7 * u}" stroke="#f2b705" stroke-width="${0.5 * u}"/>
+    <circle class="stk-rot" cx="0" cy="${-h / 2 - 7 * u}" r="${2.4 * u}" fill="#fff" stroke="#1d1b19" stroke-width="${0.5 * u}"/>
+    <circle class="stk-handle" cx="${w / 2}" cy="${h / 2}" r="${2.4 * u}" fill="#f2b705" stroke="#1d1b19" stroke-width="${0.5 * u}"/></g>`;
 }
 function renderOverlay() {
   const svg = $('#svgHost svg');
@@ -1370,9 +1460,10 @@ $('#svgHost').addEventListener('pointerdown', (e) => {
   if (L0) {
     const a = L0.rot * Math.PI / 180, h = layerH(L0);
     const loc = (x, y) => [L0.x + x * Math.cos(a) - y * Math.sin(a), L0.y + x * Math.sin(a) + y * Math.cos(a)];
-    const [rx, ry] = loc(0, -h / 2 - 7), [sx, sy] = loc(L0.size / 2, h / 2);
-    if (Math.hypot(m.x - rx, m.y - ry) < 4) { mode = 'rot'; L = L0; }
-    else if (Math.hypot(m.x - sx, m.y - sy) < 4) { mode = 'size'; L = L0; }
+    const u = zoomUnit();
+    const [rx, ry] = loc(0, -h / 2 - 7 * u), [sx, sy] = loc(L0.size / 2, h / 2);
+    if (Math.hypot(m.x - rx, m.y - ry) < 4 * u) { mode = 'rot'; L = L0; }
+    else if (Math.hypot(m.x - sx, m.y - sy) < 4 * u) { mode = 'size'; L = L0; }
   }
   if (!mode) { L = hitLayer(m); if (L) mode = 'move'; }
   if (!mode) return;
@@ -1432,7 +1523,7 @@ $('#ovClear').addEventListener('click', () => {
   worker.postMessage({ id: ++jobId, ovSeeds: [] });
 });
 $('#svgHost').addEventListener('click', (e) => {
-  if (swallowClick) return;
+  if (swallowClick || panSwallow) return;
   if (state.layerSel && !stkDrag) { state.layerSel = null; renderLayers(); renderOverlay(); }
   if (!state.result || state.template) return;
   const svg = $('#svgHost svg');

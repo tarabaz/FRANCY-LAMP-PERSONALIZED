@@ -332,6 +332,16 @@ html.flc-page .flc { height: 100%; }
 /* modalità disegno pronto: i passi che non servono restano visibili ma spenti */
 .flc.template-mode .step[data-step="2"] .step-head, .flc.template-mode .step[data-step="3"] .step-head { opacity: .55; }
 
+/* zoom dell'anteprima 2D */
+.flc #view2d { position: relative; }
+.flc #svgHost { touch-action: none; }
+.flc .zoom-ctl { position: absolute; right: 8px; bottom: 6px; display: flex; align-items: center; gap: 2px; background: rgba(255,255,255,.92); border-radius: 999px; padding: 3px; box-shadow: 0 2px 8px rgba(0,0,0,.25); z-index: 3; }
+.flc .zoom-ctl button { width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; font-size: 17px; font-weight: 700; cursor: pointer; color: var(--ink); }
+.flc .zoom-ctl button:hover { background: var(--bg); }
+.flc .zoom-ctl span { min-width: 42px; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.flc.zoomed #svgHost { cursor: grab; }
+.flc.zoomed #svgHost.panning { cursor: grabbing; }
+
 /* grafiche aggiuntive */
 .flc .stk-box { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
 .flc .stk-box .picker-label { margin-top: 0; }

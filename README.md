@@ -72,6 +72,11 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
 
+**Zoom dell'anteprima 2D**: rotellina del mouse (ingrandisce nel punto sotto il puntatore), pizzico a due dita su
+telefono/tablet, pulsanti − + ⤢ nell'angolo (fino a 2000%, ⤢ = tutto il disco). Da ingranditi si trascina per
+spostarsi (il trascinamento non colora e non seleziona). Maniglie delle grafiche e tratteggio delle zone restano della
+stessa grandezza a schermo. Serve per toccare con precisione zone piccolissime con pennello e "sopra la fascia".
+
 **Grafiche aggiuntive** (Impostazioni → Grafiche: immagini dalla Libreria media, meglio PNG trasparenti con colori
 pieni e contorno nero): nel passo "Cornice e scritte" il cliente tocca una grafica per aggiungerla come livello.
 Sul disegno la sposta trascinandola, la ingrandisce con la maniglia gialla e la ruota con quella bianca (o con gli

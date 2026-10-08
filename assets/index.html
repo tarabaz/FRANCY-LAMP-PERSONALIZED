@@ -198,7 +198,11 @@
         <button data-view="2d" class="active">Anteprima 2D</button>
         <button data-view="3d">Anteprima 3D</button>
       </div>
-      <div class="view" id="view2d"><div id="svgHost"></div></div>
+      <div class="view" id="view2d"><div id="svgHost"></div>
+        <div class="zoom-ctl" id="zoomCtl" role="group" aria-label="Zoom dell'anteprima">
+          <button type="button" data-z="out" title="Riduci">−</button><span id="zoomLbl">100%</span><button type="button" data-z="in" title="Ingrandisci">+</button><button type="button" data-z="fit" title="Adatta (tutto il disco)">⤢</button>
+        </div>
+      </div>
       <div class="view" id="view3d" hidden></div>
       <div class="wm-overlay" id="wmOverlay" hidden aria-hidden="true"></div>
       <div class="status" id="status">Carica un'immagine per iniziare</div>
