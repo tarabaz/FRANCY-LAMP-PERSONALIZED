@@ -260,9 +260,20 @@
   </footer>
   <div class="tpl-modal" id="tplModal" hidden>
     <div class="tpl-dialog" role="dialog" aria-modal="true" aria-labelledby="tplTitle">
-      <div class="tpl-head"><h2 id="tplTitle">Disegni pronti</h2><button type="button" id="tplClose" aria-label="Chiudi">✕</button></div>
-      <p class="hint">Scegli un disegno: lo vedi subito sulla lampada, spenta e accesa. I disegni pronti non si modificano.</p>
-      <div class="tpl-grid" id="tplGrid"></div>
+      <div class="tpl-top">
+        <div class="tpl-head"><h2 id="tplTitle">Disegni pronti <small id="tplCount"></small></h2><button type="button" id="tplClose" aria-label="Chiudi">✕</button></div>
+        <div class="tpl-tools">
+          <input type="search" id="tplSearch" placeholder="🔍 Cerca per nome (es. Pikachu)" autocomplete="off" aria-label="Cerca un disegno">
+          <select id="tplReady" hidden aria-label="Filtro admin"><option value="">Stampa: tutti</option><option value="1">✓ Pronti da stampare</option><option value="0">Da elaborare</option></select>
+          <label class="tpl-size" title="Grandezza delle anteprime">🔎<input type="range" id="tplSize" min="90" max="320" step="10" value="160" aria-label="Grandezza delle anteprime"></label>
+        </div>
+        <div class="tpl-cats" id="tplCats" hidden></div>
+      </div>
+      <div class="tpl-scroll">
+        <div class="tpl-grid" id="tplGrid"></div>
+        <p class="hint tpl-empty" id="tplEmpty" hidden>Nessun disegno trovato: prova un altro nome o un'altra categoria.</p>
+      </div>
+      <p class="hint tpl-foot">Tocca un disegno: lo vedi subito sulla lampada, spenta e accesa.</p>
     </div>
   </div>
 </div>

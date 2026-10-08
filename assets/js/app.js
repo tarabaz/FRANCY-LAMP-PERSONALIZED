@@ -518,23 +518,73 @@ for (const id of ['pTL', 'pTR', 'pBL', 'pBR']) $('#' + id).addEventListener('inp
 
 // ---------------- disegni pronti ----------------
 // PNG del disco completo caricati dall'admin: si applicano al modello solo per l'anteprima, niente modifiche.
+// Galleria dei disegni pronti: anche centinaia, quindi ricerca per nome, categorie, grandezza anteprime regolabile
+// (ricordata nel browser) e, per l'admin, filtro pronti da stampare / da elaborare.
+const tplUi = { q: '', cat: '', ready: '' };
+const norm = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 function setTemplates(list) {
   state.templates = (list || []).filter((t) => t && t.url);
   $('#tplBox').hidden = !state.templates.length;
-  const grid = $('#tplGrid');
-  grid.innerHTML = '';
-  for (const t of state.templates) {
+  // categorie con il numero di disegni
+  const cats = new Map();
+  for (const t of state.templates) for (const c of t.cats || []) cats.set(c, (cats.get(c) || 0) + 1);
+  if (tplUi.cat && !cats.has(tplUi.cat)) tplUi.cat = '';
+  const box = $('#tplCats');
+  box.innerHTML = '';
+  box.hidden = !cats.size;
+  const chip = (label, val, n) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = tplUi.cat === val ? 'active' : '';
+    b.append(label);
+    const sm = document.createElement('small'); sm.textContent = n; b.append(sm);
+    b.addEventListener('click', () => { tplUi.cat = val; box.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b)); renderTplGrid(); });
+    box.append(b);
+  };
+  chip('Tutti', '', state.templates.length);
+  [...cats.entries()].sort((a, b) => a[0].localeCompare(b[0], 'it')).forEach(([c, n]) => chip(c, c, n));
+  $('#tplReady').hidden = !CFG.isAdmin;
+  renderTplGrid();
+}
+function renderTplGrid() {
+  const words = norm(tplUi.q).split(/\s+/).filter(Boolean);
+  const list = state.templates.filter((t) => {
+    if (tplUi.cat && !(t.cats || []).includes(tplUi.cat)) return false;
+    if (tplUi.ready !== '' && !!t.ready !== (tplUi.ready === '1')) return false;
+    const hay = norm(t.name + ' ' + (t.cats || []).join(' '));
+    return words.every((w) => hay.includes(w));
+  });
+  const grid = $('#tplGrid'), frag = document.createDocumentFragment();
+  for (const t of list) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'tpl-card';
+    b.title = t.name;
     const img = document.createElement('img');
-    img.src = t.thumb || t.url; img.alt = ''; img.loading = 'lazy';
-    b.append(img, document.createTextNode(t.name));
+    img.src = t.thumb || t.url; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+    const name = document.createElement('span'); name.textContent = t.name;
+    b.append(img, name);
+    if (CFG.isAdmin && t.ready) { const r = document.createElement('i'); r.className = 'tpl-ready'; r.textContent = '✓ 3MF'; r.title = 'Pronto da stampare (EPS e 3MF salvati)'; b.append(r); }
     b.addEventListener('click', () => selectTemplate(t));
-    grid.append(b);
+    frag.append(b);
   }
+  grid.replaceChildren(frag);
+  $('#tplEmpty').hidden = list.length > 0;
+  $('#tplCount').textContent = list.length === state.templates.length ? `${list.length}` : `${list.length} di ${state.templates.length}`;
 }
-$('#tplOpen').addEventListener('click', () => { $('#tplModal').hidden = false; });
+function setTplSize(v) {
+  $('#tplGrid').style.setProperty('--tpl-size', v + 'px');
+  $('#tplSize').value = v;
+}
+try { const v = +localStorage.getItem('flcTplSize'); if (v >= 90 && v <= 320) setTplSize(v); } catch (e) { /* niente memoria nel browser */ }
+$('#tplSize').addEventListener('input', (e) => { setTplSize(+e.target.value); try { localStorage.setItem('flcTplSize', e.target.value); } catch (err) { /* facoltativo */ } });
+let tplSearchTimer;
+$('#tplSearch').addEventListener('input', (e) => { clearTimeout(tplSearchTimer); tplSearchTimer = setTimeout(() => { tplUi.q = e.target.value; renderTplGrid(); }, 120); });
+$('#tplReady').addEventListener('change', (e) => { tplUi.ready = e.target.value; renderTplGrid(); });
+$('#tplOpen').addEventListener('click', () => {
+  $('#tplModal').hidden = false;
+  if (matchMedia('(pointer: fine)').matches) $('#tplSearch').focus(); // su telefono niente tastiera che copre la griglia
+});
 $('#tplClose').addEventListener('click', () => { $('#tplModal').hidden = true; });
 $('#tplModal').addEventListener('click', (e) => { if (e.target.id === 'tplModal') $('#tplModal').hidden = true; });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#tplModal').hidden = true; });

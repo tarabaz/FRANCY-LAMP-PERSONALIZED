@@ -42,6 +42,39 @@ add_action('init', function () {
 	));
 });
 
+// Categorie dei disegni pronti (Pokémon, Anime, Videogiochi…): nel configuratore diventano filtri della galleria
+add_action('init', function () {
+	register_taxonomy('flc_tpl_cat', 'flc_template', array(
+		'labels'            => array(
+			'name'          => 'Categorie disegni',
+			'singular_name' => 'Categoria',
+			'menu_name'     => 'Categorie disegni',
+			'all_items'     => 'Tutte le categorie',
+			'add_new_item'  => 'Nuova categoria',
+			'edit_item'     => 'Modifica categoria',
+			'search_items'  => 'Cerca categorie',
+			'not_found'     => 'Nessuna categoria.',
+		),
+		'public'            => false,
+		'show_ui'           => true,
+		'show_admin_column' => true,
+		'hierarchical'      => true, // caselle di spunta nella modifica del disegno
+		'rewrite'           => false,
+		'query_var'         => 'flc_tpl_cat', // filtro per categoria nell'elenco in admin
+		'capabilities'      => array('manage_terms' => 'manage_options', 'edit_terms' => 'manage_options', 'delete_terms' => 'manage_options', 'assign_terms' => 'manage_options'),
+	));
+}, 11);
+add_action('admin_menu', function () {
+	add_submenu_page('edit.php?post_type=flc_design', 'Categorie disegni', 'Categorie disegni', 'manage_options', 'edit-tags.php?taxonomy=flc_tpl_cat&post_type=flc_template');
+}, 17);
+// elenco: filtro per categoria sopra la tabella
+add_action('restrict_manage_posts', function ($type) {
+	if ($type !== 'flc_template') {
+		return;
+	}
+	wp_dropdown_categories(array('taxonomy' => 'flc_tpl_cat', 'name' => 'flc_tpl_cat', 'value_field' => 'slug', 'show_option_all' => 'Tutte le categorie', 'selected' => sanitize_title($_GET['flc_tpl_cat'] ?? ''), 'hide_empty' => false, 'hierarchical' => true));
+});
+
 // immagine in evidenza anche se il tema non la attiva per tutti i tipi di contenuto
 add_action('after_setup_theme', function () {
 	add_theme_support('post-thumbnails', array('flc_template'));
@@ -106,7 +139,9 @@ function flc_templates_for_frontend() {
 			$thumb = wp_get_attachment_image_url($ed['png'], 'medium') ?: $eu;
 		}
 		if ($full) {
-			$t = array('id' => $p->ID, 'name' => get_the_title($p), 'url' => $full, 'thumb' => $thumb, 'ready' => (bool) $ed);
+			$terms = get_the_terms($p->ID, 'flc_tpl_cat');
+			$t = array('id' => $p->ID, 'name' => get_the_title($p), 'url' => $full, 'thumb' => $thumb, 'ready' => (bool) $ed,
+				'cats' => is_array($terms) ? array_values(array_map(function ($x) { return $x->name; }, $terms)) : array());
 			// all'admin anche il progetto salvato: "Elabora questo disegno" riparte dalle sue modifiche
 			if ($ed && !empty($ed['files']['francy']) && current_user_can('manage_options')) {
 				$t['project'] = flc_tpl_file_url($p->ID, 'francy');
@@ -187,6 +222,11 @@ add_action('rest_api_init', function () {
 				return new WP_Error('flc_import', $att->get_error_message(), array('status' => 500));
 			}
 			set_post_thumbnail($post_id, $att);
+			// categoria (dal campo o dalla cartella dello ZIP): si aggiunge a quelle che il disegno ha già
+			$cat = mb_substr(sanitize_text_field((string) $req->get_param('category')), 0, 60);
+			if ($cat !== '') {
+				wp_set_object_terms($post_id, $cat, 'flc_tpl_cat', true);
+			}
 			return array('ok' => true, 'id' => $post_id, 'name' => $name, 'replaced' => (bool) $existing);
 		},
 	));
@@ -220,7 +260,10 @@ function flc_templates_import_page() {
 			<label><input type="checkbox" id="flcPublish" checked> Pubblica subito (visibili ai clienti)</label> &nbsp;
 			<label>Se esiste già un disegno con lo stesso nome: <select id="flcDup"><option value="skip">saltalo</option><option value="replace">sostituisci l'immagine</option></select></label>
 		</p>
-		<table id="flcList" hidden><thead><tr><th style="width:70px"></th><th>Nome del disegno</th><th style="width:140px">Stato</th><th style="width:30px"></th></tr></thead><tbody></tbody></table>
+		<p><label>Categoria per tutti: <input type="text" id="flcCat" list="flcCats" placeholder="es. Pokémon" style="width:220px"></label>
+			<span class="description">Se lasci vuoto, le immagini dentro una cartella dello ZIP prendono il nome della cartella come categoria (<code>Pokemon/gengar.png</code> → "Pokemon"). Puoi cambiarla riga per riga.</span>
+			<datalist id="flcCats"><?php foreach (get_terms(array('taxonomy' => 'flc_tpl_cat', 'hide_empty' => false)) as $term) { echo '<option value="' . esc_attr($term->name) . '">'; } ?></datalist></p>
+		<table id="flcList" hidden><thead><tr><th style="width:70px"></th><th>Nome del disegno</th><th style="width:200px">Categoria</th><th style="width:140px">Stato</th><th style="width:30px"></th></tr></thead><tbody></tbody></table>
 		<div class="bar" id="flcBar" hidden><div></div></div>
 		<p><button type="button" class="button button-primary" id="flcGo" disabled>Importa</button> <span class="description" id="flcMsg"></span>
 			<a class="button" href="<?php echo esc_url(admin_url('edit.php?post_type=flc_template')); ?>" style="margin-left:8px">Vai ai disegni pronti</a></p>
@@ -231,6 +274,8 @@ function flc_templates_import_page() {
 		const $ = (s) => document.querySelector(s);
 		let items = []; // { name, blob, url, status }
 		const nameOf = (f) => f.replace(/\\/g, '/').split('/').pop().replace(/\.[a-z0-9]+$/i, '').replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Disegno';
+		// la cartella che contiene l'immagine nello ZIP diventa la sua categoria
+		const folderOf = (f) => { const parts = f.replace(/\\/g, '/').split('/').slice(0, -1).filter((x) => x && x !== '__MACOSX'); return parts.length ? parts[parts.length - 1].replace(/[_\-]+/g, ' ').trim() : ''; };
 		const isImg = (n) => /\.(png|jpe?g|webp)$/i.test(n);
 		const mimeOf = (n) => (/\.png$/i.test(n) ? 'image/png' : /\.webp$/i.test(n) ? 'image/webp' : 'image/jpeg');
 		// lettore ZIP minimo (directory centrale + deflate del browser)
@@ -262,7 +307,7 @@ function flc_templates_import_page() {
 			$('#flcMsg').textContent = 'Leggo i file…';
 			for (const f of list) {
 				try {
-					if (/\.zip$/i.test(f.name)) { for (const x of await unzip(f)) items.push({ name: nameOf(x.name), blob: x.blob }); }
+					if (/\.zip$/i.test(f.name)) { for (const x of await unzip(f)) items.push({ name: nameOf(x.name), blob: x.blob, cat: folderOf(x.name) }); }
 					else if (isImg(f.name)) items.push({ name: nameOf(f.name), blob: f });
 				} catch (err) { $('#flcMsg').textContent = f.name + ': ' + err.message; }
 			}
@@ -274,9 +319,10 @@ function flc_templates_import_page() {
 			items.forEach((it, i) => {
 				if (!it.url) it.url = URL.createObjectURL(it.blob);
 				const tr = document.createElement('tr');
-				tr.innerHTML = '<td><img alt=""></td><td><input type="text"></td><td class="st"></td><td><button type="button" class="button-link-delete" title="Togli">✕</button></td>';
+				tr.innerHTML = '<td><img alt=""></td><td><input type="text"></td><td><input type="text" class="cat" list="flcCats"></td><td class="st"></td><td><button type="button" class="button-link-delete" title="Togli">✕</button></td>';
 				tr.querySelector('img').src = it.url;
 				const inp = tr.querySelector('input'); inp.value = it.name; inp.addEventListener('input', () => { it.name = inp.value; });
+				const ci = tr.querySelector('.cat'); ci.value = it.cat || ''; ci.placeholder = $('#flcCat').value || 'nessuna'; ci.addEventListener('input', () => { it.cat = ci.value; });
 				const st = tr.querySelector('.st'); st.textContent = it.status || 'da importare'; st.className = 'st ' + (it.cls || '');
 				tr.querySelector('button').addEventListener('click', () => { items.splice(i, 1); render(); });
 				tb.append(tr);
@@ -287,6 +333,7 @@ function flc_templates_import_page() {
 			$('#flcGo').textContent = todo ? 'Importa ' + todo + (todo === 1 ? ' disegno' : ' disegni') : 'Importa';
 			$('#flcMsg').textContent = items.length ? items.length + ' immagini pronte' : '';
 		}
+		$('#flcCat').addEventListener('input', () => document.querySelectorAll('#flcList .cat').forEach((c) => { c.placeholder = $('#flcCat').value || 'nessuna'; }));
 		$('#flcFiles').addEventListener('change', (e) => { addFiles([...e.target.files]); e.target.value = ''; });
 		const drop = $('#flcDrop');
 		drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
@@ -302,6 +349,7 @@ function flc_templates_import_page() {
 				fd.append('name', it.name);
 				fd.append('status', $('#flcPublish').checked ? 'publish' : 'draft');
 				fd.append('dup', $('#flcDup').value);
+				fd.append('category', (it.cat || '').trim() || $('#flcCat').value.trim());
 				try {
 					const r = await fetch(api, { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce }, body: fd });
 					const j = await r.json().catch(() => ({}));

@@ -190,6 +190,16 @@ spazi, modificabile prima di importare). Pubblica subito o bozza; se esiste già
 o ne sostituisce l'immagine. Lo ZIP si apre nel browser e le immagini arrivano al sito una alla volta, quindi non
 contano i limiti di upload dell'hosting.
 
+**Galleria per tanti disegni** (anche centinaia): la finestra "Scegli un disegno pronto" è grande, con la barra fissa
+in alto e la griglia che scorre sotto. Si può **cercare per nome** (senza accenti, più parole = tutte devono esserci,
+vale anche il nome della categoria), filtrare per **categoria** (chip con il numero di disegni) e regolare la
+**grandezza delle anteprime** con lo slider 🔎 (ricordata nel browser). Le immagini si caricano solo quando entrano
+nello schermo. L'admin ha in più il filtro "✓ Pronti da stampare / Da elaborare" e il bollino ✓ 3MF sulle schede.
+Su telefono la finestra è a schermo intero. **Categorie**: menu → Categorie disegni, oppure le caselle nella modifica
+del disegno; nell'elenco admin c'è la colonna e il filtro per categoria. Nell'importazione in blocco si sceglie una
+categoria per tutti, oppure riga per riga; con uno ZIP diviso in cartelle (`Pokemon/gengar.png`) la cartella diventa
+la categoria.
+
 Nel configuratore compare "Scegli un disegno pronto" (si spegne da Impostazioni → Disegni pronti): il cliente
 vede il disegno applicato al disco in 2D/3D, spento e acceso, tutto il resto si blocca. Può convalidarlo:
 in tabella risulta "Disegno pronto: nome" e lo zip contiene anteprime, PNG del disegno e riepilogo.
