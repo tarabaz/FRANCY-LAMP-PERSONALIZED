@@ -218,7 +218,14 @@
         <div class="paint-bar" id="paintBar" hidden>
           <button type="button" class="ghost small" id="paintOn">🖌️ Colora a mano</button>
           <div class="paint-panel" id="paintPanel" hidden>
-            <p class="hint">Scegli il colore (il pennello) tra le bobine qui sotto o nell'elenco del disco, poi tocca sull'anteprima le zone da colorare: la zona intera prende quel colore, le linee nere restano. "Svuota i colori" rende tutto bianco tranne il nero. Cambiando immagine o colori/contorni si riparte da capo.</p>
+            <div class="paint-tools" id="paintTools" role="group" aria-label="Strumento">
+              <button type="button" data-tool="fill" class="on">🪣 Secchiello</button><button type="button" data-tool="pen" id="toolPen">✏️ Penna</button>
+            </div>
+            <p class="hint" id="hintFill">Scegli il colore tra le bobine qui sotto o nell'elenco del disco, poi tocca le zone da colorare: la zona intera prende quel colore, le linee nere restano.</p>
+            <div id="penOpts" hidden>
+              <p class="hint">Disegna direttamente sull'anteprima (pupille, riflessi, piccoli ritocchi). Ingrandisci con lo zoom per i dettagli; per spostarti mentre usi la penna: due dita, oppure Maiusc + trascina.</p>
+              <label class="row">Punta <output id="penSizeOut">1,0 mm</output><input type="range" id="penSize" min="0.5" max="6" step="0.1" value="1"></label>
+            </div>
             <div class="paint-swatches" id="paintSwatches"></div>
             <div class="paint-actions"><button type="button" class="ghost small" id="paintClear">Svuota i colori</button><button type="button" class="ghost small" id="paintUndo" disabled>↶ Annulla</button><button type="button" class="small" id="paintOff">Fine</button></div>
           </div>

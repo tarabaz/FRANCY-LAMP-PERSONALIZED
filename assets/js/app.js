@@ -15,6 +15,9 @@ const CFG = window.FRANCY_LAMP || {
   restUrl: qp.get('ai') || '', statusUrl: qp.get('aistato') || '', submitUrl: qp.get('convalida') || '',
   nonce: '', isAdmin: true, filaments: [], templates: [], standalone: true,
 };
+// funzioni accese/spente dall'admin (Impostazioni → Funzioni): feature('feat_xxx') === false = non offrirla.
+// Per una funzione nuova: una riga in flc_features() (settings.php) + questo controllo dove serve.
+const feature = (k) => !CFG.features || CFG.features[k] !== false;
 const MAX_FILAMENTS = 13; // H2C: 1 bobina fissa sull'ugello 1 (bianco) + 3 AMS da 4 sull'ugello 2
 // Nero e bianco "di riferimento": con il catalogo diventano le bobine più vicine
 let BLACK = '#151515';
@@ -956,7 +959,7 @@ function renderPalette() {
       ctrl.style.background = artColor(i);
       // sostituzione: il colore scelto prende il posto del vecchio OVUNQUE (zone, fascia, scritte), anche se è una
       // bobina già usata (in quel caso le zone diventano dello stesso colore e nei file si uniscono)
-      ctrl.addEventListener('click', (ev) => { if (state.painting) return; openFilamentPopover(ctrl, (hex) => replaceColor(artColor(i), hex),
+      ctrl.addEventListener('click', (ev) => { if (state.painting || !feature('feat_replace')) return; openFilamentPopover(ctrl, (hex) => replaceColor(artColor(i), hex),
         (hex) => colorSet().has(hex) || colorSet().size < MAX_FILAMENTS); });
     } else {
       ctrl = document.createElement('input');
@@ -1237,12 +1240,67 @@ function renderPaintSwatches() {
     host.append(b);
   }
 }
+// ---------------- penna (ritocchi a mano libera) ----------------
+state.tool = 'fill';
+const penOn = () => state.painting && state.tool === 'pen' && feature('feat_pen');
+document.querySelectorAll('#paintTools button').forEach((b) => b.addEventListener('click', () => {
+  state.tool = b.dataset.tool;
+  document.querySelectorAll('#paintTools button').forEach((x) => x.classList.toggle('on', x === b));
+  updatePaintUi();
+}));
+const showPenSize = () => { $('#penSizeOut').textContent = (+$('#penSize').value).toFixed(1).replace('.', ',') + ' mm'; };
+$('#penSize').addEventListener('input', showPenSize); showPenSize();
+let penStroke = null;
+function penLive() {
+  const svg = $('#svgHost svg');
+  if (!svg) return;
+  let el = svg.querySelector('#penLive');
+  if (!penStroke) { if (el) el.remove(); return; }
+  if (!el) { svg.insertAdjacentHTML('beforeend', '<polyline id="penLive" fill="none" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>'); el = svg.querySelector('#penLive'); }
+  el.setAttribute('stroke', penStroke.hex); el.setAttribute('stroke-width', penStroke.w);
+  const pts = penStroke.pts.length === 1 ? [penStroke.pts[0], [penStroke.pts[0][0] + 0.01, penStroke.pts[0][1]]] : penStroke.pts;
+  el.setAttribute('points', pts.map((p) => p.join(',')).join(' '));
+}
+$('#svgHost').addEventListener('pointerdown', (e) => {
+  if (!penOn() || !state.result || !$('#svgHost svg') || e.button === 1 || e.shiftKey) return;
+  if (!state.brush) { setStatus('Scegli prima il colore della penna'); return; }
+  if (touches.size > 1) return;
+  e.preventDefault();
+  $('#svgHost').setPointerCapture(e.pointerId);
+  const m = svgPoint(e);
+  penStroke = { pts: [[Math.round(m.x * 100) / 100, Math.round(m.y * 100) / 100]], w: +$('#penSize').value, hex: state.brush, id: e.pointerId };
+  penLive();
+});
+$('#svgHost').addEventListener('pointermove', (e) => {
+  if (!penStroke || e.pointerId !== penStroke.id) return;
+  if (touches.size > 1) { penStroke = null; penLive(); return; } // due dita = zoom, non disegno
+  const m = svgPoint(e), last = penStroke.pts[penStroke.pts.length - 1];
+  if (Math.hypot(m.x - last[0], m.y - last[1]) < Math.max(0.08, penStroke.w * 0.2)) return;
+  penStroke.pts.push([Math.round(m.x * 100) / 100, Math.round(m.y * 100) / 100]);
+  penLive();
+});
+const penEnd = (e) => {
+  if (!penStroke || e.pointerId !== penStroke.id) return;
+  const st = penStroke;
+  penStroke = null;
+  swallowClick = true; setTimeout(() => { swallowClick = false; }, 0);
+  const to = paintIndexFor(st.hex);
+  if (to >= state.result.palette.length) state.colorOverrides[to] = st.hex;
+  state.paints = [...state.paints, { pen: true, pts: st.pts, w: st.w, to, hex: st.hex }];
+  sendPaints(); // il tratto disegnato resta visibile finché arriva il disegno aggiornato
+};
+$('#svgHost').addEventListener('pointerup', penEnd);
+$('#svgHost').addEventListener('pointercancel', penEnd);
+
 function updatePaintUi() {
   $('#paintBar').hidden = !state.result || !!state.template || !state.filaments.length;
   $('#paintPanel').hidden = !state.painting;
   $('#paintOn').hidden = state.painting;
   $('#paintUndo').disabled = !state.paints.length;
+  $('#penOpts').hidden = state.tool !== 'pen';
+  $('#hintFill').hidden = state.tool === 'pen';
   root.classList.toggle('paint-mode', state.painting);
+  root.classList.toggle('pen-mode', penOn());
   if (state.painting) renderPaintSwatches();
 }
 function sendPaints() {
@@ -1309,7 +1367,7 @@ $('#zoomCtl').addEventListener('click', (e) => {
   else zoomAt(z === 'in' ? 1.6 : 1 / 1.6, c.x, c.y);
 });
 $('#svgHost').addEventListener('wheel', (e) => {
-  if (!$('#svgHost svg')) return;
+  if (!$('#svgHost svg') || !feature('feat_zoom')) return;
   e.preventDefault();
   const m = svgPoint(e);
   zoomAt(Math.exp(-e.deltaY * 0.0018), m.x, m.y);
@@ -1318,6 +1376,7 @@ $('#svgHost').addEventListener('wheel', (e) => {
 const touches = new Map();
 let pan = null, pinch = null, panSwallow = false;
 $('#svgHost').addEventListener('pointerdown', (e) => {
+  if (!feature('feat_zoom')) return;
   touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (touches.size === 2) {
     // due dita: zoom (annulla un eventuale spostamento di grafica in corso)
@@ -1328,6 +1387,7 @@ $('#svgHost').addEventListener('pointerdown', (e) => {
     return;
   }
   if (stkDrag || state.vb.w >= 199.9) return; // grafica afferrata, oppure non ingranditi: niente spostamento
+  if (penOn() && e.button !== 1 && !e.shiftKey) return; // con la penna si disegna (spostarsi: due dita o Maiusc)
   pan = { x: e.clientX, y: e.clientY, vx: state.vb.x, vy: state.vb.y, moved: false };
 });
 $('#svgHost').addEventListener('pointermove', (e) => {
@@ -1536,7 +1596,7 @@ $('#svgHost').addEventListener('click', (e) => {
   const pt = svg.createSVGPoint();
   pt.x = e.clientX; pt.y = e.clientY;
   const m = pt.matrixTransform(svg.getScreenCTM().inverse());
-  if (state.painting) { if (Math.hypot(m.x, m.y) <= geometry().rBandOut) paintAt(Math.round(m.x * 100) / 100, Math.round(m.y * 100) / 100); return; }
+  if (state.painting) { if (state.tool === 'pen') return; if (Math.hypot(m.x, m.y) <= geometry().rBandOut) paintAt(Math.round(m.x * 100) / 100, Math.round(m.y * 100) / 100); return; }
   if (!state.overflow || !state.resultOv) return;
   if (Math.hypot(m.x, m.y) > geometry().rBandOut) return;
   setStatus('Aggiorno…');
@@ -1603,7 +1663,7 @@ function updateSteps() {
     rows.push(['Fascia', bandLabel(state.bandColor)]);
     rows.push(['Scritte', words.length ? words.join(' · ') : 'nessuna']);
     if (!tpl && state.layers.length) rows.push(['Grafiche', state.layers.map((x) => x.name).join(', ')]);
-    if (!tpl && state.paints.length) rows.push(['Colorato a mano', `${state.paints.length} ${state.paints.length === 1 ? 'tocco' : 'tocchi'}`]);
+    if (!tpl && state.paints.length) rows.push(['Ritocchi a mano', `${state.paints.length}`]);
     if (!tpl && state.overflow && state.ovSeeds.length) rows.push(['Sopra la fascia', `${state.ovSeeds.length} ${state.ovSeeds.length === 1 ? 'parte' : 'parti'}`]);
   }
   $('#recap').innerHTML = rows.length ? rows.map(([k, v]) => `<li><span>${escapeAttr(k)}</span><strong>${escapeAttr(v)}</strong></li>`).join('') : '<li class="empty">Carica prima un\'immagine (passo 1).</li>';
@@ -2059,3 +2119,28 @@ if (qp.get('mode') === 'keep') document.querySelector('#mode button[data-mode=ke
 
 // solo per i test automatici (window.FRANCY_LAMP.debug): accesso allo stato interno
 if (CFG.debug) window.__flc = { state, parts, svgToPolys, tracedToPolys, minusOverflow, polygonClipping, geometry };
+
+// ---------------- funzioni spente dall'admin ----------------
+{
+  const off = (sel, k) => { if (feature(k)) return; document.querySelectorAll(sel).forEach((el) => el.setAttribute('data-feat-off', '')); };
+  off('#adjustBox', 'feat_upload_adjust');
+  off('.portrait-row', 'feat_portrait');
+  off('#mode', 'feat_mode');
+  if (!feature('feat_convert')) [$('#colors'), $('#line')].forEach((el) => el.closest('label').setAttribute('data-feat-off', ''));
+  if (!feature('feat_convert')) ['#addRow', '#thickRow'].forEach((id) => $(id).setAttribute('data-feat-off', ''));
+  if (!feature('feat_advanced')) $('#smooth').closest('details').setAttribute('data-feat-off', '');
+  off('#paintBar', 'feat_paint');
+  off('#toolPen', 'feat_pen');
+  off('#paintClear', 'feat_clear');
+  off('#bandPicker', 'feat_band_color');
+  off('#textPicker', 'feat_text_color');
+  off('#lampPickers', 'feat_lamp_colors');
+  if (!feature('feat_texts')) { $('.texts').setAttribute('data-feat-off', ''); $('.texts').previousElementSibling.setAttribute('data-feat-off', ''); }
+  off('.text-pos', 'feat_text_pos');
+  if (!feature('feat_text_size')) $('#textSize').closest('label').setAttribute('data-feat-off', '');
+  off('#stkBox', 'feat_stickers');
+  off('#zoomCtl', 'feat_zoom');
+  off('.tabs', 'feat_3d');
+  off('.lit-toggle', 'feat_lit');
+  off('#submitBox', 'feat_submit');
+}

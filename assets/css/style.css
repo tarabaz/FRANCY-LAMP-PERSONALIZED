@@ -370,6 +370,11 @@ html.flc-page .flc { height: 100%; }
 .flc .paint-swatches button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); padding: 0; cursor: pointer; }
 .flc .paint-swatches button.on { outline: 2px solid var(--ink); outline-offset: 2px; }
 .flc .paint-swatches button:disabled { opacity: .25; cursor: not-allowed; }
+.flc .paint-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 8px; }
+.flc .paint-tools button { padding: 7px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--panel); cursor: pointer; font-weight: 600; font-size: 12.5px; }
+.flc .paint-tools button.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.flc.pen-mode #view2d #svgHost { cursor: crosshair; }
+.flc [data-feat-off] { display: none !important; }
 .flc .paint-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .flc.paint-mode .palette li { cursor: pointer; border-radius: 8px; padding: 2px; }
 .flc.paint-mode .palette li.brush { background: var(--bg); box-shadow: inset 0 0 0 2px var(--ink); }

@@ -113,6 +113,56 @@ function flc_default_prompt_card() {
 		. 'Do not invent a new scene: keep the character and the background elements of the illustration. Keep the same aspect ratio and framing as the whole card: the illustration is extended to fill the areas where the frame and the text boxes were, so the result has no frame and no text.';
 }
 
+// ---------- Funzioni del configuratore che l'admin accende e spegne (Impostazioni → Funzioni) ----------
+// Una riga per funzione: chiave dell'impostazione => gruppo, nome, descrizione. Le chiavi "feat_*" sono nuove
+// (predefinito: accese); le altre sono interruttori che esistevano già in altre schede (stesso valore, sincronizzati).
+// Per una funzione nuova: una riga qui + nel configuratore `feature('feat_xxx')` (vedi app.js).
+function flc_features() {
+	return array(
+		'feat_upload_adjust' => array('Immagine', 'Regola immagine', 'Luminosità, contrasto e saturazione prima della conversione.'),
+		'feat_portrait'      => array('Immagine', 'È un volto (ritratto)', 'Interruttore per i volti: pelle in 3 toni, occhi e denti.'),
+		'templates_enabled'  => array('Immagine', 'Disegni pronti', 'Pulsante "Scegli un disegno pronto".'),
+		'enabled'            => array('Ridisegno con IA', 'Ridisegno con IA', 'Tutto il passo "Ridisegno con IA".'),
+		'style_ritratto'     => array('Ridisegno con IA', 'Stile Ritratto', ''),
+		'style_tombino'      => array('Ridisegno con IA', 'Stile Tombino (Poké Lids)', ''),
+		'style_anime'        => array('Ridisegno con IA', 'Stile Anime', ''),
+		'card_enabled'       => array('Ridisegno con IA', 'È una carta da gioco', 'Toglie cornice e scritte delle carte.'),
+		'bg_enabled'         => array('Ridisegno con IA', 'Rimuovi lo sfondo', 'Scelta del nuovo sfondo.'),
+		'bg_custom'          => array('Ridisegno con IA', 'Sfondo scritto dal cliente', 'La voce "Personalizza…".'),
+		'examples_enabled'   => array('Ridisegno con IA', 'Esempi degli stili', 'Immagini "originale → risultato".'),
+		'feat_mode'          => array('Colori e contorni', 'Tipo di immagine', '"Foto o disegno" / "Grafica con contorni".'),
+		'feat_convert'       => array('Colori e contorni', 'Numero di colori e spessore contorni', 'Gli slider principali della conversione.'),
+		'feat_advanced'      => array('Colori e contorni', 'Regolazioni avanzate', 'Semplificazione, dettaglio minimo, area minima, risoluzione.'),
+		'feat_replace'       => array('Colori e contorni', 'Sostituisci un colore', 'Toccare un colore dell\'elenco per cambiarlo ovunque.'),
+		'feat_paint'         => array('Colori e contorni', 'Colora a mano (secchiello)', 'Pennello che riempie una zona alla volta.'),
+		'feat_pen'           => array('Colori e contorni', 'Penna per i ritocchi', 'Disegno a mano libera (pupille, riflessi…).'),
+		'feat_clear'         => array('Colori e contorni', 'Svuota i colori', 'Tutto bianco tranne il nero.'),
+		'feat_band_color'    => array('Cornice e scritte', 'Colore della fascia', ''),
+		'feat_text_color'    => array('Cornice e scritte', 'Colore delle scritte', ''),
+		'feat_texts'         => array('Cornice e scritte', 'Scritte del cliente', 'Spenta: restano quelle predefinite.'),
+		'feat_text_pos'      => array('Cornice e scritte', 'Posizione delle scritte', 'Gli slider per farle scorrere.'),
+		'feat_text_size'     => array('Cornice e scritte', 'Dimensione delle scritte', ''),
+		'overflow_enabled'   => array('Cornice e scritte', 'Sopra la fascia', 'Parti del disegno che escono dal cerchio.'),
+		'feat_stickers'      => array('Cornice e scritte', 'Grafiche aggiuntive', 'Poké Ball, adesivi… (Impostazioni → Grafiche).'),
+		'feat_lamp_colors'   => array('Cornice e scritte', 'Colori dei pezzi della lampada', 'Dove la Lampada 3D lo permette.'),
+		'feat_zoom'          => array('Anteprima', 'Zoom dell\'anteprima', 'Rotellina, pizzico, pulsanti − +.'),
+		'feat_3d'            => array('Anteprima', 'Anteprima 3D', ''),
+		'feat_lit'           => array('Anteprima', 'Accesa / spenta', ''),
+		'wm_download'        => array('Anteprima', 'Scarica l\'anteprima', 'Immagine con watermark da condividere.'),
+		'feat_submit'        => array('Conferma', 'Convalida del disco', 'Modulo per inviare il disco (spento: solo vetrina).'),
+	);
+}
+// valori per il configuratore: solo le chiavi feat_* (le altre il configuratore le riceve già)
+function flc_features_public($s) {
+	$out = array();
+	foreach (flc_features() as $k => $f) {
+		if (strpos($k, 'feat_') === 0) {
+			$out[$k] = !empty($s[$k]);
+		}
+	}
+	return $out;
+}
+
 // Regola comune a tutti gli stili: niente scritte in nessuna lingua (le scritte le mette il configuratore sulla fascia)
 function flc_no_text_rule() {
 	return "\n\nNever draw text: remove every letter, word and number of the input in any language, including Japanese and Chinese characters, signs and logos (a sign stays as a blank shape).";
@@ -202,6 +252,7 @@ function flc_defaults() {
 		'card_enabled' => 1,
 		'overflow_enabled' => 1,
 		'stickers'     => '', // grafiche aggiuntive: id della Libreria media separati da virgola
+		'feat_v'       => 0,
 		'tombino_refs' => '',
 		'tombino_refs_default' => 1,
 		'prompts_v'    => 0,
@@ -256,6 +307,17 @@ function flc_defaults() {
 	);
 }
 
+// funzioni nuove (feat_*): accese finché l'admin non le spegne
+function flc_feature_defaults() {
+	$d = array();
+	foreach (array_keys(flc_features()) as $k) {
+		if (strpos($k, 'feat_') === 0) {
+			$d[$k] = 1;
+		}
+	}
+	return $d;
+}
+
 function flc_settings() {
 	$raw = get_option(FLC_OPTION, array());
 	if (is_array($raw) && $raw && (int) ($raw['prompts_v'] ?? 0) < 2) {
@@ -268,7 +330,7 @@ function flc_settings() {
 	if (is_array($raw) && $raw && empty($raw['res_v']) && (int) ($raw['sl_ppmm'] ?? 0) < 10) {
 		$raw['sl_ppmm'] = 10;
 	}
-	$s = wp_parse_args($raw, flc_defaults());
+	$s = wp_parse_args($raw, flc_defaults() + flc_feature_defaults());
 	// i prompt incollati dalla versione di prima chiedevano un risultato quadrato: quella frase diventa "stesso formato"
 	$s['prompt_tombino'] = str_replace('The artwork fills the whole square image edge to edge.', 'The artwork fills the whole image edge to edge, with the same aspect ratio as the input.', (string) $s['prompt_tombino']);
 	$s['prompt_card']    = str_replace('Make the result square, with the main character large and centered.', 'Keep the same aspect ratio and framing as the whole card: the illustration is extended to fill the areas where the frame and the text boxes were, so the result has no frame and no text.', (string) $s['prompt_card']);
@@ -335,6 +397,7 @@ function flc_sanitize_settings($in) {
 		'style_ritratto' => empty($in['style_ritratto']) ? 0 : 1,
 		'card_enabled' => empty($in['card_enabled']) ? 0 : 1,
 		'overflow_enabled' => empty($in['overflow_enabled']) ? 0 : 1,
+		'feat_v'       => 1,
 		'stickers'     => implode(',', array_slice(array_values(array_unique(array_filter(array_map('intval', explode(',', (string) ($in['stickers'] ?? '')))))), 0, 60)),
 		'tombino_refs' => implode(',', array_slice(array_filter(array_map('intval', explode(',', (string) ($in['tombino_refs'] ?? '')))), 0, 3)),
 		'tombino_refs_default' => empty($in['tombino_refs_default']) ? 0 : 1,
@@ -388,6 +451,10 @@ function flc_sanitize_settings($in) {
 		'sl_ppmm'      => min(12, max(4, (int) ($in['sl_ppmm'] ?? $d['sl_ppmm']))),
 		'res_v'        => 1,
 	);
+	// funzioni del configuratore (feat_*): la scheda Funzioni è nel modulo, quindi casella assente = spenta
+	foreach (array_keys(flc_feature_defaults()) as $k) {
+		$out[$k] = empty($in[$k]) ? 0 : 1;
+	}
 	// Se il testo è uguale al predefinito non lo salvo: così gli aggiornamenti del plugin migliorano anche il tuo prompt
 	if ($out['prompt'] === flc_default_prompt()) {
 		$out['prompt'] = '';
@@ -445,6 +512,7 @@ function flc_settings_page() {
 	// sezioni: icona, nome, cosa contiene (in breve)
 	$tabs   = array(
 		'panoramica'    => array('dashicons-dashboard', 'Panoramica', 'Stato e cose da sistemare'),
+		'funzioni'      => array('dashicons-yes', 'Funzioni', 'Cosa può fare il cliente'),
 		'configuratore' => array('dashicons-welcome-view-site', 'Pagina', 'Indirizzo, aspetto, footer'),
 		'disco'         => array('dashicons-marker', 'Disco', 'Come parte il disco'),
 		'stili'         => array('dashicons-art', 'Stili IA', 'Fedele, Ritratto, Tombino…'),
@@ -555,6 +623,12 @@ function flc_settings_page() {
 		.flc-stickers img { width: 80px; height: 80px; object-fit: contain; }
 		.flc-stickers figcaption { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 		.flc-stickers button { position: absolute; top: 2px; right: 4px; text-decoration: none; }
+		.flc-feats { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin: 10px 0; }
+		.flc-feat-group h3 { margin: 6px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #646970; }
+		.flc-feat { display: flex; gap: 8px; align-items: flex-start; padding: 7px 8px; border-radius: 6px; }
+		.flc-feat:hover { background: #f6f7f7; }
+		.flc-feat input { margin-top: 2px; }
+		.flc-feat small { display: block; color: #646970; font-weight: 400; }
 		.flc-dirty { color: #8a5a00; background: #fcf3dc; border-radius: 10px; padding: 2px 10px; margin-left: 10px; vertical-align: middle; }
 		.flc-set .flc-tab { display: none; padding-top: 6px; }
 		.flc-set .flc-tab.on { display: block; }
@@ -653,6 +727,26 @@ function flc_settings_page() {
 						</table>
 					<?php endif; ?>
 				</details>
+			</section>
+
+			<!-- ===================== FUNZIONI DEL CONFIGURATORE ===================== -->
+			<section class="flc-tab" data-tab="funzioni">
+				<div class="flc-head"><h2>Funzioni</h2><p>Cosa può fare il cliente nel configuratore: spegni quello che non vuoi offrire. Alcune funzioni hanno l'interruttore anche nella loro scheda: è lo stesso.</p></div>
+				<div class="flc-card">
+					<p style="margin:12px 0 4px"><button type="button" class="button" id="flcFeatAll">Accendi tutte</button> <button type="button" class="button" id="flcFeatNone">Spegni tutte</button>
+						<span class="description">Le funzioni spente spariscono dalla pagina del configuratore (anche per te da amministratore). Ricordati di salvare.</span></p>
+					<?php $fgroups = array(); foreach (flc_features() as $fk => $f) { $fgroups[$f[0]][$fk] = $f; } ?>
+					<div class="flc-feats">
+					<?php foreach ($fgroups as $gname => $items) : ?>
+						<div class="flc-feat-group"><h3><?php echo esc_html($gname); ?></h3>
+						<?php foreach ($items as $fk => $f) : ?>
+							<label class="flc-feat"><input type="checkbox" name="<?php echo $n($fk); ?>" value="1" <?php checked(!empty($s[$fk])); ?>>
+								<span><strong><?php echo esc_html($f[1]); ?></strong><?php if ($f[2]) : ?><small><?php echo esc_html($f[2]); ?></small><?php endif; ?></span></label>
+						<?php endforeach; ?>
+						</div>
+					<?php endforeach; ?>
+					</div>
+				</div>
 			</section>
 
 			<!-- ===================== PAGINA DEL CONFIGURATORE ===================== -->
@@ -1124,6 +1218,16 @@ function flc_settings_page() {
 		form.addEventListener('input', markDirty); form.addEventListener('change', markDirty);
 		form.addEventListener('submit', () => { submitting = true; });
 		window.addEventListener('beforeunload', (e) => { if (dirty && !submitting) { e.preventDefault(); e.returnValue = ''; } });
+		// stessa impostazione in due schede (Funzioni + scheda della funzione): le caselle restano uguali.
+		// Nel modulo la casella "accesa" vince, quindi le tengo allineate (e quella non visibile segue).
+		form.addEventListener('change', (e) => {
+			const t = e.target;
+			if (t.type !== 'checkbox' || !t.name) return;
+			form.querySelectorAll('input[type=checkbox]').forEach((o) => { if (o !== t && o.name === t.name && o.checked !== t.checked) { o.checked = t.checked; o.dispatchEvent(new Event('change', { bubbles: false })); } });
+		});
+		const featSet = (v) => document.querySelectorAll('.flc-feats input[type=checkbox]').forEach((c) => { if (c.checked !== v) { c.checked = v; c.dispatchEvent(new Event('change', { bubbles: true })); } });
+		document.getElementById('flcFeatAll').addEventListener('click', () => featSet(true));
+		document.getElementById('flcFeatNone').addEventListener('click', () => featSet(false));
 		// stili: card spenta = più chiara; ripristino del prompt originale
 		document.querySelectorAll('.flc-style-cb').forEach((cb) => cb.addEventListener('change', () => cb.closest('.flc-style').classList.toggle('off', !cb.checked)));
 		document.querySelectorAll('.flc-reset').forEach((b) => b.addEventListener('click', () => {

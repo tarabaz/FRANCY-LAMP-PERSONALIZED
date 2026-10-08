@@ -320,6 +320,8 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
     }
     // "svuota i colori": tutto ciò che non è nero diventa il colore "to" (il bianco)
     if (pt.clear) { for (let i = 0; i < labs.length; i++) if (labs[i] !== NONE && labs[i] !== blackIdx) labs[i] = pt.to; continue; }
+    // penna: tratto a mano libera (punti in mm, spessore w in mm) disegnato direttamente nelle zone
+    if (pt.pen) { penStroke(labs, size, pt, sc, off); continue; }
     const x = toPx(pt.x), y = toPx(pt.y), R = Math.ceil(1.5 * ppmm);
     let at = -1;
     for (let rr = 0; rr <= R && at < 0; rr++) for (let yy = y - rr; yy <= y + rr && at < 0; yy++) for (let xx = x - rr; xx <= x + rr; xx++) {
@@ -333,6 +335,31 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
     for (let i = 0; i < labs.length; i++) if (comp[i] === c && labs[i] !== NONE) labs[i] = pt.to;
   }
 }
+function penStroke(labs, size, pt, sc, off) {
+  const pxPerMm = 1 / sc;
+  const r = Math.max(0.5, (pt.w / 2) * pxPerMm);
+  const R = Math.ceil(r), r2 = r * r;
+  const disk = [];
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) if (dx * dx + dy * dy <= r2) disk.push(dy * size + dx, dx, dy);
+  const stamp = (fx, fy) => {
+    const x = Math.round(fx), y = Math.round(fy);
+    for (let k = 0; k < disk.length; k += 3) {
+      const xx = x + disk[k + 1], yy = y + disk[k + 2];
+      if (xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
+      const j = yy * size + xx;
+      if (labs[j] !== NONE) labs[j] = pt.to;
+    }
+  };
+  const P = (pt.pts || []).map(([x, y]) => [(x - off) / sc, (y - off) / sc]);
+  if (!P.length) return;
+  stamp(P[0][0], P[0][1]);
+  const step = Math.max(0.5, r / 2);
+  for (let i = 1; i < P.length; i++) {
+    const [ax, ay] = P[i - 1], [bx, by] = P[i], L = Math.hypot(bx - ax, by - ay), n = Math.ceil(L / step);
+    for (let s = 1; s <= n; s++) stamp(ax + (bx - ax) * s / n, ay + (by - ay) * s / n);
+  }
+}
+
 // Rifà tutte le colorazioni a mano dalla conversione di partenza (serve anche per "Annulla")
 function repaint(paints) {
   if (!paintBase) throw new Error('colora a mano: manca la conversione');

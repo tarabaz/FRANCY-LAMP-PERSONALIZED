@@ -28,6 +28,7 @@ function flc_frontend_config() {
 		'aiStyles'  => array_values(array_filter(array('fedele', !empty($s['style_ritratto']) ? 'ritratto' : '', !empty($s['style_tombino']) ? 'tombino' : '', !empty($s['style_anime']) ? 'anime' : ''))),
 		'aiCard'    => !empty($s['card_enabled']),
 		'overflow'  => !empty($s['overflow_enabled']),
+		'features'  => flc_features_public($s), // funzioni accese/spente (Impostazioni → Funzioni)
 		// grafiche aggiuntive (Poké Ball…): il cliente le mette sul disegno; immagine grande per la conversione
 		'stickers'  => array_values(array_filter(array_map(function ($id) {
 			$u = wp_get_attachment_image_url($id, 'large') ?: wp_get_attachment_url($id);

@@ -74,6 +74,16 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
 
+**Penna** (in "Colora a mano", accanto al 🪣 Secchiello): ✏️ disegno a mano libera con la bobina scelta (pupille,
+riflessi, piccoli ritocchi); punta da 0,5 a 6 mm. Il tratto diventa zona vera nei file, resta dopo i ricalcoli e si
+toglie con Annulla. Per spostarsi mentre si usa la penna: due dita oppure Maiusc + trascina.
+
+**Funzioni** (Impostazioni → Funzioni): un interruttore per ogni cosa che il cliente può fare (immagine, IA, colori,
+cornice e scritte, anteprima, convalida). Le funzioni spente spariscono dal configuratore; la convalida spenta viene
+rifiutata anche dal server. Gli interruttori che esistono anche in altre schede sono la stessa impostazione e restano
+allineati. Per aggiungere una funzione: una riga in `flc_features()` (`includes/settings.php`, chiave `feat_*`,
+accesa di default) e `feature('feat_*')` dove serve in `assets/js/app.js`.
+
 **Zoom dell'anteprima 2D**: rotellina del mouse (ingrandisce nel punto sotto il puntatore), pizzico a due dita su
 telefono/tablet, pulsanti − + ⤢ nell'angolo (fino a 2000%, ⤢ = tutto il disco). Da ingranditi si trascina per
 spostarsi (il trascinamento non colora e non seleziona). Maniglie delle grafiche e tratteggio delle zone restano della

@@ -137,6 +137,9 @@ function flc_is_png($path) {
 
 function flc_rest_convalida(WP_REST_Request $req) {
 	$s = flc_settings();
+	if (empty($s['feat_submit'])) {
+		return new WP_Error('flc_off', 'La convalida dei dischi è momentaneamente disattivata.', array('status' => 403));
+	}
 
 	// campo esca: i bot lo riempiono, le persone non lo vedono
 	if (trim((string) $req->get_param('website')) !== '') {
