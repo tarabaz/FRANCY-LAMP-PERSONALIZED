@@ -170,7 +170,9 @@ export class Preview3D {
           geo.computeVertexNormals();
           geo.computeBoundingBox();
           box.union(geo.boundingBox);
-          this.lamp.add(new THREE.Mesh(geo, mat));
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.userData.partName = String(p.name || '');
+          this.lamp.add(mesh);
         })
         .catch((e) => console.error('Pezzo della lampada non caricato: ' + p.name, e))
         .finally(() => { if (--pending === 0) placeShadow(); });
@@ -263,17 +265,33 @@ export class Preview3D {
     led.rotation.x = Math.PI / 2; led.position.set(14, 14, 7 + 34 + 0.5); sock.add(led);
     const logo = new THREE.Mesh(new THREE.PlaneGeometry(18, 3), new THREE.MeshBasicMaterial({ color: 0x3a3a3c }));
     logo.position.set(0, -14, 7 + 34 + 0.3); sock.add(logo);
-    const sx = hw - 70, sy = floorY + 260;
+    const sx = hw - 70, sy = floorY + 360;
     sock.position.set(sx, sy, wallZ + 4.5);
     room.add(sock);
 
-    // cavo: dal centro del retro della lampada, sul piano, giù dal bordo dietro e fino all'alimentatore
-    const cy = top + Math.max(18, (box.max.y - top) * 0.32);
+    // cavo: spinotto a 2 cm dal piano d'appoggio, al centro del retro della base (come la lampada vera), infilato 1,5 mm
+    // (la superficie del retro si trova con un raggio sparato da dietro sul modello vero); poi sul piano, giù dal bordo
+    // dietro e fino all'alimentatore
+    const meshes = this.lamp.children.filter((m) => m.isMesh && m.geometry && m.geometry.boundingBox);
+    const baseMesh = meshes.find((m) => /base/i.test(m.userData.partName))
+      || meshes.reduce((a, m) => (!a || m.geometry.boundingBox.min.y < a.geometry.boundingBox.min.y ? m : a), null);
+    let cy = top + Math.max(18, (box.max.y - top) * 0.32), backZ = lampBack;
+    if (baseMesh) {
+      const bb = baseMesh.geometry.boundingBox;
+      cy = Math.min(bb.min.y + 20, (bb.min.y + bb.max.y) / 2 + 20);
+      const ray = new THREE.Raycaster(new THREE.Vector3(0, cy, bb.min.z - 200), new THREE.Vector3(0, 0, 1));
+      const hit = ray.intersectObject(baseMesh, false)[0];
+      backZ = hit ? hit.point.z : bb.min.z;
+    }
+    const plugIn = backZ + 1.5; // l'estremità dello spinotto entra di 1,5 mm
+    const plugLen = 16;
     const adBottom = new THREE.Vector3(sx, sy - 6 - 31, wallZ + 4.5 + 24);
+    const pBack = plugIn - plugLen; // il cavo parte dal retro dello spinotto
     const pts = [
-      new THREE.Vector3(0, cy, lampBack + 1),
-      new THREE.Vector3(0, cy, lampBack - 18),
-      new THREE.Vector3(6, top + 8, lampBack - 42),
+      new THREE.Vector3(0, cy, pBack + 2),
+      new THREE.Vector3(0, cy, pBack - 14),
+      new THREE.Vector3(4, Math.max(top + 8, cy - 14), pBack - 34),
+      new THREE.Vector3(8, top + 3.2, Math.min(pBack - 55, lampBack - 40)),
       new THREE.Vector3(40, top + 3.2, zBack + 38),
       new THREE.Vector3(150, top + 3.2, zBack + 18),
       new THREE.Vector3(sx - 30, top + 2, zBack - 2),
@@ -287,10 +305,10 @@ export class Preview3D {
     const cableMat = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.55 });
     room.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 360, 1.7, 10, false), cableMat));
     // spinotto jack 5,5 mm sul retro della lampada
-    const plug = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 16, 20), cableMat);
-    plug.rotation.x = Math.PI / 2; plug.position.set(0, cy, lampBack - 7); room.add(plug);
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 3, 20), new THREE.MeshStandardMaterial({ color: 0xb8b8b8, roughness: 0.3, metalness: 0.9 }));
-    ring.rotation.x = Math.PI / 2; ring.position.set(0, cy, lampBack + 0.5); room.add(ring);
+    const plug = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 3.6, plugLen, 24), cableMat);
+    plug.rotation.x = Math.PI / 2; plug.position.set(0, cy, plugIn - plugLen / 2); room.add(plug);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.8, 3, 20), new THREE.MeshStandardMaterial({ color: 0xb8b8b8, roughness: 0.3, metalness: 0.9 }));
+    sleeve.rotation.x = Math.PI / 2; sleeve.position.set(0, cy, plugIn - 0.2); room.add(sleeve);
     // pressacavo dell'alimentatore
     const boot = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 2.2, 10, 16), adMat);
     boot.position.set(adBottom.x, adBottom.y - 3, adBottom.z); room.add(boot);

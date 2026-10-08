@@ -119,7 +119,7 @@ allineati. Per aggiungere una funzione: una riga in `flc_features()` (`includes/
 accesa di default) e `feature('feat_*')` dove serve in `assets/js/app.js`.
 
 **Ambientazione 3D** (Impostazioni → Anteprima e watermark → Anteprima 3D: ambientazione): nella vista 3D la lampada
-è appoggiata su un tavolino da muro (piano in legno, gambe sottili), con il cavo che esce dal centro del retro, passa
+è appoggiata su un tavolino da muro (piano in legno, gambe sottili), con il cavo che esce dal centro del retro della base a 2 cm dal piano (spinotto infilato 1,5 mm), passa
 sul piano, scende dietro e arriva all'alimentatore 12 V inserito nella presa italiana sul muro, in basso a destra. Il muro
 (con la presa) si dissolve quando la vista gira di lato o da dietro. Con 💡 Accesa una luce calda illumina muro e piano.
 Tutto generato dal codice (nessun modello da scaricare). Impostazioni: accesa all'apertura sì/no, pulsante
