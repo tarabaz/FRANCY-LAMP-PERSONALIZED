@@ -119,6 +119,9 @@ html.flc-page .flc { height: 100%; }
 
 .flc .palette { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
 .flc .palette li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; }
+.flc .palette li.has-del { grid-template-columns: 34px 1fr auto auto; }
+.flc .palette .del-color { border: 0; background: none; cursor: pointer; font-size: 15px; padding: 4px; border-radius: 6px; opacity: .55; line-height: 1; }
+.flc .palette .del-color:hover, .flc .palette .del-color:focus-visible { opacity: 1; background: var(--bg); }
 .flc .palette input[type=color] { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 0; cursor: pointer; }
 .flc .palette .area { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .flc .count { font-weight: 600; }

@@ -135,6 +135,7 @@ function flc_features() {
 		'feat_convert'       => array('Colori e contorni', 'Numero di colori e spessore contorni', 'Gli slider principali della conversione.'),
 		'feat_advanced'      => array('Colori e contorni', 'Regolazioni avanzate', 'Semplificazione, dettaglio minimo, area minima, risoluzione.'),
 		'feat_replace'       => array('Colori e contorni', 'Sostituisci un colore', 'Toccare un colore dell\'elenco per cambiarlo ovunque.'),
+		'feat_remove_color'  => array('Colori e contorni', 'Togli un colore (🗑)', 'Cestino accanto a ogni colore: le sue zone diventano bianche.'),
 		'feat_paint'         => array('Colori e contorni', 'Colora a mano (secchiello)', 'Pennello che riempie una zona alla volta.'),
 		'feat_pen'           => array('Colori e contorni', 'Penna per i ritocchi', 'Disegno a mano libera (pupille, riflessi…).'),
 		'feat_clear'         => array('Colori e contorni', 'Svuota i colori', 'Tutto bianco tranne il nero.'),

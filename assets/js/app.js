@@ -1028,8 +1028,10 @@ function renderPalette() {
       ctrl.style.background = artColor(i);
       // sostituzione: il colore scelto prende il posto del vecchio OVUNQUE (zone, fascia, scritte), anche se è una
       // bobina già usata (in quel caso le zone diventano dello stesso colore e nei file si uniscono)
+      // è una sostituzione, non un'aggiunta: il vecchio colore sparisce (tranne bianco base e nero, che restano sempre),
+      // quindi con 13 colori su 13 si può comunque scegliere una bobina nuova
       ctrl.addEventListener('click', (ev) => { if (state.painting || !feature('feat_replace')) return; openFilamentPopover(ctrl, (hex) => replaceColor(artColor(i), hex),
-        (hex) => colorSet().has(hex) || colorSet().size < MAX_FILAMENTS); });
+        (hex) => { const set = colorSet(), old = artColor(i); return set.has(hex) || set.size - (old !== WHITE && old !== BLACK ? 1 : 0) < MAX_FILAMENTS; }); });
     } else {
       ctrl = document.createElement('input');
       ctrl.type = 'color'; ctrl.value = artColor(i);
@@ -1057,7 +1059,17 @@ function renderPalette() {
       });
       name.append(' ', lk);
     }
+    // 🗑 togli il colore: le sue zone (e fascia, scritte, pennellate di quel colore) diventano bianche
+    let del = null;
+    if (!p.black && artColor(i) !== WHITE && !state.painting && feature('feat_remove_color')) {
+      del = document.createElement('button');
+      del.type = 'button'; del.className = 'del-color'; del.textContent = '🗑';
+      del.title = 'Togli questo colore: le sue zone diventano bianche (Annulla non serve: puoi ricolorarle quando vuoi)';
+      del.setAttribute('aria-label', 'Togli il colore ' + label);
+      del.addEventListener('click', (ev) => { ev.stopPropagation(); replaceColor(artColor(i), WHITE); setStatus(`${label} tolto: le sue zone ora sono bianche`); });
+    }
     li.append(ctrl, name, area);
+    if (del) { li.append(del); li.classList.add('has-del'); }
     ul.append(li);
   });
 }

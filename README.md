@@ -111,6 +111,9 @@ si aggiungono solo i colori che nel disco mancano.
 **Sostituisci un colore**: toccando un colore nell'elenco si sceglie un'altra bobina (anche una già presente): il
 colore vecchio viene sostituito ovunque (zone del disegno, fascia, scritte, tocchi del pennello) e la scelta resta 🔒.
 Scegliendo una bobina già usata, le zone diventano dello stesso colore e nei file si uniscono.
+È una sostituzione, non un'aggiunta: anche con 13 colori su 13 si può scegliere una bobina nuova (il vecchio colore
+sparisce). Il **🗑** accanto a ogni colore (non per nero contorni e bianco) lo toglie: le sue zone, e fascia, scritte e
+pennellate di quel colore, diventano bianche; si ricolorano quando si vuole. Si spegne in Funzioni → Togli un colore.
 
 **Colori stabili**: i colori dell'immagine si ricalcolano solo se cambia qualcosa che li riguarda (immagine, numero di
 colori, modalità, zoom, regolazioni…); grafiche, "sopra la fascia" e pennello riusano gli stessi colori.
