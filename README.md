@@ -96,6 +96,12 @@ Sezioni: come funziona, com'è fatto il disco, i 5 passi, colori del disco, colo
 consigli, problemi comuni e soluzioni, glossario, domande frequenti (+ strumenti admin). I titoli della guida non sono
 h2/h3/h4 ma elementi propri (`.w-title`, `.w-sub`) e tutto il configuratore ha font, maiuscole e spaziatura propri:
 il CSS del tema di WordPress non li cambia.
+**Immagini nella guida**: 13 screenshot dell'interfaccia in `assets/img/guida/*.webp` (barra dei passi, inquadratura,
+galleria, stili IA, modalità, colori del disco, sostituisci, colora a mano, penna, grafiche, scritte, sopra la fascia,
+barra in alto), sostituibili uno per uno in **Impostazioni → Guida** con un'immagine della Libreria media ("Ripristina"
+torna a quella del plugin; impostazione `guide_imgs`). Si aggiornano da sole, prese dal sito: gallerie dei template
+(primi 8), esempi prima/dopo degli stili IA, esempi degli sfondi, grafiche aggiuntive; e lo **schema del disco** con le
+didascalie delle parti, disegnato sul disco che il cliente sta creando.
 Nel passo 1 un consiglio spiega che il risultato migliore arriva da un disegno a colori pieni con contorni neri (anche
 fatto con un'IA esterna: si carica e si va dritti ai colori, senza consumare ridisegni); per le foto c'è il passo 2.
 

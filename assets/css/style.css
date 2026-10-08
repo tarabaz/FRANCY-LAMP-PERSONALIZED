@@ -532,3 +532,19 @@ html.flc-page .flc { height: 100%; }
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-transform: none; letter-spacing: normal;
 }
 .flc p, .flc li { font-size: inherit; line-height: inherit; }
+
+/* Immagini della guida */
+.flc .w-fig { margin: 10px 0 16px; }
+.flc .w-fig img { display: block; max-width: 100%; max-height: 440px; width: auto; height: auto; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,.08); background: var(--panel); }
+.flc .w-fig figcaption, .flc .w-cap { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.flc .w-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin: 10px 0 16px; }
+.flc .w-gallery figure { margin: 0; text-align: center; }
+.flc .w-gallery img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); display: block; }
+.flc .w-gallery figcaption { font-size: 12.5px; font-weight: 600; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flc .w-gallery.w-pairs { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.flc .w-pairs figure { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
+.flc .w-pairs figcaption { grid-column: 1 / -1; }
+.flc .w-arrow { font-weight: 700; color: var(--muted); }
+.flc .w-more { grid-column: 1 / -1; font-size: 13px; color: var(--muted); margin: 0; }
+.flc .w-diagram { margin: 8px 0 16px; color: var(--ink); }
+.flc .w-diagram svg { display: block; width: 100%; max-width: 760px; height: auto; background: var(--bg); border-radius: 12px; }

@@ -32,6 +32,7 @@ function flc_frontend_config() {
 		'aiCard'    => !empty($s['card_enabled']),
 		'overflow'  => !empty($s['overflow_enabled']),
 		'features'  => flc_features_public($s), // funzioni accese/spente (Impostazioni → Funzioni)
+		'guideImgs' => function_exists('flc_guide_imgs_public') ? flc_guide_imgs_public($s) : array(), // immagini della guida sostituite
 		// grafiche aggiuntive (Poké Ball…): il cliente le mette sul disegno; immagine grande per la conversione
 		'stickers'  => array_values(array_filter(array_map(function ($id) {
 			$u = wp_get_attachment_image_url($id, 'large') ?: wp_get_attachment_url($id);

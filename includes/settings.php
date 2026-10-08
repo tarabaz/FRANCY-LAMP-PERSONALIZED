@@ -256,6 +256,7 @@ function flc_defaults() {
 		'card_enabled' => 1,
 		'overflow_enabled' => 1,
 		'stickers'     => '', // grafiche aggiuntive: id della Libreria media separati da virgola
+		'guide_imgs'   => '', // immagini della guida sostituite dall'admin: "chiave:id,chiave:id"
 		'feat_v'       => 0,
 		'tombino_refs' => '',
 		'tombino_refs_default' => 1,
@@ -402,6 +403,7 @@ function flc_sanitize_settings($in) {
 		'card_enabled' => empty($in['card_enabled']) ? 0 : 1,
 		'overflow_enabled' => empty($in['overflow_enabled']) ? 0 : 1,
 		'feat_v'       => 1,
+		'guide_imgs'   => flc_guide_imgs_clean($in['guide_imgs'] ?? ''),
 		'stickers'     => implode(',', array_slice(array_values(array_unique(array_filter(array_map('intval', explode(',', (string) ($in['stickers'] ?? '')))))), 0, 60)),
 		'tombino_refs' => implode(',', array_slice(array_filter(array_map('intval', explode(',', (string) ($in['tombino_refs'] ?? '')))), 0, 3)),
 		'tombino_refs_default' => empty($in['tombino_refs_default']) ? 0 : 1,
@@ -523,6 +525,7 @@ function flc_settings_page() {
 		'sfondi'        => array('dashicons-cover-image', 'Sfondi IA', 'Sfondi e prove'),
 		'ia'            => array('dashicons-admin-network', 'Motore IA', 'Chiave, modello, spesa'),
 		'grafiche'      => array('dashicons-star-filled', 'Grafiche', 'Poké Ball, adesivi…'),
+		'guida'         => array('dashicons-editor-help', 'Guida', 'Immagini della guida'),
 		'anteprima'     => array('dashicons-shield-alt', 'Anteprima e watermark', 'Immagine da condividere'),
 		'lampada'       => array('dashicons-lightbulb', 'Lampada 3D', 'Pezzi e colori'),
 		'ordini'        => array('dashicons-email-alt', 'Ordini', 'Notifiche e anti-spam'),
@@ -622,6 +625,8 @@ function flc_settings_page() {
 		.flc-refs-list { display: flex; gap: 6px; flex-wrap: wrap; }
 		.flc-refs-list img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dcdcde; }
 		.flc-refs-list img.def { opacity: .8; }
+		.flc-guide-imgs img { max-width: 130px; max-height: 90px; object-fit: contain; background: #f6f7f7; border-radius: 6px; display: block; }
+		.flc-guide-imgs td { vertical-align: middle; }
 		.flc-stickers { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
 		.flc-stickers figure { margin: 0; width: 96px; text-align: center; position: relative; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 8px; padding: 6px; }
 		.flc-stickers img { width: 80px; height: 80px; object-fit: contain; }
@@ -1005,6 +1010,31 @@ function flc_settings_page() {
 				</div>
 			</section>
 
+			<!-- ===================== GUIDA ===================== -->
+			<section class="flc-tab" data-tab="guida">
+				<div class="flc-head"><h2>Guida</h2><p>Le immagini della guida del configuratore (pulsante ❓ Guida). Sono screenshot già pronti: se ne hai di migliori, sostituiscili qui.</p></div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-format-gallery"></span> Immagini della guida</h2>
+					<p class="intro">Per ognuna puoi scegliere un'immagine dalla Libreria media al posto di quella predefinita; "Ripristina" torna a quella del plugin. Le gallerie con template, esempi degli stili, sfondi e grafiche e lo schema del disco si aggiornano da soli: non c'è niente da caricare.</p>
+					<?php $g_map = flc_guide_imgs_map($s['guide_imgs']); ?>
+					<table class="widefat striped flc-guide-imgs" id="flcGuideImgs">
+						<thead><tr><th>Immagine</th><th style="width:150px">Predefinita</th><th style="width:150px">La tua</th><th style="width:220px"></th></tr></thead>
+						<tbody>
+						<?php foreach (flc_guide_images() as $gk => $glabel) : $gid = $g_map[$gk] ?? 0; $gu = $gid ? wp_get_attachment_image_url($gid, 'medium') : ''; ?>
+							<tr data-key="<?php echo esc_attr($gk); ?>" data-id="<?php echo (int) ($gu ? $gid : 0); ?>">
+								<td><strong><?php echo esc_html($glabel); ?></strong></td>
+								<td><img src="<?php echo esc_url(FLC_URL . 'assets/img/guida/' . $gk . '.webp'); ?>" alt="" loading="lazy"></td>
+								<td class="mine"><?php echo $gu ? '<img src="' . esc_url($gu) . '" alt="">' : '<span class="description">—</span>'; ?></td>
+								<td><button type="button" class="button g-pick">Scegli immagine…</button> <button type="button" class="button-link g-reset"<?php echo $gu ? '' : ' hidden'; ?>>Ripristina</button></td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+					<input type="hidden" name="<?php echo $n('guide_imgs'); ?>" id="flcGuideImgsVal" value="<?php echo esc_attr($s['guide_imgs']); ?>">
+					<p class="description">Ricordati di salvare le impostazioni dopo le modifiche.</p>
+				</div>
+			</section>
+
 			<!-- ===================== ANTEPRIMA E WATERMARK ===================== -->
 			<section class="flc-tab" data-tab="anteprima">
 				<div class="flc-head"><h2>Anteprima e watermark</h2><p>L'immagine della lampada che il cliente può scaricare e condividere.</p></div>
@@ -1279,6 +1309,33 @@ function flc_settings_page() {
 				frame.open();
 			});
 		}
+		// immagini della guida: una per riga dalla Libreria media
+		const gHost = $id('flcGuideImgs'), gVal = $id('flcGuideImgsVal');
+		if (gHost) {
+			const gSync = () => {
+				gVal.value = [...gHost.querySelectorAll('tr[data-key]')].filter((r) => +r.dataset.id).map((r) => r.dataset.key + ':' + r.dataset.id).join(',');
+				gVal.dispatchEvent(new Event('change', { bubbles: true }));
+			};
+			gHost.addEventListener('click', (e) => {
+				const row = e.target.closest('tr[data-key]');
+				if (!row) return;
+				if (e.target.matches('.g-reset')) {
+					row.dataset.id = 0; row.querySelector('.mine').innerHTML = '<span class="description">—</span>'; e.target.hidden = true; gSync();
+				} else if (e.target.matches('.g-pick')) {
+					if (!window.wp || !wp.media) { alert('Libreria media non disponibile.'); return; }
+					const frame = wp.media({ title: 'Immagine della guida: ' + row.querySelector('strong').textContent, library: { type: 'image' }, multiple: false, button: { text: 'Usa questa immagine' } });
+					frame.on('select', () => {
+						const x = frame.state().get('selection').first().toJSON();
+						row.dataset.id = x.id;
+						const u = (x.sizes && x.sizes.medium && x.sizes.medium.url) || x.url;
+						row.querySelector('.mine').innerHTML = '<img alt="">'; row.querySelector('.mine img').src = u;
+						row.querySelector('.g-reset').hidden = false;
+						gSync();
+					});
+					frame.open();
+				}
+			});
+		}
 		// tombini di riferimento (max 3) dalla Libreria media
 		const refPick = $id('flcRefsPick');
 		if (refPick) refPick.addEventListener('click', () => {
@@ -1401,4 +1458,57 @@ function flc_today_count() {
 	$log = flc_usage_log();
 	$day = current_time('Y-m-d');
 	return (int) ($log[$day]['ok'] ?? 0) + (int) ($log[$day]['err'] ?? 0);
+}
+
+// ---------- immagini della guida (Impostazioni → Guida) ----------
+// stesso elenco di GUIDE_IMAGES in assets/js/guide.js; il file predefinito è assets/img/guida/<chiave>.webp
+function flc_guide_images() {
+	return array(
+		'passi'         => 'Barra dei passi',
+		'inquadratura'  => 'Inquadratura',
+		'galleria'      => 'Galleria dei template',
+		'stili-ia'      => 'Stili IA',
+		'modalita'      => 'Modalità',
+		'colori-disco'  => 'Colori del disco',
+		'sostituisci'   => 'Sostituisci un colore',
+		'colora-a-mano' => 'Colora a mano (secchiello)',
+		'penna'         => 'Penna',
+		'grafiche'      => 'Grafiche aggiuntive',
+		'scritte'       => 'Scritte',
+		'sopra-fascia'  => 'Sopra la fascia',
+		'barra'         => 'Barra in alto',
+	);
+}
+
+// "chiave:id,chiave:id" -> array(chiave => id), solo chiavi conosciute
+function flc_guide_imgs_map($str) {
+	$keys = flc_guide_images();
+	$out  = array();
+	foreach (explode(',', (string) $str) as $pair) {
+		$p = explode(':', trim($pair), 2);
+		if (count($p) === 2 && isset($keys[$p[0]]) && (int) $p[1] > 0) {
+			$out[$p[0]] = (int) $p[1];
+		}
+	}
+	return $out;
+}
+
+function flc_guide_imgs_clean($str) {
+	$out = array();
+	foreach (flc_guide_imgs_map($str) as $k => $id) {
+		$out[] = $k . ':' . $id;
+	}
+	return implode(',', $out);
+}
+
+// per il configuratore: solo le immagini sostituite (chiave => url)
+function flc_guide_imgs_public($s) {
+	$out = array();
+	foreach (flc_guide_imgs_map($s['guide_imgs'] ?? '') as $k => $id) {
+		$u = wp_get_attachment_image_url($id, 'large') ?: wp_get_attachment_url($id);
+		if ($u) {
+			$out[$k] = $u;
+		}
+	}
+	return $out;
 }

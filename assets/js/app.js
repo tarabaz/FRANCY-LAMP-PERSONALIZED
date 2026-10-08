@@ -7,6 +7,7 @@ import { detectFace, faceFeatures } from './face.js';
 import { SVGLoader } from '../vendor/three/addons/SVGLoader.js';
 import polygonClipping from '../vendor/polygon-clipping/polygon-clipping.mjs';
 import { GUIDE } from './guide.js';
+import { geometry as frameGeometry } from './frame.js';
 
 const $ = (s) => document.querySelector(s);
 const root = $('#flc-root');
@@ -2600,6 +2601,15 @@ function buildWiki() {
       + g.html.replace(/<h4(\s[^>]*)?>/g, (m, at) => `<div class="w-sub" role="heading" aria-level="4"${at || ''}>`).replace(/<\/h4>/g, '</div>');
     sec.querySelectorAll('[data-feat]').forEach((el) => { if (!feature(el.dataset.feat)) el.remove(); });
     sec.querySelectorAll('[data-show]').forEach((el) => { if (el.isConnected && has[el.dataset.show] && !has[el.dataset.show]()) el.remove(); });
+    // screenshot: quello caricato dall'admin (Impostazioni → Guida) oppure quello del plugin
+    sec.querySelectorAll('figure[data-gimg]').forEach((f) => {
+      const k = f.dataset.gimg, img = document.createElement('img');
+      img.src = (CFG.guideImgs && CFG.guideImgs[k]) || new URL(`../img/guida/${k}.webp`, import.meta.url).href;
+      img.alt = f.textContent.trim(); img.loading = 'lazy'; img.decoding = 'async';
+      img.addEventListener('error', () => f.remove());
+      f.prepend(img);
+    });
+    sec.querySelectorAll('[data-gallery]').forEach(fillWikiGallery);
     body.append(sec);
     const a = document.createElement('button');
     a.type = 'button'; a.dataset.sec = g.id;
@@ -2641,6 +2651,58 @@ function buildWiki() {
   });
   $('#wikiClose').addEventListener('click', closeWiki);
 }
+// gallerie con le immagini vere del sito (template, esempi degli stili, sfondi, grafiche)
+function fillWikiGallery(box) {
+  const add = (src, cap, src2) => {
+    const f = document.createElement('figure');
+    for (const u of [src, src2].filter(Boolean)) { const i = document.createElement('img'); i.src = u; i.alt = cap; i.loading = 'lazy'; f.append(i); }
+    if (src2) f.querySelector('img').after(Object.assign(document.createElement('span'), { className: 'w-arrow', textContent: '→' }));
+    f.append(Object.assign(document.createElement('figcaption'), { textContent: cap }));
+    box.append(f);
+  };
+  const k = box.dataset.gallery;
+  if (k === 'templates') {
+    const list = state.templates || [];
+    list.slice(0, 8).forEach((t) => add(t.thumb || t.url, t.name));
+    if (list.length > 8) box.append(Object.assign(document.createElement('p'), { className: 'w-more', textContent: `…e altri ${list.length - 8} nella galleria` }));
+  } else if (k === 'styles') {
+    const names = { fedele: 'Fedele', ritratto: 'Ritratto', tombino: 'Tombino', anime: 'Anime' };
+    const ex = state.examples || {};
+    for (const st of CFG.aiStyles || Object.keys(names)) if (ex[st] && ex[st].orig && ex[st].res) add(ex[st].orig, names[st] || st, ex[st].res);
+  } else if (k === 'backgrounds') {
+    (CFG.aiBackgrounds || []).forEach((label, i) => { const u = (CFG.aiBgExamples || [])[i]; if (u) add(u, label); });
+  } else if (k === 'stickers') {
+    (CFG.stickers || []).forEach((st) => add(st.thumb || st.url, st.name));
+  }
+  if (!box.children.length) box.remove();
+}
+
+// schema del disco: il disco attuale del cliente con le didascalie delle parti
+function wikiDiagram() {
+  const host = document.querySelector('#wikiBody [data-diagram="disc"]');
+  if (!host) return;
+  let inner = '';
+  try { inner = (state.template ? templateSvg() : buildSvg(false).svg).replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''); } catch (e) { inner = ''; }
+  const g = frameGeometry(), R = g.R, d = (r, a) => [r * Math.cos(a * Math.PI / 180), r * Math.sin(a * Math.PI / 180)];
+  const notchY = R - FRAME.sideNotch.heightFromBottom;
+  const marks = [
+    [d(R - 1.5, -140), [-160, -88], 'Anello nero esterno', 'end'],
+    [d((g.rBandOut + g.rBandIn) / 2, -38), [160, -88], 'Fascia (scritte)', 'start'],
+    [d((g.rBandIn + g.rImg) / 2, 200), [-160, -20], 'Linea interna', 'end'],
+    [[-25, 30], [-160, 60], 'Disegno', 'end'],
+    [[R - 2, notchY], [160, -20], 'Fori laterali', 'start'],
+    [[4, R - FRAME.bottomSlot.centerFromBottom], [160, 88], 'Asola di montaggio', 'start'],
+  ];
+  const callouts = marks.map(([[x, y], [lx, ly], t, anchor]) => {
+    const ex = anchor === 'end' ? lx + 4 : lx - 4;
+    return `<path d="M${x.toFixed(1)} ${y.toFixed(1)}L${(lx + (anchor === 'end' ? 30 : -30)).toFixed(1)} ${ly}H${ex}" fill="none" stroke="#f2b705" stroke-width="1.4"/>`
+      + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#f2b705" stroke="#1d1b19" stroke-width=".8"/>`
+      + `<text x="${lx}" y="${ly + 4}" text-anchor="${anchor}" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="currentColor">${t}</text>`;
+  }).join('');
+  host.innerHTML = `<svg viewBox="-300 -112 600 224" role="img" aria-label="Schema delle parti del disco"><g>${inner}</g>${callouts}</svg>`
+    + '<p class="w-cap">Il tuo disco con il nome delle parti (si aggiorna con le tue modifiche).</p>';
+}
+
 function goWiki(id) {
   const body = $('#wikiBody'), s = document.getElementById('guida-' + id);
   if (!s) return;
@@ -2650,6 +2712,7 @@ function goWiki(id) {
 }
 function openWiki(id) {
   $('#wiki').hidden = false;
+  wikiDiagram();
   $('#helpBtn').classList.add('on');
   $('#helpBtn').textContent = '✕ Chiudi guida';
   if (id) requestAnimationFrame(() => goWiki(id));
