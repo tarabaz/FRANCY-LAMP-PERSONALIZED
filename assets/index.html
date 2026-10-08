@@ -21,6 +21,7 @@
         <button type="button" id="projSave" title="Salva il progetto sul tuo dispositivo (.francy) per riprenderlo dopo" hidden>💾 Salva</button>
         <label class="proj-open" title="Riapri un progetto salvato (.francy)">📂 Apri<input type="file" id="projOpen" accept=".francy" hidden></label>
       </div>
+      <button type="button" class="full-disc-btn tpl-new-btn" id="tplNewBtn" hidden title="Solo amministratore: trasforma questo progetto in un disegno pronto da scegliere nella galleria">📌 Crea template</button>
       <button type="button" class="full-disc-btn tpl-save-btn" id="tplSaveBtn" hidden title="Solo amministratore: salva immagine, EPS e 3MF dentro il disegno pronto">💾 Salva nel disegno pronto</button>
       <button type="button" class="full-disc-btn" id="fullDiscBtn" hidden title="Solo amministratore: converte il disegno pronto in un progetto stampabile">⚙️ Elabora questo disegno</button>
       <a class="back-site" id="backSite" href="#" hidden>← Torna al sito</a>
@@ -276,6 +277,17 @@
     <span>© <span id="footYear">2026</span> <span id="footName">FrancyStore3D</span> · Tutti i diritti riservati</span>
     <span class="foot-ver" id="footVer">Powered by FrancyStore3D</span>
   </footer>
+  <div class="tpl-modal tpl-new-modal" id="tplNewModal" hidden>
+    <form class="tpl-new-dialog" id="tplNewForm" role="dialog" aria-modal="true" aria-labelledby="tplNewTitle">
+      <div class="w-head-t" id="tplNewTitle" role="heading" aria-level="2">📌 Crea un template da questo progetto</div>
+      <p class="hint">Diventa un disegno pronto nella galleria, con immagine, 3MF, EPS, SVG e progetto già salvati (✓ Pronto da stampare). Lo riapri e lo aggiorni con ⚙️ Elabora.</p>
+      <label>Nome<input id="tplNewName" maxlength="120" placeholder="es. Gengar notte" required></label>
+      <label>Categoria <small>(facoltativa)</small><input id="tplNewCat" list="tplNewCats" maxlength="60" placeholder="es. Pokémon"><datalist id="tplNewCats"></datalist></label>
+      <label class="check"><input type="checkbox" id="tplNewPublish" checked> Pubblica subito (visibile ai clienti)</label>
+      <p class="ai-msg" id="tplNewMsg" hidden></p>
+      <div class="tpl-new-actions"><button type="button" class="ghost" id="tplNewCancel">Annulla</button><button type="submit" id="tplNewGo">Crea template</button></div>
+    </form>
+  </div>
   <div class="help-pop" id="helpPop" role="tooltip" hidden></div>
   <div class="tpl-modal" id="tplModal" hidden>
     <div class="tpl-dialog" role="dialog" aria-modal="true" aria-labelledby="tplTitle">

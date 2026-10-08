@@ -221,6 +221,7 @@ function loadImage(src, zoom = 1) {
   const img = new Image();
   img.onload = () => {
     originalImg = null; state.aiImageSrc = null; state.aiCrop = null; state.originalSrc = src;
+    state.tplTarget = null; // immagine nuova: non è più il progetto di un template
     state.locks = []; // immagine nuova: le bobine bloccate ripartono da zero
     if (state.fullDisc) { state.fullDisc = null; root.classList.remove('full-disc'); }
     $('#aiUndo').hidden = true;
@@ -1238,6 +1239,8 @@ function render() {
   }
   const { svg, colors, parts: ps } = buildSvg(false);
   if (state.fullDisc) state.fullDisc.cur = svg;
+  state.tplCur = svg;
+  if (state.tplTarget) state.tplTarget.cur = svg;
   // colora a mano: i confini di tutte le zone (anche tra due bianchi) tratteggiati, solo a schermo
   const guide = state.painting && state.baseLayers
     ? `<g id="guida-zone" fill="none" stroke="#d0342c" stroke-opacity=".75" stroke-width="${0.22 * zoomUnit()}" stroke-dasharray="${0.8 * zoomUnit()} ${0.5 * zoomUnit()}" pointer-events="none">${state.baseLayers.map((d) => (d ? `<path d="${d}"/>` : '')).join('')}</g>`
@@ -1446,34 +1449,45 @@ function updateFullDiscBtn() {
   b.hidden = !CFG.isAdmin || !feature('feat_full_disc') || !(state.template || state.fullDisc);
   b.textContent = state.fullDisc && !state.template ? '✕ Esci dall\'elaborazione' : '⚙️ Elabora questo disegno';
   // salva nel disegno pronto: compare quando il disco è diverso da quello salvato
-  const s = $('#tplSaveBtn'), fd = state.fullDisc;
-  s.hidden = !CFG.isAdmin || !CFG.tplSaveUrl || !fd || !fd.id || !!state.template || !state.result;
+  const s = $('#tplSaveBtn'), fd = saveTarget();
+  s.hidden = !CFG.isAdmin || !CFG.tplSaveUrl || !fd || !!state.template || !state.result;
+  // 📌 crea template: un progetto dell'admin che non è ancora un disegno pronto
+  $('#tplNewBtn').hidden = !CFG.isAdmin || !CFG.tplSaveUrl || !feature('feat_full_disc') || !!fd || !!state.template || !state.result;
   if (!s.hidden && !s.dataset.busy) {
     const saved = fd.saved && fd.saved === fd.cur;
     s.disabled = saved;
     s.textContent = saved ? '✓ Salvato nel disegno pronto' : '💾 Salva nel disegno pronto';
   }
 }
-// PNG (quello che vedranno i clienti), SVG, EPS, 3MF e progetto .francy dentro il disegno pronto
+// disegno pronto a cui salvare: quello in elaborazione oppure il template riaperto/creato dal suo progetto
+function saveTarget() {
+  if (state.fullDisc && state.fullDisc.id) return state.fullDisc;
+  return state.tplTarget || null;
+}
+// PNG (quello che vedranno i clienti), SVG, EPS, 3MF, progetto .francy e colori: stessi file per salvare e creare
+async function templateForm(title) {
+  const ps = parts();
+  const { colors } = buildSvg(false);
+  if (colors.size > MAX_FILAMENTS) throw new Error(`troppi colori (${colors.size} / ${MAX_FILAMENTS})`);
+  const previewOff = await svgToPng(false);
+  const mf = await make3mf(ps, previewOff, title);
+  const form = new FormData();
+  form.append('png', await svgToPng(false, 1600, true), 'disegno.png');
+  form.append('svg', new Blob([buildSvg(true).svg], { type: 'image/svg+xml' }), 'disco.svg');
+  form.append('eps', new Blob([buildEps(ps, FRAME.diameter)], { type: 'application/postscript' }), 'disco.eps');
+  form.append('3mf', mf.blob, 'disco-lampada.3mf');
+  form.append('francy', await projectBlob(), 'progetto.francy');
+  form.append('colors', JSON.stringify([...colors]));
+  return form;
+}
 async function saveToTemplate() {
-  const fd = state.fullDisc, btn = $('#tplSaveBtn');
-  if (!CFG.isAdmin || !CFG.tplSaveUrl || !fd || !fd.id || !state.result) return;
+  const fd = saveTarget(), btn = $('#tplSaveBtn');
+  if (!CFG.isAdmin || !CFG.tplSaveUrl || !fd || !state.result) return;
   const svgNow = fd.cur;
   btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Salvo…';
   setStatus('Preparo PNG, EPS e 3MF del disegno…');
   try {
-    const ps = parts();
-    const { colors } = buildSvg(false);
-    if (colors.size > MAX_FILAMENTS) throw new Error(`troppi colori (${colors.size} / ${MAX_FILAMENTS})`);
-    const previewOff = await svgToPng(false);
-    const mf = await make3mf(ps, previewOff, fd.name);
-    const form = new FormData();
-    form.append('png', await svgToPng(false, 1600, true), 'disegno.png');
-    form.append('svg', new Blob([buildSvg(true).svg], { type: 'image/svg+xml' }), 'disco.svg');
-    form.append('eps', new Blob([buildEps(ps, FRAME.diameter)], { type: 'application/postscript' }), 'disco.eps');
-    form.append('3mf', mf.blob, 'disco-lampada.3mf');
-    form.append('francy', await projectBlob(), 'progetto.francy');
-    form.append('colors', JSON.stringify([...colors]));
+    const form = await templateForm(fd.name);
     const r = await fetch(CFG.tplSaveUrl.replace(/\/?$/, '/') + fd.id + '/elaborato', { method: 'POST', credentials: 'same-origin', headers: CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}, body: form });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.message || 'errore ' + r.status);
@@ -1491,6 +1505,48 @@ async function saveToTemplate() {
   }
 }
 $('#tplSaveBtn').addEventListener('click', saveToTemplate);
+
+// 📌 Crea template (admin): il progetto attuale diventa un nuovo disegno pronto, già con i file di stampa
+function openTplNew() {
+  const t = texts();
+  $('#tplNewName').value = [t.topLeft, t.topRight, t.bottomLeft, t.bottomRight].map((x) => x.trim()).find((x) => x && !/^Testo \d$/.test(x)) || '';
+  const cats = [...new Set((state.templates || []).flatMap((x) => x.cats || []))].sort((a, b) => a.localeCompare(b, 'it'));
+  $('#tplNewCats').innerHTML = cats.map((c) => `<option value="${escapeAttr(c)}">`).join('');
+  $('#tplNewMsg').hidden = true;
+  $('#tplNewModal').hidden = false;
+  $('#tplNewName').focus();
+}
+async function createTemplate(ev) {
+  ev.preventDefault();
+  const name = $('#tplNewName').value.trim(), btn = $('#tplNewGo'), msg = $('#tplNewMsg');
+  if (!name) { $('#tplNewName').focus(); return; }
+  const svgNow = state.fullDisc ? state.fullDisc.cur : state.tplCur;
+  btn.disabled = true; btn.textContent = 'Creo il template…'; msg.hidden = true;
+  try {
+    const form = await templateForm(name);
+    form.append('name', name);
+    form.append('category', $('#tplNewCat').value.trim());
+    form.append('status', $('#tplNewPublish').checked ? 'publish' : 'draft');
+    const r = await fetch(CFG.tplSaveUrl.replace(/\/?$/, '/') + 'nuovo', { method: 'POST', credentials: 'same-origin', headers: CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}, body: form });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.message || 'errore ' + r.status);
+    // da qui "💾 Salva nel disegno pronto" aggiorna questo template
+    state.tplTarget = { id: j.id, name: j.name, saved: svgNow, cur: state.tplCur }; // modificato nel frattempo? resta da salvare
+    if (j.status === 'publish') setTemplates([...(state.templates || []), { id: j.id, name: j.name, url: j.url, thumb: j.thumb, cats: j.cats, ready: true, project: j.project }]);
+    $('#tplNewModal').hidden = true;
+    updateFullDiscBtn();
+    setStatus(j.status === 'publish' ? `Template «${j.name}» creato: è già nella galleria, con 3MF ed EPS pronti` : `Template «${j.name}» creato in bozza (Disegni pronti): pubblicalo quando vuoi`);
+  } catch (err) {
+    console.error(err);
+    msg.textContent = 'Non riesco a creare il template: ' + err.message; msg.hidden = false;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Crea template';
+  }
+}
+$('#tplNewBtn').addEventListener('click', openTplNew);
+$('#tplNewForm').addEventListener('submit', createTemplate);
+$('#tplNewCancel').addEventListener('click', () => { $('#tplNewModal').hidden = true; });
+$('#tplNewModal').addEventListener('click', (e) => { if (e.target.id === 'tplNewModal') $('#tplNewModal').hidden = true; });
 async function enterFullDisc() {
   const t = state.template;
   if (!t) return;
@@ -1501,6 +1557,10 @@ async function enterFullDisc() {
       if (!r.ok) throw new Error(r.status);
       await openProject(new File([await r.blob()], 'progetto.francy'));
       if (state.fullDisc) { state.fullDisc.id = t.id; state.fullDisc.name = t.name; openStep(3); updateFullDiscBtn(); return; }
+      // template creato da un progetto normale (📌 Crea template): si riapre il progetto com'era, scritte comprese
+      state.tplTarget = { id: t.id, name: t.name };
+      openStep(3); updateFullDiscBtn(); setStatus(`Progetto del template «${t.name}» riaperto: 💾 Salva nel disegno pronto lo aggiorna`);
+      return;
     } catch (e) { console.warn('progetto del disegno non disponibile, riparto dall\'immagine', e); }
   }
   let img;
@@ -2407,6 +2467,7 @@ async function openProject(file) {
     P = JSON.parse(new TextDecoder().decode(buf));
     if (P.app !== 'francy-lamp') throw new Error('non è un progetto Francy');
   } catch (err) { setStatus('File non valido: ' + err.message); return; }
+  state.tplTarget = null;
   try {
     // scritte, fascia e lampada valgono anche per i disegni pronti
     const applyFrame = () => {

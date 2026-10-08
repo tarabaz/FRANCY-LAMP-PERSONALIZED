@@ -449,7 +449,7 @@ add_action('admin_post_flc_tpl_file', function () {
 
 function flc_tpl_print_delete($post_id) {
 	$m = get_post_meta($post_id, '_flc_tpl_print', true);
-	if (is_array($m) && !empty($m['png'])) {
+	if (is_array($m) && !empty($m['png']) && empty($m['shared'])) {
 		wp_delete_attachment((int) $m['png'], true);
 	}
 	$dir  = flc_tpl_dir($post_id);
@@ -483,6 +483,16 @@ function flc_rest_tpl_print(WP_REST_Request $req) {
 	if (empty($files['eps']['tmp_name']) || empty($files['3mf']['tmp_name'])) {
 		return new WP_Error('flc_tpl', 'Mancano i file di stampa (EPS e 3MF).', array('status' => 400));
 	}
+	$r = flc_tpl_save_print($id, $files, json_decode((string) $req->get_param('colors'), true));
+	if (is_wp_error($r)) {
+		return $r;
+	}
+	return array('ok' => true, 'id' => $id, 'url' => wp_get_attachment_url($r), 'project' => flc_tpl_file_url($id, 'francy'), 'links' => flc_tpl_print_links($id));
+}
+
+// Salva i file di stampa del disegno e l'immagine elaborata. $png_att: allegato già esistente da usare come immagine
+// (template appena creato: è anche l'immagine in evidenza, quindi non si cancella con l'elaborazione).
+function flc_tpl_save_print($id, $files, $colors, $png_att = 0) {
 	$old = get_post_meta($id, '_flc_tpl_print', true);
 	$dir = flc_tpl_dir($id, true);
 	$got = array();
@@ -499,22 +509,77 @@ function flc_rest_tpl_print(WP_REST_Request $req) {
 	require_once ABSPATH . 'wp-admin/includes/media.php';
 	require_once ABSPATH . 'wp-admin/includes/image.php';
 	$title = get_the_title($id);
-	$att   = media_handle_sideload(array('name' => sanitize_file_name(flc_file_slug($title ?: 'disegno') . '-elaborato.png'), 'tmp_name' => $files['png']['tmp_name']), $id, $title . ' (elaborato)');
+	$att   = $png_att ?: media_handle_sideload(array('name' => sanitize_file_name(flc_file_slug($title ?: 'disegno') . '-elaborato.png'), 'tmp_name' => $files['png']['tmp_name']), $id, $title . ' (elaborato)');
 	if (is_wp_error($att)) {
 		return new WP_Error('flc_tpl', $att->get_error_message(), array('status' => 500));
 	}
-	if (is_array($old) && !empty($old['png']) && (int) $old['png'] !== (int) $att) {
+	// la vecchia immagine elaborata si cancella, ma mai quella in evidenza (template creato dal configuratore)
+	if (is_array($old) && !empty($old['png']) && (int) $old['png'] !== (int) $att && empty($old['shared'])) {
 		wp_delete_attachment((int) $old['png'], true);
 	}
-	$colors = json_decode((string) $req->get_param('colors'), true);
 	update_post_meta($id, '_flc_tpl_print', array(
 		'png'    => (int) $att,
+		'shared' => $png_att ? 1 : 0,
 		'dir'    => basename($dir),
 		'files'  => $got,
 		'time'   => time(),
 		'colors' => is_array($colors) ? array_slice(array_map('sanitize_text_field', $colors), 0, 30) : array(),
 	));
-	return array('ok' => true, 'id' => $id, 'url' => wp_get_attachment_url($att), 'project' => flc_tpl_file_url($id, 'francy'), 'links' => flc_tpl_print_links($id));
+	return (int) $att;
+}
+
+// 📌 Crea template: dal configuratore (admin) un progetto diventa un nuovo disegno pronto, già con i file di stampa
+add_action('rest_api_init', function () {
+	register_rest_route('francy-lamp/v1', '/disegni/nuovo', array(
+		'methods'             => 'POST',
+		'permission_callback' => function () { return current_user_can('manage_options'); },
+		'callback'            => 'flc_rest_tpl_new',
+	));
+});
+
+function flc_rest_tpl_new(WP_REST_Request $req) {
+	$files = $req->get_file_params();
+	if (empty($files['png']['tmp_name']) || !flc_is_png($files['png']['tmp_name'])) {
+		return new WP_Error('flc_tpl', 'Manca l\'immagine PNG del disegno.', array('status' => 400));
+	}
+	if (empty($files['eps']['tmp_name']) || empty($files['3mf']['tmp_name'])) {
+		return new WP_Error('flc_tpl', 'Mancano i file di stampa (EPS e 3MF).', array('status' => 400));
+	}
+	$name = mb_substr(sanitize_text_field((string) $req->get_param('name')), 0, 120) ?: 'Disegno';
+	$max  = (int) $GLOBALS['wpdb']->get_var("SELECT MAX(menu_order) FROM {$GLOBALS['wpdb']->posts} WHERE post_type = 'flc_template'");
+	$id   = wp_insert_post(array(
+		'post_type'   => 'flc_template',
+		'post_title'  => $name,
+		'post_status' => $req->get_param('status') === 'draft' ? 'draft' : 'publish',
+		'menu_order'  => $max + 1,
+	), true);
+	if (is_wp_error($id)) {
+		return new WP_Error('flc_tpl', $id->get_error_message(), array('status' => 500));
+	}
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	require_once ABSPATH . 'wp-admin/includes/media.php';
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	$att = media_handle_sideload(array('name' => sanitize_file_name(flc_file_slug($name) . '.png'), 'tmp_name' => $files['png']['tmp_name']), $id, $name);
+	if (is_wp_error($att)) {
+		wp_delete_post($id, true);
+		return new WP_Error('flc_tpl', $att->get_error_message(), array('status' => 500));
+	}
+	set_post_thumbnail($id, $att);
+	$cat = mb_substr(sanitize_text_field((string) $req->get_param('category')), 0, 60);
+	if ($cat !== '') {
+		wp_set_object_terms($id, $cat, 'flc_tpl_cat', false);
+	}
+	unset($files['png']); // già usato come immagine in evidenza
+	$r = flc_tpl_save_print($id, $files, json_decode((string) $req->get_param('colors'), true), $att);
+	if (is_wp_error($r)) {
+		return $r;
+	}
+	$full = wp_get_attachment_url($att);
+	return array(
+		'ok' => true, 'id' => $id, 'name' => $name, 'url' => $full, 'thumb' => wp_get_attachment_image_url($att, 'medium') ?: $full,
+		'cats' => $cat !== '' ? array($cat) : array(), 'ready' => true, 'project' => flc_tpl_file_url($id, 'francy'),
+		'status' => get_post_status($id), 'edit' => get_edit_post_link($id, 'url'),
+	);
 }
 
 // riquadro nella modifica del disegno: file di stampa, immagine elaborata, "Rimuovi elaborazione"

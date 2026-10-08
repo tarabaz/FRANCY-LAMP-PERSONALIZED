@@ -214,6 +214,13 @@ pennello, penna, lucchetti), non dal PNG. Salvando di nuovo l'elaborazione vecch
 diventa "✓ Salvato" finché il disco non cambia. Se un cliente convalida un disegno pronto, nel LEGGIMI c'è scritto che
 i file di stampa sono già in Disegni pronti. Endpoint: `POST /disegni/{id}/elaborato` (solo admin).
 
+**📌 Crea template** (solo amministratore, barra in alto): un progetto fatto nel configuratore (anche riaperto da un
+file `.francy`) diventa un nuovo disegno pronto. Si sceglie nome, categoria e se pubblicarlo subito; il template nasce
+con immagine (disco completo, sfondo trasparente), 3MF, EPS, SVG e progetto, quindi è già "✓ Pronto da stampare" e
+compare subito nella galleria. Dopo la creazione "💾 Salva nel disegno pronto" lo aggiorna; riaprendolo con
+"⚙️ Elabora questo disegno" si riparte dal progetto vero (scritte, colori, pennellate), non dal PNG. L'immagine creata è
+anche l'immagine in evidenza: "Rimuovi elaborazione" toglie solo i file di stampa. Endpoint: `POST /disegni/nuovo`.
+
 **Importa in blocco** (Disegni pronti → "Importa in blocco (immagini o ZIP)", oppure menu → Importa disegni): si
 trascinano più immagini (PNG/JPG/WEBP) e/o file ZIP; il nome del file diventa il nome del disegno (`_` e `-` diventano
 spazi, modificabile prima di importare). Pubblica subito o bozza; se esiste già un disegno con lo stesso nome lo salta

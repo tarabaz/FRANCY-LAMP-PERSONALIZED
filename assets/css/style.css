@@ -548,3 +548,13 @@ html.flc-page .flc { height: 100%; }
 .flc .w-more { grid-column: 1 / -1; font-size: 13px; color: var(--muted); margin: 0; }
 .flc .w-diagram { margin: 8px 0 16px; color: var(--ink); }
 .flc .w-diagram svg { display: block; width: 100%; max-width: 760px; height: auto; background: var(--bg); border-radius: 12px; }
+
+/* 📌 Crea template (admin) */
+.flc .tpl-new-btn { background: #2271b1; color: #fff; }
+.flc .tpl-new-dialog { background: var(--panel); border-radius: 14px; width: min(460px, 100%); padding: 18px 20px; box-shadow: 0 20px 50px rgba(0,0,0,.3); display: grid; gap: 10px; }
+.flc .tpl-new-dialog label:not(.check) { display: grid; gap: 4px; font-weight: 600; }
+.flc .tpl-new-dialog input:not([type=checkbox]) { padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 10px; font: inherit; font-weight: 400; background: var(--bg); color: var(--ink); }
+.flc .tpl-new-dialog input:focus { outline: none; border-color: var(--ink); }
+.flc .tpl-new-dialog .hint { margin: 0; }
+.flc .tpl-new-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.flc .tpl-new-actions button { width: auto; padding: 9px 16px; }
