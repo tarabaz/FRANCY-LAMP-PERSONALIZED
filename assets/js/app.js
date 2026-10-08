@@ -502,8 +502,9 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
   $('#view3d').hidden = state.view !== '3d';
   if (state.view === '3d') {
     if (!preview3d) {
-      preview3d = new Preview3D($('#view3d'), STAGE_BG, lampConfig());
+      preview3d = new Preview3D($('#view3d'), STAGE_BG, lampConfig(), { ...(CFG.scene || {}), on: sceneOn() });
       preview3d.setLampColors(state.lampColors);
+      initSceneBtn();
     }
     preview3d.setLit(state.lit);
     if (dirty3d) update3d();
@@ -2566,6 +2567,22 @@ if (feature('feat_project')) {
   $('#projSave').addEventListener('click', saveProject);
   $('#projOpen').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) openProject(f); });
 } else $('#projBtns').setAttribute('data-feat-off', '');
+
+// ---------------- ambientazione della vista 3D (tavolino, muro, alimentatore) ----------------
+function sceneOn() {
+  if (state.sceneOn === undefined) state.sceneOn = !CFG.scene || CFG.scene.on !== false;
+  return state.sceneOn;
+}
+function initSceneBtn() {
+  if (!CFG.scene || !CFG.scene.toggle || $('#sceneBtn')) return;
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'sceneBtn'; b.className = 'scene-btn';
+  const paint = () => { b.textContent = sceneOn() ? '🏠 Ambientazione: sì' : '🏠 Ambientazione: no'; b.classList.toggle('on', sceneOn()); };
+  b.addEventListener('click', () => { state.sceneOn = !sceneOn(); if (preview3d) preview3d.setRoom(state.sceneOn); paint(); });
+  b.title = 'Mostra la lampada su un tavolino, con il cavo e l\'alimentatore';
+  paint();
+  $('#view3d').append(b);
+}
 
 // ---------------- guida: ❓ Guida in alto e i "?" accanto ai comandi ----------------
 // [selettore, titolo, spiegazione, dove mettere il ? ('end' = in fondo all'elemento, 'after' = subito dopo)]

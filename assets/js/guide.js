@@ -236,6 +236,7 @@ export const GUIDE = [
 <figure class="w-fig" data-gimg="barra"><figcaption>La barra in alto: luce, guida, salva/apri.</figcaption></figure>
 <ul>
   <li data-feat="feat_3d"><strong>Anteprima 2D</strong>: il disco piatto, dove tocchi, colori e sposti le grafiche. <strong>Anteprima 3D</strong>: la lampada intera; trascina con il mouse per girarla, rotellina per avvicinarti.</li>
+  <li><strong>🏠 Ambientazione</strong> (in basso a sinistra nel 3D, se presente): la lampada appoggiata su un tavolino con il cavo che scende all'alimentatore nella presa. Il muro sparisce quando giri la lampada per guardarla da dietro. Accesa, la luce calda illumina muro e piano.</li>
   <li data-feat="feat_lit"><strong>Spenta / 💡 Accesa</strong> (in alto): come appare la lampada con la luce spenta o accesa.</li>
   <li data-feat="feat_zoom"><strong>Zoom 2D</strong>: rotellina del mouse (ingrandisce dove punti), pizzico con due dita, oppure i pulsanti − + e ⤢ (tutto il disco) nell'angolo. Da ingrandito trascini per spostarti.</li>
   <li>Sotto l'anteprima un messaggio dice cosa sta succedendo («Elaborazione…», «Ecco il tuo disco»).</li>

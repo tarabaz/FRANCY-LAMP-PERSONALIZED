@@ -44,8 +44,50 @@ function contactShadowTexture([w, d]) {
   return t;
 }
 
+// Venatura del legno generata (niente immagini da scaricare): righe lunghe con nodi e variazioni di tono
+function woodTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#c99a6b'; ctx.fillRect(0, 0, c.width, c.height);
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let i = 0; i < 140; i++) {
+    const y = rnd() * c.height, a = 0.04 + rnd() * 0.1, w = 0.6 + rnd() * 2.2;
+    ctx.strokeStyle = rnd() < 0.5 ? `rgba(92,58,30,${a})` : `rgba(240,205,160,${a})`;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    for (let x = 0; x <= c.width; x += 16) ctx.lineTo(x, y + Math.sin(x / (60 + rnd() * 40) + i) * (1.5 + rnd() * 2.5));
+    ctx.stroke();
+  }
+  for (let k = 0; k < 3; k++) { // qualche nodo
+    const x = rnd() * c.width, y = rnd() * c.height;
+    for (let r = 14; r > 2; r -= 2.5) { ctx.strokeStyle = `rgba(90,55,28,${0.12})`; ctx.beginPath(); ctx.ellipse(x, y, r * 2.6, r, 0, 0, Math.PI * 2); ctx.stroke(); }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+}
+// Ombra morbida rotonda (pavimento sotto il tavolino)
+function softShadowTexture(alpha = 0.35) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+  g.addColorStop(0, `rgba(0,0,0,${alpha})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export class Preview3D {
-  constructor(container, bg = '#ffffff', lamp = null) {
+  // scene: ambientazione { on, wood: url texture legno, wall: url texture muro } (Impostazioni → Anteprima e watermark)
+  constructor(container, bg = '#ffffff', lamp = null, scene = null) {
+    this.sceneCfg = scene || {};
+    this.roomOn = this.sceneCfg.on !== false;
     this.lampCfg = lamp && Array.isArray(lamp.parts) ? lamp : { parts: [] };
     this.ref = { ...DEFAULT_REF, ...(this.lampCfg.ref || {}) };
     this.partMats = {};
@@ -58,9 +100,10 @@ export class Preview3D {
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(35, 1, 1, 5000);
-    this.camera.position.set(190, 40, 620);
+    // con l'ambientazione l'inquadratura è un po' più larga (si vede il tavolino)
+    if (this.roomOn) this.camera.position.set(230, 70, 780); else this.camera.position.set(190, 40, 620);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, -25, 0);
+    this.controls.target.set(0, this.roomOn ? -40 : -25, 0);
     this.controls.enableDamping = true;
 
     this.ambient = new THREE.HemisphereLight(0xffffff, 0xd8d8d8, 1.1);
@@ -78,7 +121,8 @@ export class Preview3D {
 
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
-    const loop = () => { this.controls.update(); this.renderer.render(this.scene, this.camera); this.raf = requestAnimationFrame(loop); };
+    this.controls.maxDistance = 1800;
+    const loop = () => { this.controls.update(); this.updateWall(); this.renderer.render(this.scene, this.camera); this.raf = requestAnimationFrame(loop); };
     loop();
   }
 
@@ -110,6 +154,7 @@ export class Preview3D {
       const size = new THREE.Vector3(), c = new THREE.Vector3();
       box.getSize(size); box.getCenter(c);
       this.placeShadow([Math.max(60, size.x), Math.max(30, size.z)], box.min.y, c.z);
+      this.buildRoom(box);
     };
     if (!pending) placeShadow();
     for (const p of parts) {
@@ -144,6 +189,136 @@ export class Preview3D {
     this.scene.add(shadow);
     this.shadow = shadow;
     this.setLit(this.lit);
+  }
+
+  // ---------- ambientazione: tavolino da muro, cavo, alimentatore 12 V nella presa, muro che sparisce da dietro ----------
+  buildRoom(box) {
+    if (this.room) { this.scene.remove(this.room); this.room.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); }
+    const room = new THREE.Group();
+    const top = box.min.y;                         // il piano del tavolino è dove appoggia la lampada
+    const lampBack = box.min.z, lampFront = box.max.z;
+    const T = { w: 560, th: 22, legH: 700 };
+    const zBack = lampBack - 70, zFront = Math.max(lampFront + 90, zBack + 200); // profondità ~ 25 cm
+    const depth = zFront - zBack, zMid = (zBack + zFront) / 2;
+    // texture dall'admin (Libreria media) oppure quella generata
+    const loadTex = (url, onload) => {
+      const t = new THREE.TextureLoader().load(url, onload, undefined, (e) => console.warn('Texture non caricata', url, e));
+      t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+      return t;
+    };
+    const wood = this.sceneCfg.wood ? loadTex(this.sceneCfg.wood) : woodTexture();
+    const woodMat = new THREE.MeshStandardMaterial({ map: wood, roughness: 0.62, metalness: 0 });
+    // piano con bordi arrotondati
+    const sh = new THREE.Shape();
+    const r = 8, hw = T.w / 2, hd = depth / 2;
+    sh.moveTo(-hw + r, -hd); sh.lineTo(hw - r, -hd); sh.quadraticCurveTo(hw, -hd, hw, -hd + r); sh.lineTo(hw, hd - r);
+    sh.quadraticCurveTo(hw, hd, hw - r, hd); sh.lineTo(-hw + r, hd); sh.quadraticCurveTo(-hw, hd, -hw, hd - r); sh.lineTo(-hw, -hd + r); sh.quadraticCurveTo(-hw, -hd, -hw + r, -hd);
+    const topGeo = new THREE.ExtrudeGeometry(sh, { depth: T.th, bevelEnabled: true, bevelThickness: 2, bevelSize: 2, bevelSegments: 3, curveSegments: 6 });
+    topGeo.rotateX(Math.PI / 2); // estrusione verso il basso
+    const uv = topGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 420, uv.getY(i) / 140);
+    const tabletop = new THREE.Mesh(topGeo, woodMat);
+    tabletop.position.set(0, top - 2, zMid);
+    room.add(tabletop);
+    // gambe sottili leggermente inclinate, nere
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x232325, roughness: 0.5, metalness: 0.35 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(7, 5, T.legH, 16), legMat);
+      leg.position.set(sx * (hw - 40), top - T.th - T.legH / 2, zMid + sz * (hd - 30));
+      leg.rotation.z = sx * 0.04; leg.rotation.x = -sz * 0.03;
+      room.add(leg);
+    }
+    const floorY = top - T.th - T.legH;
+    const floorShadow = new THREE.Mesh(new THREE.PlaneGeometry(T.w * 1.5, depth * 2.6), new THREE.MeshBasicMaterial({ map: softShadowTexture(0.32), transparent: true, depthWrite: false }));
+    floorShadow.rotation.x = -Math.PI / 2; floorShadow.position.set(0, floorY + 0.5, zMid);
+    room.add(floorShadow);
+
+    // muro dietro (sparisce girando la vista da dietro)
+    const wallZ = zBack - 14;
+    this.wallMat = new THREE.MeshStandardMaterial({ color: 0xe9e4dc, roughness: 0.95, transparent: true });
+    if (this.sceneCfg.wall) { // texture ripetuta circa ogni 60 cm
+      this.wallMat.color.set(0xffffff);
+      this.wallMat.map = loadTex(this.sceneCfg.wall, (t) => { const k = t.image.width / t.image.height || 1; t.repeat.set(2400 / 600, 1900 / (600 / k)); t.needsUpdate = true; });
+    }
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(2400, 1900), this.wallMat);
+    wall.position.set(0, floorY + 950, wallZ);
+    room.add(wall);
+    this.wall = wall; this.wallZ = wallZ;
+
+    // presa italiana a muro, in basso a destra dietro il tavolino, con l'alimentatore 12 V inserito
+    const sock = new THREE.Group();
+    const plateMat = new THREE.MeshStandardMaterial({ color: 0xf4f3ef, roughness: 0.45 });
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(76, 76, 9), plateMat);
+    sock.add(plate);
+    const insert = new THREE.Mesh(new THREE.CylinderGeometry(22, 22, 3, 40), new THREE.MeshStandardMaterial({ color: 0xe6e5e0, roughness: 0.5 }));
+    insert.rotation.x = Math.PI / 2; insert.position.z = 5.5; sock.add(insert);
+    const adMat = new THREE.MeshStandardMaterial({ color: 0x161617, roughness: 0.42 });
+    const adapter = new THREE.Mesh(new THREE.BoxGeometry(46, 62, 34, 2, 2, 2), adMat);
+    adapter.position.set(0, -6, 7 + 17); sock.add(adapter);
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x3dd6ff });
+    const led = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 1, 12), ledMat);
+    led.rotation.x = Math.PI / 2; led.position.set(14, 14, 7 + 34 + 0.5); sock.add(led);
+    const logo = new THREE.Mesh(new THREE.PlaneGeometry(18, 3), new THREE.MeshBasicMaterial({ color: 0x3a3a3c }));
+    logo.position.set(0, -14, 7 + 34 + 0.3); sock.add(logo);
+    const sx = hw - 70, sy = floorY + 260;
+    sock.position.set(sx, sy, wallZ + 4.5);
+    room.add(sock);
+
+    // cavo: dal centro del retro della lampada, sul piano, giù dal bordo dietro e fino all'alimentatore
+    const cy = top + Math.max(18, (box.max.y - top) * 0.32);
+    const adBottom = new THREE.Vector3(sx, sy - 6 - 31, wallZ + 4.5 + 24);
+    const pts = [
+      new THREE.Vector3(0, cy, lampBack + 1),
+      new THREE.Vector3(0, cy, lampBack - 18),
+      new THREE.Vector3(6, top + 8, lampBack - 42),
+      new THREE.Vector3(40, top + 3.2, zBack + 38),
+      new THREE.Vector3(150, top + 3.2, zBack + 18),
+      new THREE.Vector3(sx - 30, top + 2, zBack - 2),
+      new THREE.Vector3(sx - 26, top - 40, zBack - 7),
+      new THREE.Vector3(sx - 10, top - 180, wallZ + 12),
+      new THREE.Vector3(sx + 30, sy - 120, wallZ + 18),
+      new THREE.Vector3(sx + 8, sy - 75, adBottom.z),
+      adBottom,
+    ];
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    const cableMat = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.55 });
+    room.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 360, 1.7, 10, false), cableMat));
+    // spinotto jack 5,5 mm sul retro della lampada
+    const plug = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 16, 20), cableMat);
+    plug.rotation.x = Math.PI / 2; plug.position.set(0, cy, lampBack - 7); room.add(plug);
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 3, 20), new THREE.MeshStandardMaterial({ color: 0xb8b8b8, roughness: 0.3, metalness: 0.9 }));
+    ring.rotation.x = Math.PI / 2; ring.position.set(0, cy, lampBack + 0.5); room.add(ring);
+    // pressacavo dell'alimentatore
+    const boot = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 2.2, 10, 16), adMat);
+    boot.position.set(adBottom.x, adBottom.y - 3, adBottom.z); room.add(boot);
+
+    // luce calda della lampada accesa sul piano e sul muro
+    this.glow = new THREE.PointLight(0xffc98a, 0, 650, 0);
+    this.glow.position.set(0, top + 90, lampFront + 40);
+    room.add(this.glow);
+    this.backGlow = new THREE.PointLight(0xffd7a0, 0, 520, 0);
+    this.backGlow.position.set(0, top + 120, lampBack - 30);
+    room.add(this.backGlow);
+
+    room.visible = this.roomOn !== false;
+    this.room = room;
+    this.scene.add(room);
+    this.setLit(this.lit);
+  }
+
+  // muro: si dissolve quando la telecamera va verso il retro (da dietro si vede la lampada, non il muro)
+  updateWall() {
+    if (!this.wall || !this.room.visible) return;
+    const dz = this.camera.position.z - this.wallZ;
+    const dist = this.camera.position.distanceTo(this.controls.target);
+    const k = THREE.MathUtils.clamp((dz / Math.max(1, dist) - 0.15) / 0.35, 0, 1); // 0 = di lato/dietro, 1 = davanti
+    this.wallMat.opacity = k;
+    this.wall.visible = k > 0.01;
+    this.wallMat.depthWrite = k > 0.99;
+  }
+
+  setRoom(on) {
+    this.roomOn = !!on;
+    if (this.room) this.room.visible = this.roomOn;
   }
 
   // colori scelti dal cliente per i pezzi: { id: '#rrggbb' }
@@ -219,6 +394,7 @@ export class Preview3D {
       m.emissive.copy(m.userData.base);
       m.emissiveIntensity = lit ? 0.85 : 0;
     }
+    if (this.glow) { this.glow.intensity = lit ? 1.6 : 0; this.backGlow.intensity = lit ? 1.4 : 0; }
   }
 
   snapshot() { return this.renderer.domElement.toDataURL('image/png'); }

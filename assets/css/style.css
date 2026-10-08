@@ -558,3 +558,8 @@ html.flc-page .flc { height: 100%; }
 .flc .tpl-new-dialog .hint { margin: 0; }
 .flc .tpl-new-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .flc .tpl-new-actions button { width: auto; padding: 9px 16px; }
+
+/* Pulsante ambientazione nella vista 3D */
+.flc #view3d { position: relative; }
+.flc .scene-btn { position: absolute; left: 12px; bottom: 12px; z-index: 3; border: 0; border-radius: 999px; padding: 7px 13px; background: rgba(255,255,255,.88); color: #1d1b19; font-weight: 700; font-size: 13px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.flc .scene-btn.on { background: var(--accent); color: var(--accent-ink); }

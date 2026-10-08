@@ -282,6 +282,10 @@ function flc_defaults() {
 		'cookie_url'   => '',
 		'copyright_name' => 'FrancyStore3D',
 		'stage_bg'     => '#3a3d44',
+		'scene_on'     => 1,  // anteprima 3D: ambientazione (tavolino, muro, alimentatore) accesa all'apertura
+		'scene_toggle' => 1,  // il cliente vede il pulsante per accenderla/spegnerla
+		'scene_wood'   => 0,  // texture del legno del tavolino (id Libreria media, 0 = quella del plugin)
+		'scene_wall'   => 0,  // texture del muro (id Libreria media, 0 = tinta unita)
 		'wm_onscreen'  => 0, // watermark sulla vista a schermo: spento (resta solo sull'immagine scaricata)
 		'wm_download'  => 1,
 		'wm_image'     => '',
@@ -429,6 +433,10 @@ function flc_sanitize_settings($in) {
 		'cookie_url'   => esc_url_raw($in['cookie_url'] ?? ''),
 		'copyright_name' => sanitize_text_field($in['copyright_name'] ?? '') ?: $d['copyright_name'],
 		'stage_bg'     => sanitize_hex_color($in['stage_bg'] ?? '') ?: $d['stage_bg'],
+		'scene_on'     => empty($in['scene_on']) ? 0 : 1,
+		'scene_toggle' => empty($in['scene_toggle']) ? 0 : 1,
+		'scene_wood'   => absint($in['scene_wood'] ?? 0),
+		'scene_wall'   => absint($in['scene_wall'] ?? 0),
 		'wm_onscreen'  => empty($in['wm_onscreen']) ? 0 : 1,
 		'wm_download'  => empty($in['wm_download']) ? 0 : 1,
 		'wm_image'     => esc_url_raw($in['wm_image'] ?? ''),
@@ -1039,6 +1047,22 @@ function flc_settings_page() {
 			<section class="flc-tab" data-tab="anteprima">
 				<div class="flc-head"><h2>Anteprima e watermark</h2><p>L'immagine della lampada che il cliente può scaricare e condividere.</p></div>
 				<div class="flc-card">
+					<h2><span class="dashicons dashicons-admin-home"></span> Anteprima 3D: ambientazione</h2>
+					<p class="intro">Nella vista 3D la lampada appoggiata su un tavolino da muro, con il cavo che scende all'alimentatore 12 V nella presa. Il muro sparisce quando si gira la lampada per guardarla da dietro.</p>
+					<table class="form-table" role="presentation">
+						<tr><th>All'apertura</th><td><label><input type="checkbox" name="<?php echo $n('scene_on'); ?>" value="1" <?php checked(!empty($s['scene_on'])); ?>> Ambientazione accesa</label></td></tr>
+						<tr><th>Pulsante per il cliente</th><td><label><input type="checkbox" name="<?php echo $n('scene_toggle'); ?>" value="1" <?php checked(!empty($s['scene_toggle'])); ?>> Mostra il pulsante "🏠 Ambientazione" nella vista 3D</label>
+							<p class="description">Spento: il cliente vede sempre l'impostazione scelta sopra, senza poterla cambiare.</p></td></tr>
+						<?php foreach (array('scene_wood' => array('Texture del legno', 'Immagine del legno del piano (meglio con le venature in orizzontale, almeno 1024 px). Vuota: legno generato dal plugin.'), 'scene_wall' => array('Texture del muro', 'Immagine ripetibile del muro (intonaco, mattoni…). Vuota: muro chiaro in tinta unita.')) as $tk => $tl) : $tu = $s[$tk] ? wp_get_attachment_image_url($s[$tk], 'thumbnail') : ''; ?>
+						<tr><th><?php echo esc_html($tl[0]); ?></th><td class="flc-scene-tex" data-field="<?php echo esc_attr($tk); ?>">
+							<span class="tex-prev"><?php echo $tu ? '<img src="' . esc_url($tu) . '" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:6px;vertical-align:middle">' : '<span class="description">predefinita</span>'; ?></span>
+							<input type="hidden" name="<?php echo $n($tk); ?>" value="<?php echo (int) $s[$tk]; ?>">
+							<button type="button" class="button tex-pick">Scegli immagine…</button> <button type="button" class="button-link tex-reset"<?php echo $tu ? '' : ' hidden'; ?>>Usa la predefinita</button>
+							<p class="description"><?php echo esc_html($tl[1]); ?></p></td></tr>
+						<?php endforeach; ?>
+					</table>
+				</div>
+				<div class="flc-card">
 					<h2><span class="dashicons dashicons-shield-alt"></span> Immagine scaricabile e watermark</h2>
 					<p class="intro">Il cliente può scaricare un'immagine della sua lampada da condividere: esce piccola e con il tuo logo ripetuto sopra. Sulla pagina il progetto resta pulito. Tu da amministratore scarichi sempre senza watermark.</p>
 					<table class="form-table" role="presentation">
@@ -1309,6 +1333,23 @@ function flc_settings_page() {
 				frame.open();
 			});
 		}
+		// texture dell'ambientazione 3D (legno del tavolino, muro)
+		document.querySelectorAll('.flc-scene-tex').forEach((td) => {
+			const inp = td.querySelector('input[type=hidden]'), prev = td.querySelector('.tex-prev'), reset = td.querySelector('.tex-reset');
+			reset.addEventListener('click', () => { inp.value = 0; prev.innerHTML = '<span class="description">predefinita</span>'; reset.hidden = true; inp.dispatchEvent(new Event('change', { bubbles: true })); });
+			td.querySelector('.tex-pick').addEventListener('click', () => {
+				if (!window.wp || !wp.media) { alert('Libreria media non disponibile.'); return; }
+				const frame = wp.media({ title: td.closest('tr').querySelector('th').textContent, library: { type: 'image' }, multiple: false, button: { text: 'Usa questa immagine' } });
+				frame.on('select', () => {
+					const x = frame.state().get('selection').first().toJSON();
+					inp.value = x.id; reset.hidden = false;
+					prev.innerHTML = '<img alt="" style="width:80px;height:80px;object-fit:cover;border-radius:6px;vertical-align:middle">';
+					prev.querySelector('img').src = (x.sizes && x.sizes.thumbnail && x.sizes.thumbnail.url) || x.url;
+					inp.dispatchEvent(new Event('change', { bubbles: true }));
+				});
+				frame.open();
+			});
+		});
 		// immagini della guida: una per riga dalla Libreria media
 		const gHost = $id('flcGuideImgs'), gVal = $id('flcGuideImgsVal');
 		if (gHost) {

@@ -118,6 +118,14 @@ rifiutata anche dal server. Gli interruttori che esistono anche in altre schede 
 allineati. Per aggiungere una funzione: una riga in `flc_features()` (`includes/settings.php`, chiave `feat_*`,
 accesa di default) e `feature('feat_*')` dove serve in `assets/js/app.js`.
 
+**Ambientazione 3D** (Impostazioni → Anteprima e watermark → Anteprima 3D: ambientazione): nella vista 3D la lampada
+è appoggiata su un tavolino da muro (piano in legno, gambe sottili), con il cavo che esce dal centro del retro, passa
+sul piano, scende dietro e arriva all'alimentatore 12 V inserito nella presa italiana sul muro, in basso a destra. Il muro
+(con la presa) si dissolve quando la vista gira di lato o da dietro. Con 💡 Accesa una luce calda illumina muro e piano.
+Tutto generato dal codice (nessun modello da scaricare). Impostazioni: accesa all'apertura sì/no, pulsante
+"🏠 Ambientazione" per il cliente sì/no, texture del legno e del muro dalla Libreria media (vuote = legno generato e
+muro chiaro in tinta unita).
+
 **Curve lisce in 3D e nei file**: ogni curva viene divisa in base alla sua lunghezza (anteprima 3D un tratto ogni
 1,2 mm, STL/3MF ogni 0,4 mm) invece che in un numero fisso di tratti: il bordo del disco e della fascia sono tondi
 come in 2D, le curve piccole (lettere, contorni) restano leggere. Zip di stampa praticamente della stessa dimensione.

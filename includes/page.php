@@ -48,6 +48,13 @@ function flc_frontend_config() {
 		'cookieUrl'  => esc_url_raw($s['cookie_url'] ?: $s['privacy_url']),
 		'copyrightName' => $s['copyright_name'],
 		'stageBg'   => $s['stage_bg'],
+		// anteprima 3D: ambientazione (Impostazioni → Anteprima e watermark)
+		'scene'     => array(
+			'on'     => !empty($s['scene_on']),
+			'toggle' => !empty($s['scene_toggle']),
+			'wood'   => $s['scene_wood'] ? (wp_get_attachment_image_url($s['scene_wood'], 'large') ?: '') : '',
+			'wall'   => $s['scene_wall'] ? (wp_get_attachment_image_url($s['scene_wall'], 'large') ?: '') : '',
+		),
 		'lamp'      => function_exists('flc_parts_for_frontend') ? flc_parts_for_frontend() : null,
 		'watermark' => array(
 			'screen'   => (bool) $s['wm_onscreen'],
