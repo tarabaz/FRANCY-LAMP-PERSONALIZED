@@ -223,6 +223,11 @@ anche l'immagine in evidenza: "Rimuovi elaborazione" toglie solo i file di stamp
 **✏️ Apri nel configuratore** (Disegni pronti, colonna "Pronto da stampare" e riquadro nella modifica): apre in una
 nuova scheda il configuratore con quel disegno già in elaborazione (dal suo progetto se c'è, anche se è in bozza);
 "Progetto" accanto continua a scaricare il file `.francy`. Indirizzo: pagina del configuratore con `?flc_tpl=ID`.
+**Progetti dei clienti con il .francy**: alla convalida il configuratore invia anche il progetto completo
+(`progetto.francy`, salvato nella cartella protetta del progetto). In Progetti, colonna File e riquadro laterale:
+**✏️ Apri nel configuratore** (nuova scheda, riapre il disco del cliente com'era: immagine, ridisegno IA, colori,
+pennellate, scritte… da lì anche 📌 Crea template) e il download del `.francy`. Indirizzo: `?flc_prj=ID`. I progetti
+inviati prima di questa versione non hanno il .francy.
 
 **Importa in blocco** (Disegni pronti → "Importa in blocco (immagini o ZIP)", oppure menu → Importa disegni): si
 trascinano più immagini (PNG/JPG/WEBP) e/o file ZIP; il nome del file diventa il nome del disegno (`_` e `-` diventano

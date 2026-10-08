@@ -2123,6 +2123,8 @@ $('#submitForm').addEventListener('submit', async (e) => {
     fd.append('package', pkg.zip, 'progetto.zip');
     fd.append('preview', pkg.previewOff, 'anteprima.png');
     fd.append('preview_lit', pkg.previewLit, 'anteprima-accesa.png');
+    // il progetto completo (.francy): l'admin lo riapre nel configuratore per eventuali modifiche
+    try { fd.append('project', await projectBlob(), 'progetto.francy'); } catch (e) { console.warn('progetto non allegato', e); }
     fd.append('meta', JSON.stringify(pkg.summary));
     fd.append('website', f.website.value); // campo esca anti-spam: deve restare vuoto
     const r = await fetch(CFG.submitUrl, { method: 'POST', credentials: 'same-origin', headers: CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}, body: fd });
@@ -2324,6 +2326,18 @@ if (CFG.isAdmin && CFG.openTemplate) {
     try { const u = new URL(location.href); u.searchParams.delete('flc_tpl'); history.replaceState(null, '', u); } catch (e) { /* facoltativo */ }
     await selectTemplate(CFG.openTemplate);
     if (state.template) await enterFullDisc();
+  })();
+}
+// ✏️ Apri nel configuratore (da Progetti in admin): il progetto inviato dal cliente, com'era
+if (CFG.isAdmin && CFG.openProject && CFG.openProject.url) {
+  (async () => {
+    try { const u = new URL(location.href); u.searchParams.delete('flc_prj'); history.replaceState(null, '', u); } catch (e) { /* facoltativo */ }
+    setStatus('Apro il progetto del cliente…');
+    try {
+      const r = await fetch(CFG.openProject.url, { credentials: 'same-origin' });
+      if (!r.ok) throw new Error('errore ' + r.status);
+      await openProject(new File([await r.blob()], (CFG.openProject.code || 'progetto') + '.francy'));
+    } catch (e) { console.error(e); setStatus('Non riesco ad aprire il progetto del cliente: ' + e.message); }
   })();
 }
 state.examples = CFG.examples || null;

@@ -78,7 +78,18 @@ const FLC_FILES = array(
 	'zip'         => array('progetto.zip', 'application/zip', 'attachment'),
 	'preview'     => array('anteprima.png', 'image/png', 'inline'),
 	'preview_lit' => array('anteprima-accesa.png', 'image/png', 'inline'),
+	'francy'      => array('progetto.francy', 'application/octet-stream', 'attachment'), // progetto del cliente da riaprire
 );
+
+// progetto .francy del cliente presente?
+function flc_design_has_francy($post_id) {
+	$dir = flc_design_dir($post_id);
+	return $dir && is_file($dir . '/progetto.francy');
+}
+// apre il configuratore con il progetto del cliente (solo admin)
+function flc_design_open_url($post_id) {
+	return add_query_arg('flc_prj', (int) $post_id, function_exists('flc_page_url') ? flc_page_url() : home_url('/'));
+}
 
 function flc_file_url($post_id, $which) {
 	return wp_nonce_url(admin_url('admin-post.php?action=flc_file&id=' . (int) $post_id . '&f=' . $which), 'flc_file_' . (int) $post_id);
@@ -97,7 +108,7 @@ add_action('admin_post_flc_file', function () {
 	list($file, $type, $disp) = FLC_FILES[$f];
 	$path = $dir . '/' . $file;
 	$code = get_post_meta($id, '_flc_code', true) ?: 'progetto-' . $id;
-	$name = $f === 'zip' ? sanitize_file_name($code . '.zip') : sanitize_file_name($code . '-' . $file);
+	$name = $f === 'zip' ? sanitize_file_name($code . '.zip') : ($f === 'francy' ? sanitize_file_name($code . '.francy') : sanitize_file_name($code . '-' . $file));
 	nocache_headers();
 	header('Content-Type: ' . $type);
 	header('Content-Length: ' . filesize($path));
@@ -191,6 +202,14 @@ function flc_rest_convalida(WP_REST_Request $req) {
 		return new WP_Error('flc_upload', 'File del progetto non validi.', array('status' => 400));
 	}
 
+	// progetto .francy (facoltativo): JSON compresso gzip o JSON semplice
+	$prj = $files['project'] ?? null;
+	$has_prj = $prj && empty($prj['error']) && !empty($prj['tmp_name']) && is_uploaded_file($prj['tmp_name']) && $prj['size'] <= 60 * MB_IN_BYTES;
+	if ($has_prj) {
+		$head    = file_get_contents($prj['tmp_name'], false, null, 0, 2);
+		$has_prj = $head === "\x1f\x8b" || ($head !== '' && $head[0] === '{');
+	}
+
 	set_transient($key, $used + 1, DAY_IN_SECONDS);
 
 	// salvataggio
@@ -203,6 +222,9 @@ function flc_rest_convalida(WP_REST_Request $req) {
 		if (!move_uploaded_file($files[$field]['tmp_name'], $dir . '/' . $name)) {
 			return new WP_Error('flc_fs', 'Impossibile salvare i file sul server.', array('status' => 500));
 		}
+	}
+	if ($has_prj) {
+		@move_uploaded_file($prj['tmp_name'], $dir . '/progetto.francy');
 	}
 	flc_resolve_zip_tokens($dir . '/progetto.zip', $fil_map);
 
@@ -341,6 +363,10 @@ add_action('manage_flc_design_posts_custom_column', function ($col, $post_id) {
 		case 'flc_files':
 			$size = (int) get_post_meta($post_id, '_flc_zip_size', true);
 			echo '<a class="button button-small" href="' . esc_url(flc_file_url($post_id, 'zip')) . '">Scarica zip</a>';
+			if (flc_design_has_francy($post_id)) {
+				echo ' <a class="button button-small" href="' . esc_url(flc_design_open_url($post_id)) . '" target="_blank" title="Riapre il progetto del cliente nel configuratore">✏️ Apri</a>'
+					. ' <a href="' . esc_url(flc_file_url($post_id, 'francy')) . '" title="Scarica il progetto .francy">.francy</a>';
+			}
 			if ($size) {
 				echo '<br><span class="description">' . esc_html(size_format($size, 1)) . '</span>';
 			}
@@ -449,6 +475,10 @@ function flc_stato_box($post) {
 		</select></p>
 	<p><a class="button button-primary" style="width:100%;text-align:center" href="<?php echo esc_url(flc_file_url($post->ID, 'zip')); ?>">Scarica zip completo</a>
 		<?php if ($size) : ?><br><span class="description"><?php echo esc_html(size_format($size, 1)); ?> – anteprime, originale, ridisegno IA, SVG/EPS, STL, lista filamenti</span><?php endif; ?></p>
+	<?php if (flc_design_has_francy($post->ID)) : ?>
+		<p><a class="button" style="width:100%;text-align:center" href="<?php echo esc_url(flc_design_open_url($post->ID)); ?>" target="_blank">✏️ Apri nel configuratore</a><br>
+			<span class="description">Riapre il progetto del cliente com'era (immagine, colori, scritte…) per modificarlo; da lì puoi anche crearne un template. <a href="<?php echo esc_url(flc_file_url($post->ID, 'francy')); ?>">Scarica il .francy</a></span></p>
+	<?php endif; ?>
 	<p class="description">Premi "Aggiorna" per salvare lo stato.</p>
 	<?php
 }
@@ -532,7 +562,11 @@ function flc_resolve_3mf_tokens($bin, $map) {
 	if (!is_string($bin) || strpos($bin, "PK\x03\x04") !== 0) {
 		return null; // non è uno zip
 	}
-	$tmp = wp_tempnam('flc3mf');
+	// wp_tempnam sta in wp-admin/includes/file.php, che nelle richieste REST (convalida) non è caricato
+	if (!function_exists('wp_tempnam') && defined('ABSPATH') && is_file(ABSPATH . 'wp-admin/includes/file.php')) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+	$tmp = function_exists('wp_tempnam') ? wp_tempnam('flc3mf') : tempnam(sys_get_temp_dir(), 'flc3mf');
 	file_put_contents($tmp, $bin);
 	$zip = new ZipArchive();
 	if ($zip->open($tmp) !== true) {
@@ -562,3 +596,12 @@ function flc_resolve_3mf_tokens($bin, $map) {
 	return $out;
 }
 
+
+// Configuratore aperto da "✏️ Apri nel configuratore" su un progetto del cliente (?flc_prj=ID): indirizzo del suo .francy
+function flc_design_open_for_admin() {
+	$id = absint($_GET['flc_prj'] ?? 0);
+	if (!$id || !current_user_can('manage_options') || get_post_type($id) !== 'flc_design' || !flc_design_has_francy($id)) {
+		return null;
+	}
+	return array('id' => $id, 'code' => get_post_meta($id, '_flc_code', true) ?: ('progetto-' . $id), 'url' => flc_file_url($id, 'francy'));
+}
