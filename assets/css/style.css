@@ -285,6 +285,11 @@ html.flc-page .flc { height: 100%; }
   .flc .top { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
   .flc .brand .brand-sub { display: none; }
   .flc a.back-site { padding: 5px 10px; font-size: 13px; }
+  /* barra in alto su telefono: va a capo invece di allargare la pagina; i ? della barra stanno nella guida */
+  .flc .top-right { flex-wrap: wrap; gap: 6px; width: 100%; justify-content: flex-start; }
+  .flc .top-right > button.help-q, .flc .proj-btns > button.help-q { display: none; }
+  .flc .help-btn { padding: 5px 11px; font-size: 13px; }
+  .flc .lit-toggle button { padding: 5px 10px; font-size: 13px; }
 }
 
 /* Footer */
@@ -441,7 +446,6 @@ html.flc-page .flc { height: 100%; }
 .flc .help-btn { border: 0; border-radius: 999px; padding: 7px 14px; background: var(--ink); color: var(--panel); font-weight: 700; font-size: 14px; cursor: pointer; }
 .flc .help-btn.pulse { animation: flcPulse 1.6s ease-in-out 3; }
 @keyframes flcPulse { 50% { box-shadow: 0 0 0 6px rgba(240,180,0,.45); } }
-.flc .help-dialog { width: min(760px, 100%); }
 .flc .help-body { font-size: 14px; line-height: 1.5; }
 .flc .help-body h3 { font-size: 15px; margin: 18px 0 6px; }
 .flc .help-body ol, .flc .help-body ul { padding-left: 20px; margin: 0; }
@@ -460,3 +464,42 @@ html.flc-page .flc { height: 100%; }
 .flc .dev-note[hidden] { display: none; }
 .flc .dev-note-ok { flex: none; font-weight: 700; white-space: nowrap; }
 .flc .img-tip { margin: 6px 0 10px; }
+
+/* Guida stile wiki: al posto dell'anteprima (su telefono a tutto schermo) */
+.flc .help-btn.on { background: var(--accent); color: var(--accent-ink); }
+.flc .help-pop .help-more { display: block; margin-top: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.flc .wiki { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; background: var(--panel); color: var(--ink); }
+.flc .wiki[hidden] { display: none; }
+.flc .wiki-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.flc .wiki-head h2 { margin: 0; font-size: 17px; white-space: nowrap; }
+.flc .wiki-head input { flex: 1; min-width: 0; padding: 9px 14px; border: 1.5px solid var(--line); border-radius: 999px; font: inherit; font-size: 14px; background: var(--bg); color: var(--ink); }
+.flc .wiki-head input:focus { outline: none; border-color: var(--ink); }
+.flc .wiki-close { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--ink); color: var(--panel); font-size: 20px; font-weight: 700; cursor: pointer; line-height: 1; }
+.flc .wiki-close:hover { transform: scale(1.06); }
+.flc .wiki-main { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 0; }
+.flc .wiki-nav { overflow-y: auto; padding: 10px 8px; border-right: 1px solid var(--line); background: var(--bg); }
+.flc .wiki-nav button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); cursor: pointer; }
+.flc .wiki-nav button:hover { background: var(--panel); }
+.flc .wiki-nav button.active { background: var(--ink); color: var(--panel); font-weight: 700; }
+.flc .wiki-nav button[hidden] { display: none; }
+.flc .wiki-body { overflow-y: auto; padding: 4px 28px 40px; font-size: 14.5px; line-height: 1.6; scroll-behavior: smooth; }
+.flc .wiki-sec { max-width: 760px; padding-top: 14px; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.flc .wiki-sec[hidden] { display: none; }
+.flc .wiki-sec:last-child { border-bottom: 0; }
+.flc .wiki-sec h3 { font-size: 20px; margin: 6px 0 10px; }
+.flc .wiki-sec h4 { font-size: 15px; margin: 16px 0 4px; }
+.flc .wiki-sec p { margin: 4px 0 8px; }
+.flc .wiki-sec ul, .flc .wiki-sec ol { padding-left: 22px; margin: 4px 0 8px; }
+.flc .wiki-sec li { margin-bottom: 4px; }
+.flc .wiki-sec a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 2px; }
+.flc .wiki-none { padding: 20px 0; }
+@media (max-width: 900px) {
+  .flc .wiki { position: fixed; z-index: 70; }
+  .flc .wiki-head { padding: 10px 12px; flex-wrap: wrap; }
+  .flc .wiki-head h2 { flex: 1; font-size: 16px; }
+  .flc .wiki-head input { order: 3; flex-basis: 100%; }
+  .flc .wiki-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .flc .wiki-nav { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .flc .wiki-nav button { flex: none; width: auto; white-space: nowrap; border: 1.5px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; background: var(--panel); }
+  .flc .wiki-body { padding: 0 16px 40px; }
+}

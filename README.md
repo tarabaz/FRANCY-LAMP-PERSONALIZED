@@ -84,10 +84,14 @@ lampada, accesa/spenta. Con un disegno pronto salva il disegno e la cornice. Ria
 computer) il configuratore riparte da dove si era rimasti, senza passare dal server. 💾 compare quando c'è qualcosa
 da salvare; si spegne in Impostazioni → Funzioni → Salva / apri progetto.
 
-**Guida** (si spegne in Funzioni → Guida e punti interrogativi): pulsante **❓ Guida** in alto che apre una finestra
-con i 5 passi, i colori del disco, l'anteprima e il salvataggio (alla prima visita il pulsante pulsa per farsi notare).
-Accanto ai comandi meno ovvi c'è un piccolo **?**: toccandolo esce un popup con la spiegazione (non attiva
-l'interruttore o il pulsante su cui si trova). I testi sono nell'elenco `HELP` in fondo a `assets/js/app.js`.
+**Guida** (si spegne in Funzioni → Guida e punti interrogativi): il pulsante **❓ Guida** in alto apre una guida
+completa in stile wiki **al posto dell'anteprima** (indice delle sezioni a sinistra, testo a destra, ricerca, grande
+✕ per chiudere, anche Esc; il pulsante diventa "✕ Chiudi guida"). Su telefono è una pagina a tutto schermo con
+l'indice a scorrimento orizzontale; chiudendola si torna esattamente dove si era. Spiega ogni passo e ogni opzione;
+le parti di funzioni spente o non presenti sul sito (template, grafiche, sopra la fascia, colori lampada) non compaiono,
+la sezione amministratore la vede solo l'admin. Il testo è in `assets/js/guide.js`. Accanto ai comandi meno ovvi c'è
+un piccolo **?** con un popup (titolo, spiegazione e "Approfondisci nella guida →" che apre la sezione giusta); i
+popup sono nell'elenco `HELP` in fondo a `assets/js/app.js`. Alla prima visita il pulsante Guida pulsa.
 Nel passo 1 un consiglio spiega che il risultato migliore arriva da un disegno a colori pieni con contorni neri (anche
 fatto con un'IA esterna: si carica e si va dritti ai colori, senza consumare ridisegni); per le foto c'è il passo 2.
 
@@ -206,7 +210,7 @@ spazi, modificabile prima di importare). Pubblica subito o bozza; se esiste già
 o ne sostituisce l'immagine. Lo ZIP si apre nel browser e le immagini arrivano al sito una alla volta, quindi non
 contano i limiti di upload dell'hosting.
 
-**Galleria per tanti disegni** (anche centinaia): la finestra "Scegli un disegno pronto" è grande, con la barra fissa
+**Galleria per tanti disegni** (anche centinaia): la finestra "Scegli un template pronto" è grande, con la barra fissa
 in alto e la griglia che scorre sotto. Si può **cercare per nome** (senza accenti, più parole = tutte devono esserci,
 vale anche il nome della categoria), filtrare per **categoria** (chip con il numero di disegni) e regolare la
 **grandezza delle anteprime** con lo slider 🔎 (ricordata nel browser). Le immagini si caricano solo quando entrano
