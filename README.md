@@ -156,6 +156,12 @@ Cancellando definitivamente un progetto si cancellano anche i suoi file.
 **Disegni pronti:** in **Francy Lamp Factory → Disegni pronti** aggiungi un disegno con nome e "Immagine del disco
 (PNG)": PNG quadrato del disco frontale completo, cornice compresa, sfondo trasparente fuori dal disco
 (consigliato 1200×1200 px o più). Pubblicato = visibile ai clienti, bozza = nascosto, "Ordine" = posizione.
+**Importa in blocco** (Disegni pronti → "Importa in blocco (immagini o ZIP)", oppure menu → Importa disegni): si
+trascinano più immagini (PNG/JPG/WEBP) e/o file ZIP; il nome del file diventa il nome del disegno (`_` e `-` diventano
+spazi, modificabile prima di importare). Pubblica subito o bozza; se esiste già un disegno con lo stesso nome lo salta
+o ne sostituisce l'immagine. Lo ZIP si apre nel browser e le immagini arrivano al sito una alla volta, quindi non
+contano i limiti di upload dell'hosting.
+
 Nel configuratore compare "Scegli un disegno pronto" (si spegne da Impostazioni → Disegni pronti): il cliente
 vede il disegno applicato al disco in 2D/3D, spento e acceso, tutto il resto si blocca. Può convalidarlo:
 in tabella risulta "Disegno pronto: nome" e lo zip contiene anteprime, PNG del disegno e riepilogo.
