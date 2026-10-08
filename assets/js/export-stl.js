@@ -6,9 +6,22 @@ import { SVGLoader } from '../vendor/three/addons/SVGLoader.js';
 // Centro del disco nel file: così tutte le coordinate sono positive (disco da 0 a 200)
 const CENTER = [100, 100];
 
+// Punti di un contorno con le curve divise in base alla lunghezza (segLen mm per tratto): gli archi grandi (bordo del
+// disco, fascia) vengono lisci, le curve piccole (lettere, contorni del disegno) restano leggere.
+function curvePoints(path, segLen, cap) {
+  const out = [];
+  for (const c of path.curves) {
+    const n = c.isLineCurve ? 1 : Math.max(2, Math.min(cap, Math.ceil(c.getLength() / segLen)));
+    const pts = c.getPoints(n);
+    out.push(...(out.length ? pts.slice(1) : pts));
+  }
+  return out;
+}
+
 // Rifà le forme togliendo i punti doppi consecutivi (es. fine di una linea = inizio di un arco):
 // il triangolatore ci inciampa e crea triangoli che riempiono i buchi.
-export function cleanShapes(shapes, divisions = 16) {
+// segLen: lunghezza massima di un tratto di curva in mm (anteprima 3D più grossa, file di stampa più fine).
+export function cleanShapes(shapes, segLen = 0.4, cap = 720) {
   const clean = (pts) => {
     const out = [];
     for (const p of pts) {
@@ -20,7 +33,7 @@ export function cleanShapes(shapes, divisions = 16) {
   };
   const res = [];
   for (const sh of shapes) {
-    const { shape, holes } = sh.extractPoints(divisions);
+    const shape = curvePoints(sh, segLen, cap), holes = sh.holes.map((h) => curvePoints(h, segLen, cap));
     const outer = clean(shape);
     if (outer.length < 3) continue;
     const ns = new THREE.Shape(outer);

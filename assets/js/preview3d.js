@@ -162,7 +162,7 @@ export class Preview3D {
       if (!p.d) continue;
       const data = loader.parse(`<svg xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="${p.d}"/></svg>`);
       const shapes = [];
-      for (const path of data.paths) shapes.push(...cleanShapes(SVGLoader.createShapes(path), 6));
+      for (const path of data.paths) shapes.push(...cleanShapes(SVGLoader.createShapes(path), 1.2, 360));
       if (!shapes.length) continue;
       const geo = new THREE.ExtrudeGeometry(shapes, { depth: p.depth, bevelEnabled: false });
       const mat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.55, side: THREE.DoubleSide });
@@ -190,7 +190,7 @@ export class Preview3D {
     this.colorMats = [];
     const data = new SVGLoader().parse(`<svg xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="${outlineD}"/></svg>`);
     const shapes = [];
-    for (const path of data.paths) shapes.push(...cleanShapes(SVGLoader.createShapes(path), 24));
+    for (const path of data.paths) shapes.push(...cleanShapes(SVGLoader.createShapes(path), 1.2, 360));
     const depth = 1;
     const geo = new THREE.ExtrudeGeometry(shapes, { depth, bevelEnabled: false });
     const tex = new THREE.TextureLoader().load(url, () => this.setLit(this.lit), undefined, (e) => console.error('Texture del disegno non caricata', e));

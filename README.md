@@ -118,6 +118,10 @@ rifiutata anche dal server. Gli interruttori che esistono anche in altre schede 
 allineati. Per aggiungere una funzione: una riga in `flc_features()` (`includes/settings.php`, chiave `feat_*`,
 accesa di default) e `feature('feat_*')` dove serve in `assets/js/app.js`.
 
+**Curve lisce in 3D e nei file**: ogni curva viene divisa in base alla sua lunghezza (anteprima 3D un tratto ogni
+1,2 mm, STL/3MF ogni 0,4 mm) invece che in un numero fisso di tratti: il bordo del disco e della fascia sono tondi
+come in 2D, le curve piccole (lettere, contorni) restano leggere. Zip di stampa praticamente della stessa dimensione.
+
 **Zoom dell'anteprima 2D**: rotellina del mouse (ingrandisce nel punto sotto il puntatore), pizzico a due dita su
 telefono/tablet, pulsanti − + ⤢ nell'angolo (fino a 2000%, ⤢ = tutto il disco). Da ingranditi si trascina per
 spostarsi (il trascinamento non colora e non seleziona). Maniglie delle grafiche e tratteggio delle zone restano della
