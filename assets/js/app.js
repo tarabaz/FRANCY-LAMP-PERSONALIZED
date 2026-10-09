@@ -498,6 +498,7 @@ document.querySelectorAll('.lit-toggle button').forEach((b) => b.addEventListene
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('active', x === b));
   state.view = b.dataset.view;
+  root.classList.toggle('view-3d', state.view === '3d'); // in 3D la scena occupa tutta l'area grigia
   $('#view2d').hidden = state.view !== '2d';
   $('#view3d').hidden = state.view !== '3d';
   if (state.view === '3d') {

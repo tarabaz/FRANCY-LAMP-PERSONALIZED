@@ -567,3 +567,16 @@ html.flc-page .flc { height: 100%; }
 .flc #view3d { position: relative; }
 .flc .scene-btn { position: absolute; left: 12px; bottom: 12px; z-index: 3; border: 0; border-radius: 999px; padding: 7px 13px; background: rgba(255,255,255,.88); color: #1d1b19; font-weight: 700; font-size: 13px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
 .flc .scene-btn.on { background: var(--accent); color: var(--accent-ink); }
+
+/* Anteprima 3D a tutta area: la scena copre la fascia grigia da bordo a bordo, selettore e stato galleggiano sopra */
+.flc.view-3d .stage { padding: 0; }
+.flc.view-3d #view3d { position: absolute; inset: 0; z-index: 0; }
+.flc.view-3d #view3d canvas { border-radius: 0; }
+.flc.view-3d .stage > .tabs { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); margin: 0; z-index: 3; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+.flc.view-3d .status { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 3; padding: 4px 12px; border-radius: 999px; background: rgba(20,20,24,.55); color: #f1f1f1; white-space: nowrap; }
+.flc.view-3d .status:empty { display: none; }
+.flc.view-3d .stage > .tabs button { white-space: nowrap; }
+@media (max-width: 980px) {
+  .flc.view-3d .stage > .tabs { top: 8px; }
+  .flc.view-3d .status { bottom: auto; top: 54px; font-size: 11px; } /* sotto il selettore: in basso c'è il pulsante Ambientazione */
+}
