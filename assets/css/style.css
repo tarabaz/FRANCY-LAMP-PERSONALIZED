@@ -319,6 +319,8 @@ html.flc-page .flc { height: 100%; }
 .flc .swatch-btn:disabled { opacity: 1; cursor: not-allowed; }
 /* watermark sopra l'anteprima a schermo: non blocca i clic (zoom/rotazione del 3D restano attivi) */
 .flc .stage { position: relative; }
+/* selettore 2D/3D al centro verticale della fascia grigia: sotto lo stesso spazio che c'è sopra */
+.flc .stage > .tabs { flex: none; margin-bottom: 14px; }
 .flc .wm-overlay { position: absolute; inset: 0; pointer-events: none; background-repeat: repeat; z-index: 2; }
 
 /* ---------- Passi del pannello sinistro (fisarmonica) ---------- */
@@ -436,6 +438,7 @@ html.flc-page .flc { height: 100%; }
 @media (max-width: 980px) {
   .flc .stage { position: sticky; top: 0; z-index: 4; min-height: 0; height: 46vh; height: 46svh; padding: 8px; }
   .flc .stage .tabs button { padding: 4px 12px; font-size: 13px; }
+  .flc .stage > .tabs { margin-bottom: 8px; }
   .flc .stepper { top: 46svh; }
   .flc .step { scroll-margin-top: calc(46svh + 50px); }
   .flc #paletteSlot #paletteSection { border-top: 0; padding-top: 4px; }
