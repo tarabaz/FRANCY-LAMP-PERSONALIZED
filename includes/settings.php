@@ -395,6 +395,8 @@ function flc_settings() {
 add_action('admin_enqueue_scripts', function () {
 	if (($_GET['page'] ?? '') === 'francy-lamp' && function_exists('wp_enqueue_media')) {
 		wp_enqueue_media();
+		// QR dei codici d'accesso (Impostazioni → Accessi)
+		wp_enqueue_script('flc-qrcode', FLC_URL . 'assets/vendor/qrcode.js', array(), FLC_VERSION, true);
 	}
 });
 
@@ -567,7 +569,8 @@ function flc_settings_page() {
 	// sezioni: icona, nome, cosa contiene (in breve)
 	$tabs   = array(
 		'panoramica'    => array('dashicons-dashboard', 'Panoramica', 'Stato e cose da sistemare'),
-		'funzioni'      => array('dashicons-yes', 'Funzioni', 'Cosa può fare il cliente'),
+		'funzioni'      => array('dashicons-yes', 'Funzioni', 'Cosa può fare chi entra'),
+		'accessi'       => array('dashicons-tickets-alt', 'Accessi', 'Codici, QR e profili'),
 		'configuratore' => array('dashicons-welcome-view-site', 'Pagina', 'Indirizzo, aspetto, footer'),
 		'disco'         => array('dashicons-marker', 'Disco', 'Come parte il disco'),
 		'stili'         => array('dashicons-art', 'Stili IA', 'Fedele, Ritratto, Tombino…'),
@@ -600,14 +603,15 @@ function flc_settings_page() {
 	$vis     = array_filter(array_keys($style_defs), function ($k) use ($s, $style_defs) { return !$style_defs[$k]['toggle'] || !empty($s[$style_defs[$k]['toggle']]); });
 	$no_ex   = array_filter($vis, function ($k) use ($ex_all) { return empty($ex_all[$k]['url']); });
 	$fil_url = admin_url('edit.php?post_type=flc_design&page=flc-filamenti');
-	$ai_ok   = !empty($s['enabled']) && ($s['primary'] === 'fal' ? $s['fal_key'] : $s['gemini_key']);
+	$ai_any  = flc_access_feature_any('enabled', $s); // acceso per gli ospiti o per almeno un profilo dei codici
+	$ai_ok   = $ai_any && ($s['primary'] === 'fal' ? $s['fal_key'] : $s['gemini_key']);
 	$checks  = array(
 		!empty($s['page_enabled'])
 			? array('ok', 'Configuratore online su <a href="' . esc_url(flc_page_url()) . '" target="_blank" rel="noopener">' . esc_html(flc_page_url()) . '</a>', '#configuratore', 'Pagina')
 			: array('warn', 'La pagina dedicata è spenta: il configuratore funziona solo con lo shortcode <code>[francy_lamp]</code>.', '#configuratore', 'Accendila'),
 		$ai_ok
-			? array('ok', 'Ridisegno con IA attivo (' . esc_html($s['primary'] === 'fal' ? $s['fal_model'] : $s['gemini_model']) . ').', '#ia', 'Motore IA')
-			: array('warn', empty($s['enabled']) ? 'Il ridisegno con IA è spento.' : 'Manca la chiave API: il ridisegno con IA non funziona.', '#ia', 'Sistema'),
+			? array('ok', 'Ridisegno con IA attivo (' . esc_html($s['primary'] === 'fal' ? $s['fal_model'] : $s['gemini_model']) . ')' . (empty($s['enabled']) ? ': solo con un codice d\'accesso.' : '.'), '#ia', 'Motore IA')
+			: array('warn', !$ai_any ? 'Il ridisegno con IA è spento.' : 'Manca la chiave API: il ridisegno con IA non funziona.', '#ia', 'Sistema'),
 		$fil_on >= 3
 			? array('ok', $fil_on . ' bobine disponibili per il disco' . ($fixed['white'] && $fixed['black'] ? ', bianco e nero scelti a mano.' : ' (bianco e nero automatici).'), $fil_url, 'Filamenti')
 			: array('warn', 'Il catalogo filamenti ha solo ' . $fil_on . ' bobine: i colori del disco saranno poco precisi.', $fil_url, 'Aggiungi bobine'),
@@ -690,6 +694,37 @@ function flc_settings_page() {
 		.flc-feat:hover { background: #f6f7f7; }
 		.flc-feat input { margin-top: 2px; }
 		.flc-feat small { display: block; color: #646970; font-weight: 400; }
+		/* funzioni per profilo: una colonna per Ospite e per ogni profilo dei codici d'accesso */
+		.flc-matrix-wrap { overflow-x: auto; margin: 10px 0; }
+		.flc-matrix { border-collapse: collapse; min-width: 560px; }
+		.flc-matrix th, .flc-matrix td { vertical-align: middle; }
+		.flc-matrix td.fn small, .flc-matrix th small { display: block; color: #646970; font-weight: 400; font-size: 12px; }
+		.flc-matrix .pc { text-align: center; width: 110px; border-left: 1px solid #f0f0f1; }
+		.flc-matrix th.pc { font-weight: 600; line-height: 1.3; }
+		.flc-matrix th.pc[data-pid="ospite"], .flc-matrix td.pc[data-pid="ospite"] { background: #f6f7f7; }
+		.flc-matrix .flc-colset { display: block; font-size: 11px; font-weight: 400; margin-top: 3px; }
+		.flc-matrix tr.grp td { background: #f0f0f1; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #50575e; font-weight: 600; }
+		.flc-matrix tbody tr:not(.grp):hover td { background: #f6fbff; }
+		.flc-matrix input[type=checkbox] { margin: 0; }
+		.flc-acc-scroll { overflow-x: auto; }
+		.flc-acc-table { margin: 8px 0; }
+		.flc-acc-table th small { display: block; font-weight: 400; color: #646970; }
+		.flc-acc-table td { vertical-align: middle; }
+		.flc-acc-table input.flc-acc-code { width: 150px; font-family: monospace; text-transform: uppercase; }
+		.flc-acc-table input.flc-acc-name { width: 170px; }
+		.flc-acc-table tr.off td { opacity: .55; }
+		.flc-acc-table tr.off td:first-child { opacity: 1; }
+		.flc-acc-use { font-size: 12px; color: #50575e; min-width: 150px; }
+		.flc-acc-act { white-space: nowrap; }
+		.flc-prof-del, .flc-acc-del { font-size: 16px; text-decoration: none; }
+		.flc-prof-move { background: #fcf3dc; padding: 6px 8px; border-radius: 6px; margin-top: 6px; }
+		.flc-qr-modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 100000; display: flex; align-items: center; justify-content: center; }
+		.flc-qr-modal[hidden] { display: none; }
+		.flc-qr-box { background: #fff; border-radius: 10px; padding: 18px 22px; max-width: 92vw; max-height: 92vh; overflow: auto; text-align: center; position: relative; }
+		.flc-qr-box canvas { width: 300px; height: 350px; border: 1px solid #dcdcde; border-radius: 6px; }
+		.flc-qr-x { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 20px; cursor: pointer; }
+		.flc-qr-url code { word-break: break-all; }
+		.flc-qr-box [hidden] { display: none !important; }
 		.flc-dirty { color: #8a5a00; background: #fcf3dc; border-radius: 10px; padding: 2px 10px; margin-left: 10px; vertical-align: middle; }
 		.flc-set .flc-tab { display: none; padding-top: 6px; }
 		.flc-set .flc-tab.on { display: block; }
@@ -792,22 +827,278 @@ function flc_settings_page() {
 
 			<!-- ===================== FUNZIONI DEL CONFIGURATORE ===================== -->
 			<section class="flc-tab" data-tab="funzioni">
-				<div class="flc-head"><h2>Funzioni</h2><p>Cosa può fare il cliente nel configuratore: spegni quello che non vuoi offrire. Alcune funzioni hanno l'interruttore anche nella loro scheda: è lo stesso.</p></div>
+				<div class="flc-head"><h2>Funzioni</h2><p>Cosa può fare chi usa il configuratore, per ogni tipo di accesso: spegni quello che non vuoi offrire. Alcune funzioni hanno l'interruttore anche nella loro scheda: è lo stesso della colonna Ospite.</p></div>
 				<div class="flc-card">
-					<p style="margin:12px 0 4px"><button type="button" class="button" id="flcFeatAll">Accendi tutte</button> <button type="button" class="button" id="flcFeatNone">Spegni tutte</button>
-						<span class="description">Le funzioni spente spariscono dalla pagina del configuratore (anche per te da amministratore). Ricordati di salvare.</span></p>
-					<?php $fgroups = array(); foreach (flc_features() as $fk => $f) { $fgroups[$f[0]][$fk] = $f; } ?>
-					<div class="flc-feats">
-					<?php foreach ($fgroups as $gname => $items) : ?>
-						<div class="flc-feat-group"><h3><?php echo esc_html($gname); ?></h3>
-						<?php foreach ($items as $fk => $f) : ?>
-							<label class="flc-feat"><input type="checkbox" name="<?php echo $n($fk); ?>" value="1" <?php checked(!empty($s[$fk])); ?>>
-								<span><strong><?php echo esc_html($f[1]); ?></strong><?php if ($f[2]) : ?><small><?php echo esc_html($f[2]); ?></small><?php endif; ?></span></label>
+					<?php $acc = flc_access(); $fgroups = array(); foreach (flc_features() as $fk => $f) { $fgroups[$f[0]][$fk] = $f; } ?>
+					<p class="description" style="margin:12px 0 4px"><strong>Ospite</strong> = chi apre il configuratore senza codice. Le altre colonne sono i profili dei
+						<a href="#accessi" class="flc-goto" data-tab="accessi">codici d'accesso</a> (Fiera, VIP…): se ne crei uno nuovo compare qui la sua colonna.
+						Tu da amministratore hai tutto quello che è acceso in almeno una colonna. Ricordati di salvare.</p>
+					<div class="flc-matrix-wrap flc-feats">
+					<table class="widefat flc-matrix" id="flcMatrix">
+						<thead><tr><th class="fn">Funzione</th>
+							<th class="pc" data-pid="ospite">👥 Ospite<small>senza codice</small><span class="flc-colset"><a href="#" data-v="1">tutte</a> · <a href="#" data-v="0">nessuna</a></span></th>
+							<?php foreach ($acc['profiles'] as $pid => $p) : ?>
+								<th class="pc" data-pid="<?php echo esc_attr($pid); ?>">🎟️ <span class="pn"><?php echo esc_html($p['name']); ?></span><small>codice d'accesso</small><span class="flc-colset"><a href="#" data-v="1">tutte</a> · <a href="#" data-v="0">nessuna</a></span></th>
+							<?php endforeach; ?>
+						</tr></thead>
+						<tbody>
+						<?php foreach ($fgroups as $gname => $items) : ?>
+							<tr class="grp"><td colspan="<?php echo 2 + count($acc['profiles']); ?>"><?php echo esc_html($gname); ?></td></tr>
+							<?php foreach ($items as $fk => $f) : ?>
+								<tr data-fk="<?php echo esc_attr($fk); ?>"><td class="fn"><strong><?php echo esc_html($f[1]); ?></strong><?php if ($f[2]) : ?><small><?php echo esc_html($f[2]); ?></small><?php endif; ?></td>
+									<td class="pc" data-pid="ospite"><input type="checkbox" name="<?php echo $n($fk); ?>" value="1" <?php checked(!empty($s[$fk])); ?>></td>
+									<?php foreach ($acc['profiles'] as $pid => $p) : ?>
+										<td class="pc" data-pid="<?php echo esc_attr($pid); ?>"><input type="checkbox" name="flc_access[profiles][<?php echo esc_attr($pid); ?>][feats][<?php echo esc_attr($fk); ?>]" value="1" <?php checked(!empty($p['feats'][$fk])); ?>></td>
+									<?php endforeach; ?>
+								</tr>
+							<?php endforeach; ?>
 						<?php endforeach; ?>
-						</div>
-					<?php endforeach; ?>
+						</tbody>
+					</table>
 					</div>
 				</div>
+			</section>
+
+			<!-- ===================== CODICI D'ACCESSO ===================== -->
+			<?php
+			$usage    = get_option(FLC_ACCESS_USAGE, array());
+			$usage    = is_array($usage) ? $usage : array();
+			$acc_link = !empty($s['page_enabled']) && function_exists('flc_page_url') ? flc_page_url() : home_url('/');
+			?>
+			<section class="flc-tab" data-tab="accessi">
+				<input type="hidden" name="flc_access[present]" value="1">
+				<div class="flc-head"><h2>Accessi</h2><p>Codici che dai tu (biglietti da fiera, clienti fissi…): chi entra con un codice usa le funzioni del suo profilo. Non sono utenti di WordPress: valgono solo per il configuratore.</p></div>
+				<div class="flc-card" id="flcAccProfiles">
+					<h2><span class="dashicons dashicons-groups"></span> Profili</h2>
+					<p class="intro">Le funzioni di ogni profilo si spuntano in <a href="#funzioni" class="flc-goto" data-tab="funzioni">Funzioni</a> (una colonna per profilo). Qui i limiti del ridisegno IA. 0 = senza limite.</p>
+					<table class="widefat flc-acc-table">
+						<thead><tr><th>Nome</th><th>IA al giorno <small>per persona</small></th><th>IA totali <small>per ogni codice</small></th><th>Codici</th><th></th></tr></thead>
+						<tbody id="flcProfRows">
+							<tr class="fixed"><td><strong>👥 Ospite</strong> <span class="description">(senza codice)</span></td><td colspan="2"><span class="description">Limite per IP in <a href="#ia" class="flc-goto" data-tab="ia">Motore IA</a>: <?php echo (int) $s['per_ip_day']; ?> al giorno</span></td><td></td><td></td></tr>
+							<?php foreach ($acc['profiles'] as $pid => $p) : ?>
+								<tr data-pid="<?php echo esc_attr($pid); ?>">
+									<td><input type="text" class="flc-prof-name" name="flc_access[profiles][<?php echo esc_attr($pid); ?>][name]" value="<?php echo esc_attr($p['name']); ?>" maxlength="40"></td>
+									<td><input type="number" min="0" class="small-text flc-prof-day" name="flc_access[profiles][<?php echo esc_attr($pid); ?>][ai_day]" value="<?php echo (int) $p['ai_day']; ?>"></td>
+									<td><input type="number" min="0" class="small-text flc-prof-tot" name="flc_access[profiles][<?php echo esc_attr($pid); ?>][ai_total]" value="<?php echo (int) $p['ai_total']; ?>"></td>
+									<td class="flc-prof-count"></td>
+									<td><button type="button" class="button-link flc-prof-del" title="Elimina il profilo">🗑</button></td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+					<p><button type="button" class="button" id="flcProfAdd">+ Nuovo profilo</button>
+						<label>copiando le spunte da <select id="flcProfFrom"></select></label></p>
+				</div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-tickets-alt"></span> Codici d'accesso</h2>
+					<p class="intro">Il cliente scrive il codice in "🔑 Accedi" (in alto a sinistra nel configuratore) oppure inquadra il QR. I limiti vuoti usano quelli del profilo.
+						Il codice di una fiera finita è meglio <strong>disattivarlo</strong> che eliminarlo: i dischi arrivati da lì restano comunque collegati.</p>
+					<div class="flc-acc-scroll">
+					<table class="widefat flc-acc-table" id="flcAccTable">
+						<thead><tr><th>Attivo</th><th>Codice</th><th>Nome</th><th>Profilo</th><th>Scade il</th><th>IA/giorno</th><th>IA totali</th><th>Uso</th><th></th></tr></thead>
+						<tbody id="flcAccRows">
+						<?php foreach ($acc['accounts'] as $aid => $a) :
+							$u    = (array) ($usage[$aid] ?? array());
+							$prof = $acc['profiles'][$a['profile']] ?? array('ai_day' => 0, 'ai_total' => 0);
+							$exp  = $a['expires'] && $a['expires'] < current_time('Y-m-d');
+							$nm   = 'flc_access[accounts][' . esc_attr($aid) . ']';
+							?>
+							<tr data-aid="<?php echo esc_attr($aid); ?>" data-saved="<?php echo esc_attr($a['code']); ?>"<?php echo empty($a['active']) || $exp ? ' class="off"' : ''; ?>>
+								<td><input type="checkbox" name="<?php echo $nm; ?>[active]" value="1" <?php checked(!empty($a['active'])); ?>></td>
+								<td><input type="text" class="flc-acc-code" name="<?php echo $nm; ?>[code]" value="<?php echo esc_attr($a['code']); ?>" maxlength="32"></td>
+								<td><input type="text" class="flc-acc-name" name="<?php echo $nm; ?>[name]" value="<?php echo esc_attr($a['name']); ?>" maxlength="60"></td>
+								<td><select class="flc-acc-prof" name="<?php echo $nm; ?>[profile]">
+									<?php foreach ($acc['profiles'] as $pid => $p) : ?><option value="<?php echo esc_attr($pid); ?>" <?php selected($a['profile'], $pid); ?>><?php echo esc_html($p['name']); ?></option><?php endforeach; ?>
+								</select></td>
+								<td><input type="date" name="<?php echo $nm; ?>[expires]" value="<?php echo esc_attr($a['expires']); ?>"><?php if ($exp) : ?><br><span class="flc-badge prev">scaduto</span><?php endif; ?></td>
+								<td><input type="number" min="0" class="small-text flc-acc-day" name="<?php echo $nm; ?>[ai_day]" value="<?php echo esc_attr($a['ai_day']); ?>" placeholder="<?php echo (int) $prof['ai_day']; ?>"></td>
+								<td><input type="number" min="0" class="small-text flc-acc-tot" name="<?php echo $nm; ?>[ai_total]" value="<?php echo esc_attr($a['ai_total']); ?>" placeholder="<?php echo (int) $prof['ai_total']; ?>"></td>
+								<td class="flc-acc-use">✨ <?php echo (int) ($u['ai'] ?? 0); ?> IA · 📦 <?php echo (int) ($u['sent'] ?? 0); ?> dischi · 🔑 <?php echo (int) ($u['logins'] ?? 0); ?> accessi
+									<?php if (!empty($u['last'])) : ?><br><small>ultimo: <?php echo esc_html(wp_date('j M Y H:i', (int) $u['last'])); ?></small><?php endif; ?></td>
+								<td class="flc-acc-act"><button type="button" class="button button-small flc-acc-qr">📱 QR</button> <button type="button" class="button button-small flc-acc-link" title="Copia il link che fa entrare con questo codice">🔗</button> <button type="button" class="button-link flc-acc-del" title="Elimina il codice">🗑</button></td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+					</div>
+					<p id="flcAccEmpty" class="description"<?php echo $acc['accounts'] ? ' hidden' : ''; ?>>Nessun codice: creane uno per la prossima fiera.</p>
+					<p><button type="button" class="button button-primary" id="flcAccAdd">+ Nuovo codice</button>
+						<span class="description">Il codice funziona dopo il salvataggio. Scadenza proposta: 30 giorni.</span></p>
+				</div>
+				<div class="flc-qr-modal" id="flcQrModal" hidden>
+					<div class="flc-qr-box">
+						<button type="button" class="flc-qr-x" id="flcQrClose" aria-label="Chiudi">✕</button>
+						<h3 id="flcQrTitle"></h3>
+						<canvas id="flcQrCanvas" width="600" height="700"></canvas>
+						<p class="flc-qr-url"><code id="flcQrUrl"></code></p>
+						<p id="flcQrWarn" class="flc-badge prev" hidden>Salva le impostazioni prima di stampare: il codice nuovo o modificato non funziona ancora.</p>
+						<p><button type="button" class="button button-primary" id="flcQrPng">⬇️ Scarica PNG</button> <button type="button" class="button" id="flcQrSvg">⬇️ Scarica SVG</button></p>
+					</div>
+				</div>
+				<script type="application/json" id="flcAccData"><?php echo wp_json_encode(array('link' => $acc_link, 'today' => current_time('Y-m-d'))); ?></script>
+				<script>
+				// Accessi: profili e codici. Un profilo nuovo aggiunge da solo la sua colonna in Funzioni e la voce nei menu dei codici.
+				function flcAccessUi(form) {
+					const $ = (s, el) => (el || document).querySelector(s), $$ = (s, el) => [...(el || document).querySelectorAll(s)];
+					const data = JSON.parse($('#flcAccData').textContent);
+					const profRows = $('#flcProfRows'), accRows = $('#flcAccRows'), matrix = $('#flcMatrix');
+					const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+					const rnd = (n) => { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; const r = crypto.getRandomValues(new Uint32Array(n)); r.forEach((x) => { s += a[x % a.length]; }); return s; };
+					const dirty = () => $('input[name="flc_access[present]"]').dispatchEvent(new Event('input', { bubbles: true }));
+					const profiles = () => $$('tr[data-pid]', profRows).map((tr) => ({ pid: tr.dataset.pid, name: $('.flc-prof-name', tr).value.trim() || 'Profilo', tr }));
+					// menu "copia da", menu dei codici e conteggi
+					function refresh() {
+						const ps = profiles();
+						$('#flcProfFrom').innerHTML = '<option value="ospite">Ospite</option>' + ps.map((p) => '<option value="' + p.pid + '">' + esc(p.name) + '</option>').join('');
+						$$('select.flc-acc-prof', accRows).forEach((sel) => {
+							const v = sel.value;
+							sel.innerHTML = ps.map((p) => '<option value="' + p.pid + '">' + esc(p.name) + '</option>').join('');
+							if (ps.some((p) => p.pid === v)) sel.value = v;
+						});
+						ps.forEach((p) => {
+							const n = $$('select.flc-acc-prof', accRows).filter((s) => s.value === p.pid).length;
+							$('.flc-prof-count', p.tr).textContent = n ? n + (n === 1 ? ' codice' : ' codici') : '—';
+							const th = $('th[data-pid="' + p.pid + '"] .pn', matrix);
+							if (th) th.textContent = p.name;
+						});
+						$('#flcAccEmpty').hidden = !!$('tr', accRows);
+						$('#flcAccAdd').disabled = !ps.length;
+					}
+					profRows.addEventListener('input', (e) => { if (e.target.classList.contains('flc-prof-name')) refresh(); });
+					accRows.addEventListener('change', (e) => { if (e.target.classList.contains('flc-acc-prof')) refresh(); });
+
+					// nuovo profilo: riga qui + colonna in Funzioni (spunte copiate dal profilo scelto)
+					$('#flcProfAdd').addEventListener('click', () => {
+						const from = $('#flcProfFrom').value, pid = 'p' + rnd(6).toLowerCase();
+						const name = prompt('Nome del nuovo profilo (es. Fiera Premium):', '');
+						if (name === null) return;
+						const tr = document.createElement('tr');
+						tr.dataset.pid = pid;
+						const nm = 'flc_access[profiles][' + pid + ']';
+						const src = profiles().find((p) => p.pid === from);
+						const day = src ? $('.flc-prof-day', src.tr).value : 10, tot = src ? $('.flc-prof-tot', src.tr).value : 300;
+						tr.innerHTML = '<td><input type="text" class="flc-prof-name" name="' + nm + '[name]" maxlength="40"></td>'
+							+ '<td><input type="number" min="0" class="small-text flc-prof-day" name="' + nm + '[ai_day]" value="' + (+day || 0) + '"></td>'
+							+ '<td><input type="number" min="0" class="small-text flc-prof-tot" name="' + nm + '[ai_total]" value="' + (+tot || 0) + '"></td>'
+							+ '<td class="flc-prof-count"></td><td><button type="button" class="button-link flc-prof-del" title="Elimina il profilo">🗑</button></td>';
+						$('.flc-prof-name', tr).value = name.trim() || 'Nuovo profilo';
+						profRows.append(tr);
+						const th = document.createElement('th');
+						th.className = 'pc'; th.dataset.pid = pid;
+						th.innerHTML = '🎟️ <span class="pn"></span><small>codice d\'accesso</small><span class="flc-colset"><a href="#" data-v="1">tutte</a> · <a href="#" data-v="0">nessuna</a></span>';
+						$('thead tr', matrix).append(th);
+						$$('tbody tr', matrix).forEach((row) => {
+							if (row.classList.contains('grp')) { row.firstElementChild.colSpan += 1; return; }
+							const fk = row.dataset.fk, td = document.createElement('td');
+							td.className = 'pc'; td.dataset.pid = pid;
+							const old = $('td[data-pid="' + from + '"] input', row);
+							td.innerHTML = '<input type="checkbox" name="' + nm + '[feats][' + fk + ']" value="1">';
+							td.firstChild.checked = !!(old && old.checked);
+							row.append(td);
+						});
+						refresh(); dirty(tr);
+					});
+
+					// elimina profilo: i suoi codici passano a un altro profilo (scelto qui)
+					profRows.addEventListener('click', (e) => {
+						const b = e.target.closest('.flc-prof-del');
+						if (!b) return;
+						const tr = b.closest('tr'), pid = tr.dataset.pid;
+						const others = profiles().filter((p) => p.pid !== pid);
+						const mine = $$('select.flc-acc-prof', accRows).filter((s) => s.value === pid);
+						const kill = (to) => {
+							mine.forEach((s) => { s.value = to; });
+							$$('[data-pid="' + pid + '"]', matrix).forEach((c) => c.remove());
+							$$('tr.grp td', matrix).forEach((td) => { td.colSpan -= 1; });
+							tr.remove(); refresh(); dirty(form);
+						};
+						if (!mine.length) { if (confirm('Eliminare il profilo "' + $('.flc-prof-name', tr).value + '"?')) kill(''); return; }
+						if (!others.length) { alert('Questo profilo ha ' + mine.length + ' codici: crea prima un altro profilo dove spostarli (oppure elimina i codici).'); return; }
+						if ($('.flc-prof-move', tr)) return;
+						const box = document.createElement('div');
+						box.className = 'flc-prof-move';
+						box.innerHTML = 'Sposta i suoi ' + mine.length + ' codici in <select>' + others.map((p) => '<option value="' + p.pid + '">' + esc(p.name) + '</option>').join('') + '</select> '
+							+ '<button type="button" class="button button-small">Elimina il profilo</button> <button type="button" class="button-link">Annulla</button>';
+						tr.firstElementChild.append(box);
+						const [ok, no] = $$('button', box);
+						ok.addEventListener('click', () => kill($('select', box).value));
+						no.addEventListener('click', () => box.remove());
+					});
+
+					// nuovo codice: riga con codice casuale, profilo e scadenza a 30 giorni
+					const exp30 = () => { const d = new Date(data.today + 'T12:00:00'); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); };
+					const codeFrom = (name) => { const w = (name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().split(' ')[0] || 'FIERA'; return w.slice(0, 10) + '-' + rnd(4); };
+					$('#flcAccAdd').addEventListener('click', () => {
+						const ps = profiles();
+						if (!ps.length) return;
+						const aid = 'a' + rnd(8).toLowerCase(), nm = 'flc_access[accounts][' + aid + ']';
+						const def = ps.find((p) => /fiera/i.test(p.name)) || ps[0];
+						const tr = document.createElement('tr');
+						tr.dataset.aid = aid; tr.dataset.saved = ''; tr.dataset.auto = '1';
+						tr.innerHTML = '<td><input type="checkbox" name="' + nm + '[active]" value="1" checked></td>'
+							+ '<td><input type="text" class="flc-acc-code" name="' + nm + '[code]" maxlength="32"></td>'
+							+ '<td><input type="text" class="flc-acc-name" name="' + nm + '[name]" maxlength="60" placeholder="Es. Lucca Comics 2026"></td>'
+							+ '<td><select class="flc-acc-prof" name="' + nm + '[profile]"></select></td>'
+							+ '<td><input type="date" name="' + nm + '[expires]" value="' + exp30() + '"></td>'
+							+ '<td><input type="number" min="0" class="small-text flc-acc-day" name="' + nm + '[ai_day]"></td>'
+							+ '<td><input type="number" min="0" class="small-text flc-acc-tot" name="' + nm + '[ai_total]"></td>'
+							+ '<td class="flc-acc-use"><em>nuovo</em></td>'
+							+ '<td class="flc-acc-act"><button type="button" class="button button-small flc-acc-qr">📱 QR</button> <button type="button" class="button button-small flc-acc-link" title="Copia il link che fa entrare con questo codice">🔗</button> <button type="button" class="button-link flc-acc-del" title="Elimina il codice">🗑</button></td>';
+						$('.flc-acc-code', tr).value = codeFrom('');
+						accRows.append(tr);
+						refresh();
+						$('.flc-acc-prof', tr).value = def.pid;
+						refresh(); dirty(tr);
+						$('.flc-acc-name', tr).focus();
+					});
+					// il codice si adatta al nome finché non lo tocchi a mano
+					accRows.addEventListener('input', (e) => {
+						const tr = e.target.closest('tr');
+						if (e.target.classList.contains('flc-acc-name') && tr.dataset.auto) $('.flc-acc-code', tr).value = codeFrom(e.target.value);
+						if (e.target.classList.contains('flc-acc-code')) { delete tr.dataset.auto; e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''); }
+					});
+					accRows.addEventListener('click', (e) => {
+						const tr = e.target.closest('tr');
+						if (e.target.closest('.flc-acc-del')) {
+							if (!confirm('Eliminare il codice ' + $('.flc-acc-code', tr).value + '? Chi lo usa non potrà più entrare. (Per una fiera finita meglio togliere la spunta "Attivo".)')) return;
+							tr.remove(); refresh(); dirty(form);
+						} else if (e.target.closest('.flc-acc-qr')) {
+							openQr(tr);
+						} else if (e.target.closest('.flc-acc-link')) {
+							const url = linkFor($('.flc-acc-code', tr).value);
+							(navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => { e.target.textContent = '✓'; setTimeout(() => { e.target.textContent = '🔗'; }, 1500); }, () => prompt('Copia il link:', url));
+						}
+					});
+
+					// QR: immagine con il QR e il codice scritto sotto, pronta per il biglietto
+					const linkFor = (code) => data.link + (data.link.includes('?') ? '&' : '?') + 'accesso=' + encodeURIComponent(code);
+					let qrNow = null;
+					function openQr(tr) {
+						const code = $('.flc-acc-code', tr).value, name = $('.flc-acc-name', tr).value || code;
+						if (typeof qrcode !== 'function') { alert('Libreria QR non caricata: ricarica la pagina.'); return; }
+						const url = linkFor(code), qr = qrcode(0, 'M');
+						qr.addData(url); qr.make();
+						qrNow = { qr, code, name, url };
+						const cv = $('#flcQrCanvas'), ctx = cv.getContext('2d'), n = qr.getModuleCount(), cell = Math.floor(520 / (n + 8)), size = cell * (n + 8), x0 = (600 - size) / 2;
+						ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 600, 700);
+						ctx.fillStyle = '#000';
+						for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) ctx.fillRect(x0 + (c + 4) * cell, 20 + (r + 4) * cell, cell, cell);
+						ctx.textAlign = 'center';
+						ctx.font = 'bold 44px monospace'; ctx.fillText(code, 300, size + 80);
+						ctx.font = '24px sans-serif'; ctx.fillStyle = '#555'; ctx.fillText(name.slice(0, 40), 300, size + 118);
+						$('#flcQrTitle').textContent = name;
+						$('#flcQrUrl').textContent = url;
+						$('#flcQrWarn').hidden = tr.dataset.saved === code;
+						$('#flcQrModal').hidden = false;
+					}
+					const save = (blob, fname) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+					$('#flcQrPng').addEventListener('click', () => $('#flcQrCanvas').toBlob((b) => save(b, 'qr-' + qrNow.code + '.png')));
+					$('#flcQrSvg').addEventListener('click', () => save(new Blob([qrNow.qr.createSvgTag({ cellSize: 10, margin: 4, scalable: true })], { type: 'image/svg+xml' }), 'qr-' + qrNow.code + '.svg'));
+					$('#flcQrClose').addEventListener('click', () => { $('#flcQrModal').hidden = true; });
+					$('#flcQrModal').addEventListener('click', (e) => { if (e.target.id === 'flcQrModal') e.target.hidden = true; });
+					refresh();
+				}
+				</script>
 			</section>
 
 			<!-- ===================== PAGINA DEL CONFIGURATORE ===================== -->
@@ -986,7 +1277,8 @@ function flc_settings_page() {
 				<div class="flc-card">
 					<h2><span class="dashicons dashicons-admin-generic"></span> Ridisegno con IA</h2>
 					<p class="intro">Il pulsante con cui il cliente fa ridisegnare la sua foto. Basta la chiave di Google Gemini qui sotto.</p>
-					<p><label class="flc-toggle"><input type="checkbox" name="<?php echo $n('enabled'); ?>" value="1" <?php checked($s['enabled'], 1); ?>> <strong>Attivo</strong> – mostra ai clienti il ridisegno con IA</label></p>
+					<p><label class="flc-toggle"><input type="checkbox" name="<?php echo $n('enabled'); ?>" value="1" <?php checked($s['enabled'], 1); ?>> <strong>Attivo</strong> – mostra ai clienti il ridisegno con IA</label>
+						<span class="description">È la colonna <em>Ospite</em> di Funzioni: per i codici d'accesso (Fiera, VIP…) vale la loro colonna.</span></p>
 				</div>
 				<div class="flc-card">
 					<h2><span class="dashicons dashicons-google"></span> Google Gemini</h2>
@@ -1360,9 +1652,17 @@ function flc_settings_page() {
 			if (t.type !== 'checkbox' || !t.name) return;
 			form.querySelectorAll('input[type=checkbox]').forEach((o) => { if (o !== t && o.name === t.name && o.checked !== t.checked) { o.checked = t.checked; o.dispatchEvent(new Event('change', { bubbles: false })); } });
 		});
-		const featSet = (v) => document.querySelectorAll('.flc-feats input[type=checkbox]').forEach((c) => { if (c.checked !== v) { c.checked = v; c.dispatchEvent(new Event('change', { bubbles: true })); } });
-		document.getElementById('flcFeatAll').addEventListener('click', () => featSet(true));
-		document.getElementById('flcFeatNone').addEventListener('click', () => featSet(false));
+		// funzioni: "tutte / nessuna" per colonna (Ospite o un profilo)
+		document.getElementById('flcMatrix').addEventListener('click', (e) => {
+			const a = e.target.closest('.flc-colset a');
+			if (!a) return;
+			e.preventDefault();
+			const pid = a.closest('th').dataset.pid, v = a.dataset.v === '1';
+			document.querySelectorAll('#flcMatrix td.pc[data-pid="' + pid + '"] input').forEach((c) => { if (c.checked !== v) { c.checked = v; c.dispatchEvent(new Event('change', { bubbles: true })); } });
+		});
+		// link tra schede (Funzioni ↔ Accessi)
+		document.querySelectorAll('.flc-goto').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); show(a.dataset.tab); history.replaceState(null, '', '#' + a.dataset.tab); }));
+		flcAccessUi(form);
 		// stili: card spenta = più chiara; ripristino del prompt originale
 		document.querySelectorAll('.flc-style-cb').forEach((cb) => cb.addEventListener('change', () => cb.closest('.flc-style').classList.toggle('off', !cb.checked)));
 		document.querySelectorAll('.flc-reset').forEach((b) => b.addEventListener('click', () => {

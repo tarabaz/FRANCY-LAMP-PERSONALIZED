@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) {
 
 // configurazione passata al configuratore (pagina dedicata e shortcode)
 function flc_frontend_config() {
-	$s = flc_settings();
+	$s = flc_settings_effective(); // funzioni di chi la sta usando: ospite, codice d'accesso o amministratore
 	return array(
 		'restUrl'   => (!empty($s['enabled']) && (!empty($s['gemini_key']) || !empty($s['fal_key'])))
 			? esc_url_raw(rest_url('francy-lamp/v1/ridisegna')) : '',
@@ -18,6 +18,7 @@ function flc_frontend_config() {
 		'nonce'     => wp_create_nonce('wp_rest'),
 		// i download diretti dei file restano solo agli amministratori
 		'isAdmin'   => current_user_can('manage_options'),
+		'access'    => flc_access_public(), // pulsante "🔑 Accedi" (codici d'accesso, Impostazioni → Accessi)
 		'version'   => FLC_VERSION, // nel footer: "Powered by FrancyStore3D v…"
 		// "Elabora questo disegno" → salva immagine e file di stampa dentro il disegno pronto
 		'tplSaveUrl' => current_user_can('manage_options') ? esc_url_raw(rest_url('francy-lamp/v1/disegni/')) : '',

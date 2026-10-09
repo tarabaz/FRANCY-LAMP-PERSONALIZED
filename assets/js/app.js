@@ -20,6 +20,15 @@ const CFG = window.FRANCY_LAMP || {
 // funzioni accese/spente dall'admin (Impostazioni → Funzioni): feature('feat_xxx') === false = non offrirla.
 // Per una funzione nuova: una riga in flc_features() (settings.php) + questo controllo dove serve.
 const feature = (k) => !CFG.features || CFG.features[k] !== false;
+// pagina servita dalla cache (configurazione dell'ospite) ma il visitatore è entrato con un codice d'accesso:
+// chiedo al server la configurazione giusta prima di partire
+if (CFG.access && !CFG.access.account && !CFG.access.admin && /(?:^|;\s*)flc_acc_n=1/.test(document.cookie)) {
+  try {
+    const r = await fetch(CFG.access.configUrl, { credentials: 'same-origin', cache: 'no-store' });
+    const j = r.ok ? await r.json() : null;
+    if (j && j.config) Object.assign(CFG, j.config);
+  } catch (e) { /* resta la configurazione dell'ospite */ }
+}
 const MAX_FILAMENTS = 13; // H2C: 1 bobina fissa sull'ugello 1 (bianco) + 3 AMS da 4 sull'ugello 2
 // Nero e bianco "di riferimento": con il catalogo diventano le bobine più vicine
 let BLACK = '#151515';
@@ -257,6 +266,12 @@ function aiSource() {
   return { img: state.img, zoom: state.zoom, ox: state.ox, oy: state.oy };
 }
 if (CFG.restUrl) { $('#stepAi').hidden = false; loadQuota(); }
+// ridisegno riservato ai codici d'accesso: il passo c'è, con l'invito ad accedere
+else if (CFG.access && CFG.access.aiLocked) {
+  $('#stepAi').hidden = false;
+  $('#aiBox').hidden = true;
+  $('#aiLocked').hidden = false;
+}
 if (CFG.aiCard) $('#aiCardRow').hidden = false;
 
 // Contatori del giorno: quanti ridisegni restano a te e a tutto il sito
@@ -265,8 +280,9 @@ function showQuota(q) {
   const fmt = (x) => (x.remaining === null ? 'illimitati' : String(x.remaining));
   const el = $('#aiQuota');
   el.hidden = false;
-  el.textContent = `Ridisegni disponibili oggi: per te ${fmt(q.user)} · sul sito ${fmt(q.global)}`;
-  const none = q.user.remaining === 0 || q.global.remaining === 0;
+  el.textContent = `Ridisegni disponibili oggi: per te ${fmt(q.user)} · sul sito ${fmt(q.global)}`
+    + (q.account && q.account.remaining !== null ? ` · col codice ${q.account.name}: ${q.account.remaining} in tutto` : '');
+  const none = q.user.remaining === 0 || q.global.remaining === 0 || (q.account && q.account.remaining === 0);
   el.classList.toggle('empty', none);
   state.aiExhausted = none;
   $('#aiBtn').disabled = none || !state.img;
@@ -2294,6 +2310,77 @@ if (CFG.homeUrl) {
   a.append(...brand.childNodes);
   brand.replaceWith(a);
 }
+// ---------------- accesso (🔑 in alto a sinistra): codici d'accesso e login dell'amministratore ----------------
+function initAccess() {
+  const A = CFG.access;
+  if (!A || !A.loginUrl || CFG.standalone) return;
+  const box = $('#accBox'), btn = $('#accBtn'), pop = $('#accPop'), form = $('#accForm'), err = $('#accErr');
+  box.hidden = false;
+  const who = A.admin ? { icon: '👤', name: A.admin, text: `Sei entrato come <strong>amministratore</strong> (${escHtml(A.admin)}): hai tutte le funzioni accese in almeno un profilo.` }
+    : A.account ? { icon: '🎟️', name: A.account.name, text: `Sei entrato con il codice <strong>${escHtml(A.account.name)}</strong> (${escHtml(A.account.profile)}).` } : null;
+  if (who) {
+    btn.textContent = `${who.icon} ${who.name}`;
+    btn.classList.add('in');
+    btn.title = 'Accesso fatto: tocca per uscire';
+    form.innerHTML = `<strong class="acc-title">${who.icon} ${escHtml(who.name)}</strong><p class="acc-hint">${who.text}</p><button type="button" class="acc-out-btn" id="accOut">Esci</button>`;
+    $('#accOut').addEventListener('click', async () => {
+      if (!reloadOk()) return;
+      try {
+        await fetch(A.logoutUrl, { method: 'POST', credentials: 'same-origin', headers: CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {} });
+      } catch (e) { /* ricarico comunque */ }
+      location.reload();
+    });
+  }
+  // entrare/uscire ricarica la pagina: il disco in corso si perderebbe
+  const reloadOk = () => !state.img || confirm('Per entrare o uscire la pagina si ricarica e il disco in corso si perde.\nSe vuoi tenerlo, annulla e premi prima 💾 Salva.\n\nContinuare?');
+  const open = (v) => {
+    pop.hidden = !v;
+    if (v && !who) setTimeout(() => ($('#accAdmin').hidden ? $('#accCode') : $('#accUser')).focus(), 30);
+  };
+  btn.addEventListener('click', () => open(pop.hidden));
+  document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !box.contains(e.target)) open(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) open(false); });
+  const showErr = (t) => { err.hidden = !t; err.textContent = t || ''; };
+  if (!who) {
+    $('#accSwitch').addEventListener('click', () => {
+      const adm = $('#accAdmin').hidden;
+      $('#accAdmin').hidden = !adm;
+      $('#accCode').hidden = adm;
+      $('#accHint').textContent = adm ? 'Accesso dell\'amministratore del sito (le credenziali di WordPress).' : 'Scrivi il codice che trovi sul biglietto (es. preso in fiera): sblocca le funzioni riservate, come il ridisegno con IA.';
+      $('#accSwitch').textContent = adm ? 'Ho un codice d\'accesso' : 'Sei l\'amministratore del sito?';
+      showErr('');
+      open(true);
+    });
+    $('#accCode').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const adm = !$('#accAdmin').hidden;
+      const body = adm ? { user: $('#accUser').value.trim(), pass: $('#accPass').value } : { code: $('#accCode').value.trim() };
+      if (adm ? !body.user || !body.pass : !body.code) { showErr(adm ? 'Scrivi nome utente e password.' : 'Scrivi il codice.'); return; }
+      if (!reloadOk()) return;
+      $('#accGo').disabled = true; showErr('');
+      try {
+        const r = await fetch(A.loginUrl, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.message || 'Accesso non riuscito.');
+        location.reload(); // le funzioni del codice partono con la pagina
+      } catch (ex) {
+        showErr(ex.message);
+        $('#accGo').disabled = false;
+      }
+    });
+    $('#aiLockedBtn').addEventListener('click', () => { $('#accAdmin').hidden = true; $('#accCode').hidden = false; open(true); });
+  }
+  // arrivo da un link/QR con un codice non valido o scaduto
+  if (A.error) {
+    showErr(A.error);
+    open(true);
+    const u = new URL(location.href); u.searchParams.delete('accesso_err');
+    history.replaceState(null, '', u);
+  }
+}
+const escHtml = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+initAccess();
 // disco predefinito scelto nelle impostazioni (colori e testi con cui si apre la pagina)
 if (CFG.defaults) {
   const d = CFG.defaults;

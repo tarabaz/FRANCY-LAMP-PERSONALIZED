@@ -265,6 +265,30 @@ segnato come tuo. In Progetti la vista "Tutti" mostra prima il blocco **👤 I m
 giallo, etichetta MIO) e sotto **🛒 Progetti dei clienti**; in alto ci sono anche i filtri "👤 I miei" e "🛒 Clienti".
 I progetti già esistenti vengono riconosciuti dall'email (quella dell'admin o di un amministratore). Se uno finisce nel
 gruppo sbagliato, nella scheda del progetto c'è la casella "👤 Progetto mio".
+
+## Codici d'accesso (fiere, clienti fissi)
+
+Codici che dai tu, senza account WordPress: valgono solo per il configuratore. Si gestiscono in **Impostazioni → Accessi**.
+
+- **Profili** (es. Fiera, VIP): le funzioni si spuntano in **Impostazioni → Funzioni**, che ha una colonna per
+  **Ospite** (chi entra senza codice, sono le spunte di sempre) e una per ogni profilo. Un profilo nuovo aggiunge da
+  solo la sua colonna, la voce nei menu dei codici e il filtro in Progetti. Ogni profilo ha i limiti del ridisegno IA:
+  **al giorno per persona** e **totali per ogni codice** (0 = senza limite). Eliminando un profilo con dei codici,
+  chiede in quale profilo spostarli.
+- **Codici**: "+ Nuovo codice" crea una riga con codice casuale (si adatta al nome, es. `LUCCA-K7M4`), profilo e
+  scadenza a 30 giorni; i limiti vuoti usano quelli del profilo. Per ogni codice: attivo sì/no, uso (ridisegni,
+  dischi inviati, accessi, ultimo accesso), **📱 QR** (PNG con QR e codice scritto sotto, oppure SVG) e **🔗 link**
+  `…/configuratore/?accesso=CODICE` che fa entrare direttamente. Per una fiera finita meglio togliere "Attivo" che
+  eliminare il codice.
+- **Nel configuratore**: "🔑 Accedi" in alto a sinistra (codice, oppure "Sei l'amministratore del sito?" con utente e
+  password di WordPress). Da dentro il pulsante mostra 🎟️ nome del codice (o 👤 per l'admin) ed "Esci". Se l'ospite non
+  ha il ridisegno ma un profilo sì, il passo 2 mostra il lucchetto con "Ho un codice: accedi".
+- **Sicurezza**: tutto è controllato dal server (ridisegno, limiti, convalida); il cookie è firmato e cambiando il
+  codice chi era dentro esce; dopo 5 codici sbagliati dallo stesso IP blocco di 15 minuti. Con un codice valgono i
+  limiti del codice e non quello per IP (in fiera tante persone hanno lo stesso wifi); il limite giornaliero di tutto
+  il sito vale sempre. L'amministratore ha tutto ciò che è acceso in almeno una colonna.
+- **Progetti**: colonna **Provenienza** (🎟️ codice · profilo, oppure Ospite), filtri per profilo accanto a
+  "I miei / Clienti" e tendina "Tutti gli accessi". Il nome del codice resta sul disco anche se lo elimini.
 **📌 Converti in template** (Progetti, colonna File "📌 Template" e riquadro laterale): apre il progetto del cliente nel
 configuratore con la finestra "Crea template" già aperta (`?flc_prj=ID&flc_mk=1`). Solo per i progetti con il .francy.
 Template, file di stampa e progetti si creano, modificano e scaricano solo da amministratore (pulsanti nascosti agli
@@ -311,7 +335,8 @@ Scarica di nuovo lo zip da GitHub. In WordPress → Plugin → Aggiungi nuovo �
 ## Struttura
 
 - `francy-lamp.php` – file principale del plugin
-- `includes/` – impostazioni, endpoint REST, fornitori IA, shortcode, progetti (`designs.php`), filamenti
+- `includes/` – impostazioni, endpoint REST, fornitori IA, shortcode, progetti (`designs.php`), filamenti, codici d'accesso (`access.php`)
+- `assets/vendor/qrcode.js` – generatore QR (Kazuhiko Arase, licenza MIT) per i codici d'accesso
 - `assets/` – il configuratore (funziona anche da solo, vedi [assets/README.md](assets/README.md))
 
 ## Endpoint

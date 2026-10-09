@@ -26,6 +26,7 @@ add_action('rest_api_init', function () {
 // used/limit/remaining per il visitatore e per tutto il sito (limit 0 = illimitato, remaining null)
 function flc_quota_status() {
 	$s      = flc_settings();
+	$cur    = current_user_can('manage_options') ? null : flc_access_current();
 	$ipUsed = (int) get_transient(flc_client_key());
 	$glUsed = flc_today_count();
 	$q      = function ($used, $limit) {
@@ -35,6 +36,10 @@ function flc_quota_status() {
 			'remaining' => $limit > 0 ? max(0, $limit - $used) : null,
 		);
 	};
+	if ($cur) {
+		// con un codice d'accesso valgono i limiti del codice (in fiera tante persone hanno lo stesso IP)
+		return array_merge(flc_access_quota($cur), array('global' => $q($glUsed, $s['daily_cap'])));
+	}
 	return array('user' => $q($ipUsed, $s['per_ip_day']), 'global' => $q($glUsed, $s['daily_cap']));
 }
 
@@ -54,7 +59,8 @@ function flc_client_key() {
 }
 
 function flc_rest_redraw(WP_REST_Request $req) {
-	$s = flc_settings();
+	$s   = flc_settings_effective(); // ospite, codice d'accesso o amministratore
+	$cur = current_user_can('manage_options') ? null : flc_access_current();
 	if (empty($s['enabled'])) {
 		return new WP_Error('flc_off', 'Il ridisegno con IA non è attivo.', array('status' => 503));
 	}
@@ -65,7 +71,7 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	}
 	$key  = flc_client_key();
 	$used = (int) get_transient($key);
-	if ($s['per_ip_day'] > 0 && $used >= $s['per_ip_day']) {
+	if (!$cur && $s['per_ip_day'] > 0 && $used >= $s['per_ip_day']) {
 		return new WP_Error('flc_limit', 'Hai usato tutti i ridisegni di oggi. Puoi comunque continuare a personalizzare la lampada.', array('status' => 429, 'quota' => flc_quota_status()));
 	}
 
@@ -86,7 +92,14 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	}
 
 	// Il tentativo conta anche se poi fallisce (evita raffiche di richieste)
-	set_transient($key, $used + 1, DAY_IN_SECONDS);
+	if ($cur) {
+		$why = flc_access_take_ai($cur);
+		if ($why !== '') {
+			return new WP_Error('flc_limit', $why, array('status' => 429, 'quota' => flc_quota_status()));
+		}
+	} else {
+		set_transient($key, $used + 1, DAY_IN_SECONDS);
+	}
 
 	// Stile scelto dal cliente: fedele (predefinito), ritratto, tombino o anime; sfondo: -1 = lascia quello dell'immagine
 	$bg  = $req->get_param('bg');

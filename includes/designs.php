@@ -149,7 +149,7 @@ function flc_is_png($path) {
 }
 
 function flc_rest_convalida(WP_REST_Request $req) {
-	$s = flc_settings();
+	$s = flc_settings_effective(); // la convalida può essere riservata a chi ha un codice d'accesso
 	if (empty($s['feat_submit'])) {
 		return new WP_Error('flc_off', 'La convalida dei dischi è momentaneamente disattivata.', array('status' => 403));
 	}
@@ -290,6 +290,7 @@ function flc_rest_convalida(WP_REST_Request $req) {
 	// inviato dal negozio stesso (admin loggato): nella lista finisce nel blocco "I miei"
 	update_post_meta($post_id, '_flc_mine', current_user_can('manage_options') ? 1 : 0);
 	update_post_meta($post_id, '_flc_user', get_current_user_id());
+	flc_access_stamp($post_id); // da quale codice d'accesso arriva (fiera, cliente fisso…) o "ospite"
 	update_post_meta($post_id, '_flc_ai', !empty($meta['impostazioni']['ia']) ? 1 : 0);
 	update_post_meta($post_id, '_flc_zip_size', (int) filesize($dir . '/progetto.zip'));
 
@@ -298,6 +299,7 @@ function flc_rest_convalida(WP_REST_Request $req) {
 	$body = "Nuovo disco convalidato: {$code}\n\n"
 		. "Cliente: {$customer['name']} <{$customer['email']}>" . ($customer['phone'] ? " – tel. {$customer['phone']}" : '') . "\n"
 		. ($customer['note'] ? "Note: {$customer['note']}\n" : '')
+		. (($acc_info = get_post_meta($post_id, '_flc_acc_info', true)) ? "Codice d'accesso: {$acc_info['name']} ({$acc_info['code']} · {$acc_info['profile']})\n" : '')
 		. ($template ? "Disegno pronto: {$template['name']} (ID {$template['id']})\n" : '')
 		. ($colors ? "\nFilamenti:\n" : '');
 	foreach ($colors as $col) {
@@ -318,6 +320,7 @@ add_filter('manage_flc_design_posts_columns', function () {
 		'flc_customer' => 'Cliente',
 		'flc_colors'   => 'Filamenti',
 		'flc_stato'    => 'Stato',
+		'flc_origin'   => 'Provenienza',
 		'flc_files'    => 'File',
 		'date'         => 'Data',
 	);
@@ -365,6 +368,9 @@ add_action('manage_flc_design_posts_custom_column', function ($col, $post_id) {
 				echo '<br><span class="description">con ridisegno IA</span>';
 			}
 			break;
+		case 'flc_origin':
+			echo flc_design_is_mine($post_id) ? '<span class="description">Tu</span>' : flc_access_origin_html($post_id);
+			break;
 		case 'flc_files':
 			$size = (int) get_post_meta($post_id, '_flc_zip_size', true);
 			echo '<a class="button button-small" href="' . esc_url(flc_file_url($post_id, 'zip')) . '">Scarica zip</a>';
@@ -399,6 +405,16 @@ add_action('restrict_manage_posts', function ($post_type) {
 		echo '<option value="' . esc_attr($k) . '"' . selected($cur, $k, false) . '>' . esc_html($label) . '</option>';
 	}
 	echo '</select>';
+	// codici d'accesso (Impostazioni → Accessi): la tendina si riempie da sola
+	$accs = flc_access()['accounts'];
+	if ($accs) {
+		$cur = sanitize_key($_GET['flc_acc'] ?? '');
+		echo '<select name="flc_acc"><option value="">Tutti gli accessi</option><option value="ospite"' . selected($cur, 'ospite', false) . '>Ospiti (senza codice)</option>';
+		foreach ($accs as $aid => $a) {
+			echo '<option value="' . esc_attr($aid) . '"' . selected($cur, $aid, false) . '>' . esc_html($a['name']) . '</option>';
+		}
+		echo '</select>';
+	}
 });
 add_action('pre_get_posts', function ($q) {
 	if (!is_admin() || !$q->is_main_query() || $q->get('post_type') !== 'flc_design') {
@@ -408,8 +424,13 @@ add_action('pre_get_posts', function ($q) {
 	if (!empty($_GET['flc_stato'])) {
 		$mq[] = array('key' => '_flc_stato', 'value' => sanitize_key($_GET['flc_stato']));
 	}
+	if (!empty($_GET['flc_acc'])) {
+		$mq[] = array('key' => '_flc_acc', 'value' => sanitize_key($_GET['flc_acc']));
+	}
 	$chi = sanitize_key($_GET['flc_chi'] ?? '');
-	if ($chi === 'miei') {
+	if (strpos($chi, 'p_') === 0) {
+		$mq[] = array('key' => '_flc_acc_prof', 'value' => substr($chi, 2));
+	} elseif ($chi === 'miei') {
 		$mq[] = array('key' => '_flc_mine', 'value' => 1, 'type' => 'NUMERIC');
 	} elseif ($chi === 'clienti') {
 		$mq[] = array('relation' => 'OR',
@@ -471,6 +492,12 @@ add_filter('views_edit-flc_design', function ($views) {
 	}
 	$views['flc_miei']    = $mk('miei', '👤 I miei', flc_design_count_mine(true));
 	$views['flc_clienti'] = $mk('clienti', '🛒 Clienti', flc_design_count_mine(false));
+	// un filtro per ogni profilo dei codici d'accesso (Fiera, VIP…): compaiono da soli quando ne crei uno
+	foreach (flc_access()['profiles'] as $pid => $p) {
+		$q = new WP_Query(array('post_type' => 'flc_design', 'post_status' => array('publish', 'draft', 'pending', 'private'), 'posts_per_page' => 1, 'fields' => 'ids',
+			'meta_query' => array(array('key' => '_flc_acc_prof', 'value' => $pid))));
+		$views['flc_p_' . $pid] = $mk('p_' . $pid, '🎟️ ' . esc_html($p['name']), $q->found_posts);
+	}
 	return $views;
 });
 

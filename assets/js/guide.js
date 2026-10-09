@@ -94,6 +94,7 @@ export const GUIDE = [
     id: 'ai', icon: '✨', title: '2 · Ridisegno con IA', show: (c) => c.ai,
     html: `
 <p>Facoltativo. L'intelligenza artificiale ridisegna la tua foto in uno stile adatto alla stampa: colori pieni, contorni neri, niente sfumature. È il modo migliore per partire da una <strong>foto</strong>.</p>
+<p>Se al posto dei comandi vedi il lucchetto 🔒, il ridisegno è riservato a chi ha un <strong>codice d'accesso</strong> (per esempio quello sul biglietto preso in fiera): premi <strong>🔑 Accedi</strong> in alto a sinistra e scrivilo, oppure inquadra il QR del biglietto.</p>
 <h4>Gli stili</h4>
 <ul>
   <li><strong>Fedele</strong>: stessa posa, espressione e colori della foto, in versione disegno.</li>
@@ -324,6 +325,7 @@ export const GUIDE = [
   <li><strong>💾 Salva nel disegno pronto</strong>: manda al sito PNG, SVG, EPS, 3MF e progetto; i clienti vedono la nuova versione e i file di stampa sono in Disegni pronti.</li>
   <li><strong>File (solo admin)</strong> a destra: pacchetto completo .zip (anteprime, SVG/EPS, un STL per colore, 3MF Bambu, lista filamenti), solo SVG, anteprima PNG senza watermark.</li>
   <li>Nei colori del disco vedi anche il nome vero della bobina accanto al nome pubblico.</li>
+  <li><strong>🔑 Accedi / 👤</strong> in alto a sinistra: puoi entrare come amministratore direttamente da qui («Sei l'amministratore del sito?»). I codici d'accesso per fiere e clienti si creano in Impostazioni → Accessi, le loro funzioni in Impostazioni → Funzioni (una colonna per profilo).</li>
 </ul>`,
   },
 ];

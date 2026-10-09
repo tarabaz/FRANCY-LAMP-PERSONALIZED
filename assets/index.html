@@ -11,6 +11,23 @@
 <div class="flc" id="flc-root">
   <header class="top">
     <div class="brand"><img class="brand-logo" id="brandLogo" alt="" hidden><span class="brand-name">FrancyStore3D</span> <span class="brand-sub">· Configuratore lampada</span></div>
+    <div class="acc" id="accBox" hidden>
+      <button type="button" class="acc-btn" id="accBtn" title="Hai un codice d'accesso? (es. dal biglietto preso in fiera)">🔑 Accedi</button>
+      <div class="acc-pop" id="accPop" hidden>
+        <form id="accForm" autocomplete="on">
+          <strong class="acc-title">Accedi</strong>
+          <p class="acc-hint" id="accHint">Scrivi il codice che trovi sul biglietto (es. preso in fiera): sblocca le funzioni riservate, come il ridisegno con IA.</p>
+          <input type="text" id="accCode" placeholder="Codice d'accesso" autocapitalize="characters" spellcheck="false" maxlength="32">
+          <div class="acc-admin" id="accAdmin" hidden>
+            <input type="text" id="accUser" placeholder="Nome utente o email" autocomplete="username">
+            <input type="password" id="accPass" placeholder="Password" autocomplete="current-password">
+          </div>
+          <p class="acc-err" id="accErr" hidden></p>
+          <button type="submit" class="acc-go" id="accGo">Entra</button>
+          <button type="button" class="acc-switch" id="accSwitch">Sei l'amministratore del sito?</button>
+        </form>
+      </div>
+    </div>
     <div class="top-right">
       <div class="lit-toggle" role="group" aria-label="Stato lampada">
         <button data-lit="0" class="active">Spenta</button>
@@ -78,6 +95,11 @@
       <section class="step lockable-step" data-step="2" id="stepAi" hidden>
         <button type="button" class="step-head" aria-expanded="false"><span class="step-n">2</span><span class="step-t"><strong>Ridisegno con IA <em>facoltativo</em></strong><small class="step-sum" id="sum2"></small></span><span class="step-chev" aria-hidden="true"></span></button>
         <div class="step-body">
+          <div class="ai-locked" id="aiLocked" hidden>
+            <p>🔒 Il <strong>ridisegno con IA</strong> è riservato a chi ha un <strong>codice d'accesso</strong> (per esempio quello sul biglietto preso in fiera).</p>
+            <button type="button" class="ai-locked-btn" id="aiLockedBtn">🔑 Ho un codice: accedi</button>
+            <p class="ai-locked-sub">Senza codice puoi comunque creare il tuo disco: passa al passo successivo.</p>
+          </div>
           <div class="ai-box lockable" id="aiBox">
             <div class="ai-style" id="aiStyle" role="group" aria-label="Tipo di ridisegno">
               <button type="button" data-style="fedele" class="active">Fedele<small>stessa posa ed espressione</small></button>

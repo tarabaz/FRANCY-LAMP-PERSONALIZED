@@ -580,3 +580,32 @@ html.flc-page .flc { height: 100%; }
   .flc.view-3d .stage > .tabs { top: 8px; }
   .flc.view-3d .status { bottom: auto; top: 54px; font-size: 11px; } /* sotto il selettore: in basso c'è il pulsante Ambientazione */
 }
+
+/* ---------- accesso: codici d'accesso e login dell'amministratore ---------- */
+.flc .acc { position: relative; margin: 0 auto 0 14px; }
+.flc .acc-btn { border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 6px 13px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.flc .acc-btn:hover { border-color: var(--ink); }
+.flc .acc-btn.in { background: #fff6d6; border-color: var(--accent); }
+.flc .acc-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; width: 300px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 34px rgba(0,0,0,.18); padding: 14px; }
+.flc .acc-pop form { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.flc .acc-title { font-size: 15px; }
+.flc .acc-hint { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.flc .acc-pop input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; background: #fff; }
+.flc .acc-pop input#accCode { text-transform: uppercase; letter-spacing: .06em; font-family: ui-monospace, monospace; }
+.flc .acc-pop input:focus { outline: none; border-color: var(--ink); }
+.flc .acc-admin { display: flex; flex-direction: column; gap: 8px; }
+.flc .acc-admin[hidden] { display: none; }
+.flc .acc-err { margin: 0; color: #b42318; font-size: 13px; font-weight: 600; }
+.flc .acc-go { border: 0; border-radius: 8px; padding: 9px; background: var(--accent); color: var(--accent-ink); font-weight: 700; cursor: pointer; }
+.flc .acc-go:disabled { opacity: .6; cursor: wait; }
+.flc .acc-switch, .flc .acc-out-btn { border: 0; background: none; color: var(--muted); font-size: 12px; text-decoration: underline; cursor: pointer; padding: 0; align-self: flex-start; }
+.flc .acc-out-btn { font-size: 13px; color: var(--ink); }
+.flc .ai-locked { border: 1.5px dashed var(--accent); background: #fffaeb; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.flc .ai-locked p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.45; }
+.flc .ai-locked .ai-locked-sub { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.flc .ai-locked-btn { border: 0; border-radius: 8px; padding: 8px 14px; background: var(--ink); color: var(--panel); font-weight: 700; cursor: pointer; }
+@media (max-width: 640px) {
+  .flc .acc { margin: 0 0 0 auto; }
+  .flc .acc-btn { padding: 5px 10px; font-size: 12.5px; max-width: 170px; }
+  .flc .acc-pop { left: auto; right: 0; width: min(300px, calc(100vw - 24px)); }
+}

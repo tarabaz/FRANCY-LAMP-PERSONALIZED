@@ -36,7 +36,7 @@ function flc_example_original($ex, $style) {
 
 // Per il configuratore: { stile: { orig, res } } solo per gli stili con entrambe le immagini
 function flc_examples_for_frontend() {
-	$s  = flc_settings();
+	$s  = flc_settings_effective();
 	$ex = flc_examples();
 	if (empty($s['examples_enabled'])) {
 		return null;

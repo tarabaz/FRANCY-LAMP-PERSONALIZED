@@ -115,7 +115,7 @@ add_action('manage_flc_template_posts_custom_column', function ($col, $post_id) 
 
 // Lista per il configuratore: solo pubblicati, con immagine, se l'opzione è attiva
 function flc_templates_for_frontend() {
-	$s = flc_settings();
+	$s = flc_settings_effective();
 	if (empty($s['templates_enabled'])) {
 		return array();
 	}
