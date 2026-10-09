@@ -287,6 +287,9 @@ function flc_rest_convalida(WP_REST_Request $req) {
 		update_post_meta($post_id, '_flc_template', $template);
 	}
 	update_post_meta($post_id, '_flc_stato', 'nuovo');
+	// inviato dal negozio stesso (admin loggato): nella lista finisce nel blocco "I miei"
+	update_post_meta($post_id, '_flc_mine', current_user_can('manage_options') ? 1 : 0);
+	update_post_meta($post_id, '_flc_user', get_current_user_id());
 	update_post_meta($post_id, '_flc_ai', !empty($meta['impostazioni']['ia']) ? 1 : 0);
 	update_post_meta($post_id, '_flc_zip_size', (int) filesize($dir . '/progetto.zip'));
 
@@ -342,7 +345,7 @@ add_action('manage_flc_design_posts_custom_column', function ($col, $post_id) {
 			break;
 		case 'flc_customer':
 			$c = (array) get_post_meta($post_id, '_flc_customer', true);
-			echo esc_html($c['name'] ?? '') . '<br><a href="mailto:' . esc_attr($c['email'] ?? '') . '">' . esc_html($c['email'] ?? '') . '</a>';
+			echo esc_html($c['name'] ?? '') . (flc_design_is_mine($post_id) ? '<span class="flc-mine-badge">MIO</span>' : '') . '<br><a href="mailto:' . esc_attr($c['email'] ?? '') . '">' . esc_html($c['email'] ?? '') . '</a>';
 			if (!empty($c['phone'])) {
 				echo '<br>' . esc_html($c['phone']);
 			}
@@ -398,10 +401,121 @@ add_action('restrict_manage_posts', function ($post_type) {
 	echo '</select>';
 });
 add_action('pre_get_posts', function ($q) {
-	if (is_admin() && $q->is_main_query() && $q->get('post_type') === 'flc_design' && !empty($_GET['flc_stato'])) {
-		$q->set('meta_key', '_flc_stato');
-		$q->set('meta_value', sanitize_key($_GET['flc_stato']));
+	if (!is_admin() || !$q->is_main_query() || $q->get('post_type') !== 'flc_design') {
+		return;
 	}
+	$mq = array();
+	if (!empty($_GET['flc_stato'])) {
+		$mq[] = array('key' => '_flc_stato', 'value' => sanitize_key($_GET['flc_stato']));
+	}
+	$chi = sanitize_key($_GET['flc_chi'] ?? '');
+	if ($chi === 'miei') {
+		$mq[] = array('key' => '_flc_mine', 'value' => 1, 'type' => 'NUMERIC');
+	} elseif ($chi === 'clienti') {
+		$mq[] = array('relation' => 'OR',
+			array('key' => '_flc_mine', 'value' => 0, 'type' => 'NUMERIC'),
+			array('key' => '_flc_mine', 'compare' => 'NOT EXISTS'));
+	} elseif (empty($_GET['orderby'])) {
+		// vista "Tutti": prima il blocco dei miei, poi i clienti, ognuno dal più recente
+		$mq['flc_mine'] = array('relation' => 'OR',
+			'flc_mine_set' => array('key' => '_flc_mine', 'type' => 'NUMERIC', 'compare' => 'EXISTS'),
+			array('key' => '_flc_mine', 'compare' => 'NOT EXISTS'));
+		$q->set('orderby', array('flc_mine_set' => 'DESC', 'date' => 'DESC'));
+	}
+	if ($mq) {
+		$q->set('meta_query', array_merge(array('relation' => 'AND'), $mq));
+	}
+});
+
+// ---------------- i miei progetti / quelli dei clienti ----------------
+function flc_design_is_mine($post_id) {
+	return (int) get_post_meta($post_id, '_flc_mine', true) === 1;
+}
+
+// progetti salvati prima della 0.52: sono "miei" se l'email è quella di un amministratore
+add_action('admin_init', function () {
+	if (get_option('flc_mine_v') === '1') {
+		return;
+	}
+	$emails = array(strtolower((string) get_option('admin_email')));
+	foreach (get_users(array('role' => 'administrator', 'fields' => array('user_email'))) as $u) {
+		$emails[] = strtolower($u->user_email);
+	}
+	$ids = get_posts(array('post_type' => 'flc_design', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids',
+		'meta_query' => array(array('key' => '_flc_mine', 'compare' => 'NOT EXISTS'))));
+	foreach ($ids as $id) {
+		$c = (array) get_post_meta($id, '_flc_customer', true);
+		update_post_meta($id, '_flc_mine', in_array(strtolower((string) ($c['email'] ?? '')), $emails, true) ? 1 : 0);
+	}
+	update_option('flc_mine_v', '1', false);
+});
+
+function flc_design_count_mine($mine) {
+	$q = new WP_Query(array('post_type' => 'flc_design', 'post_status' => array('publish', 'draft', 'pending', 'private'),
+		'posts_per_page' => 1, 'fields' => 'ids', 'no_found_rows' => false,
+		'meta_query' => array(array('key' => '_flc_mine', 'value' => $mine ? 1 : 0, 'type' => 'NUMERIC'))));
+	return (int) $q->found_posts;
+}
+
+add_filter('views_edit-flc_design', function ($views) {
+	$chi  = sanitize_key($_GET['flc_chi'] ?? '');
+	$base = remove_query_arg(array('flc_chi', 'paged', 'post_status'), admin_url('edit.php?post_type=flc_design'));
+	$mk   = function ($key, $label, $n) use ($chi, $base) {
+		$cur = $chi === $key ? ' class="current" aria-current="page"' : '';
+		return '<a href="' . esc_url(add_query_arg('flc_chi', $key, $base)) . '"' . $cur . '>' . $label . ' <span class="count">(' . (int) $n . ')</span></a>';
+	};
+	if ($chi) {
+		foreach ($views as $k => $v) {
+			$views[$k] = str_replace(array(' class="current"', ' aria-current="page"'), '', $v);
+		}
+	}
+	$views['flc_miei']    = $mk('miei', '👤 I miei', flc_design_count_mine(true));
+	$views['flc_clienti'] = $mk('clienti', '🛒 Clienti', flc_design_count_mine(false));
+	return $views;
+});
+
+add_filter('post_class', function ($classes, $class, $post_id) {
+	if (is_admin() && get_post_type($post_id) === 'flc_design') {
+		$classes[] = flc_design_is_mine($post_id) ? 'flc-mine' : 'flc-client';
+	}
+	return $classes;
+}, 10, 3);
+
+// blocchi evidenziati + intestazione "I miei progetti" / "Progetti dei clienti" sopra ogni gruppo
+add_action('admin_head-edit.php', function () {
+	if (get_current_screen()->post_type !== 'flc_design') {
+		return;
+	}
+	?>
+	<style>
+		.wp-list-table tr.flc-mine { background: #fff8e5 !important; }
+		.wp-list-table tr.flc-mine th.check-column { border-left: 4px solid #dba617; }
+		.wp-list-table tr.flc-group td { background: #f0f0f1; font-weight: 600; font-size: 13px; padding: 8px 12px; border-top: 2px solid #c3c4c7; }
+		.wp-list-table tr.flc-group.mine td { background: #fcf0d0; border-top-color: #dba617; color: #6b4f00; }
+		.flc-mine-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; background: #dba617; color: #fff; font-size: 11px; font-weight: 600; vertical-align: middle; }
+	</style>
+	<script>
+	document.addEventListener('DOMContentLoaded', function () {
+		var tb = document.querySelector('#the-list');
+		if (!tb) return;
+		var cols = (document.querySelectorAll('.wp-list-table thead tr > *') || []).length || 8;
+		var rows = Array.prototype.slice.call(tb.querySelectorAll(':scope > tr.flc-mine, :scope > tr.flc-client'));
+		var hasM = rows.some(function (r) { return r.classList.contains('flc-mine'); });
+		var hasC = rows.some(function (r) { return r.classList.contains('flc-client'); });
+		if (!hasM || !hasC) return; // un solo gruppo (es. vista filtrata): niente intestazioni
+		var last = null;
+		rows.forEach(function (r) {
+			var g = r.classList.contains('flc-mine') ? 'mine' : 'client';
+			if (g === last) return;
+			last = g;
+			var h = document.createElement('tr');
+			h.className = 'flc-group ' + g;
+			h.innerHTML = '<td colspan="' + cols + '">' + (g === 'mine' ? '👤 I miei progetti' : '🛒 Progetti dei clienti') + '</td>';
+			r.parentNode.insertBefore(h, r);
+		});
+	});
+	</script>
+	<?php
 });
 
 // ---------------- scheda del progetto ----------------
@@ -476,6 +590,7 @@ function flc_stato_box($post) {
 				<option value="<?php echo esc_attr($k); ?>" <?php selected($stato, $k); ?>><?php echo esc_html($label); ?></option>
 			<?php endforeach; ?>
 		</select></p>
+	<p><label><input type="checkbox" name="flc_mine" value="1" <?php checked(flc_design_is_mine($post->ID)); ?>> 👤 Progetto mio (non di un cliente)</label></p>
 	<p><a class="button button-primary" style="width:100%;text-align:center" href="<?php echo esc_url(flc_file_url($post->ID, 'zip')); ?>">Scarica zip completo</a>
 		<?php if ($size) : ?><br><span class="description"><?php echo esc_html(size_format($size, 1)); ?> – anteprime, originale, ridisegno IA, SVG/EPS, STL, lista filamenti</span><?php endif; ?></p>
 	<?php if (flc_design_has_francy($post->ID)) : ?>
@@ -483,7 +598,7 @@ function flc_stato_box($post) {
 		<p><a class="button" style="width:100%;text-align:center" href="<?php echo esc_url(add_query_arg('flc_mk', 1, flc_design_open_url($post->ID))); ?>" target="_blank">📌 Converti in template</a><br>
 			<span class="description">Riapre il progetto del cliente com'era (immagine, colori, scritte…) per modificarlo; da lì puoi anche crearne un template. <a href="<?php echo esc_url(flc_file_url($post->ID, 'francy')); ?>">Scarica il .francy</a></span></p>
 	<?php endif; ?>
-	<p class="description">Premi "Aggiorna" per salvare lo stato.</p>
+	<p class="description">Premi "Aggiorna" per salvare stato e gruppo.</p>
 	<?php
 }
 
@@ -495,6 +610,7 @@ add_action('save_post_flc_design', function ($post_id) {
 	if (isset(FLC_STATI[$stato])) {
 		update_post_meta($post_id, '_flc_stato', $stato);
 	}
+	update_post_meta($post_id, '_flc_mine', empty($_POST['flc_mine']) ? 0 : 1);
 });
 
 // ---------- nomi veri delle bobine nei file del cliente ----------

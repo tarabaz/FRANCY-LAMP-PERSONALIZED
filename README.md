@@ -260,6 +260,11 @@ nuova scheda il configuratore con quel disegno già in elaborazione (dal suo pro
 **✏️ Apri nel configuratore** (nuova scheda, riapre il disco del cliente com'era: immagine, ridisegno IA, colori,
 pennellate, scritte… da lì anche 📌 Crea template) e il download del `.francy`. Indirizzo: `?flc_prj=ID`. I progetti
 inviati prima di questa versione non hanno il .francy.
+**I miei progetti separati da quelli dei clienti**: un disco convalidato mentre sei loggato come amministratore viene
+segnato come tuo. In Progetti la vista "Tutti" mostra prima il blocco **👤 I miei progetti** (righe evidenziate in
+giallo, etichetta MIO) e sotto **🛒 Progetti dei clienti**; in alto ci sono anche i filtri "👤 I miei" e "🛒 Clienti".
+I progetti già esistenti vengono riconosciuti dall'email (quella dell'admin o di un amministratore). Se uno finisce nel
+gruppo sbagliato, nella scheda del progetto c'è la casella "👤 Progetto mio".
 **📌 Converti in template** (Progetti, colonna File "📌 Template" e riquadro laterale): apre il progetto del cliente nel
 configuratore con la finestra "Crea template" già aperta (`?flc_prj=ID&flc_mk=1`). Solo per i progetti con il .francy.
 Template, file di stampa e progetti si creano, modificano e scaricano solo da amministratore (pulsanti nascosti agli
