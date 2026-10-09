@@ -132,7 +132,7 @@ trasparenza = il tono meno presente (nero su bianco o bianco su nero). Il colore
 verso il centro): la grafica è lo **sviluppo intero** (fustella aperta) ritagliato al contorno esterno, e ogni faccia
 prende il suo rettangolo (coperchio con la cerniera dietro, fronte, retro, fianchi, fondo; le linguette interne non
 servono). Predefinita: `assets/img/scatola.webp`; si cambia in Impostazioni → Scatola: grafica (stessa fustella, anche
-4000–6000 px). Con la scatola il tavolino diventa una console da ~1 m × 36 cm e l'inquadratura iniziale si allarga. Impostazioni: accesa all'apertura sì/no, pulsante
+4000–6000 px). Con la scatola il tavolino diventa una console da ~1 m × 36 cm: la lampada sta a sinistra del tavolo, la scatola a ~20 cm alla sua destra, l'insegna all'estrema sinistra; l'inquadratura iniziale è centrata sul disco. Se le impostazioni erano state salvate da una pagina più vecchia (senza le caselle), ambientazione, insegna e scatola restano accese finché non si salva dalla scheda nuova. Impostazioni: accesa all'apertura sì/no, pulsante
 "🏠 Ambientazione" per il cliente sì/no, texture del legno e del muro dalla Libreria media (vuote = legno generato e
 muro chiaro in tinta unita).
 

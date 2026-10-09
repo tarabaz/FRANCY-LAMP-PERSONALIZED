@@ -293,6 +293,7 @@ function flc_defaults() {
 		'sign_gold'    => 0,  // texture dello strato oro (stessa dimensione; pieno/bianco = oro)
 		'sign_gold_color' => '#d4af37',
 		'box_on'       => 1,  // scatola di spedizione sul tavolino (a destra)
+		'scene_v'      => 0,  // 1 = ambientazione, insegna e scatola già salvate dalla scheda che le contiene
 		'box_tex'      => 0,  // grafica della scatola: sviluppo intero ritagliato al contorno (id Libreria media)
 		'wm_onscreen'  => 0, // watermark sulla vista a schermo: spento (resta solo sull'immagine scaricata)
 		'wm_download'  => 1,
@@ -346,6 +347,12 @@ function flc_settings() {
 	// risoluzione: le vecchie impostazioni (5 px/mm) passano a 10 px/mm (0,1 mm per pixel); salvando diventa definitivo
 	if (is_array($raw) && $raw && empty($raw['res_v']) && (int) ($raw['sl_ppmm'] ?? 0) < 10) {
 		$raw['sl_ppmm'] = 10;
+	}
+	// ambientazione 3D: un salvataggio da una pagina di impostazioni più vecchia (senza le caselle di insegna e scatola)
+	// le avrebbe spente; finché non si salva dalla scheda nuova restano accese (salvando diventa definitivo)
+	if (is_array($raw) && $raw && empty($raw['scene_v'])) {
+		$raw['scene_on'] = $raw['sign_on'] = $raw['box_on'] = 1;
+		$raw['scene_toggle'] = $raw['scene_toggle'] ?? 1;
 	}
 	$s = wp_parse_args($raw, flc_defaults() + flc_feature_defaults());
 	// i prompt incollati dalla versione di prima chiedevano un risultato quadrato: quella frase diventa "stesso formato"
@@ -452,6 +459,7 @@ function flc_sanitize_settings($in) {
 		'sign_gold'    => absint($in['sign_gold'] ?? 0),
 		'sign_gold_color' => sanitize_hex_color($in['sign_gold_color'] ?? '') ?: $d['sign_gold_color'],
 		'box_on'       => empty($in['box_on']) ? 0 : 1,
+		'scene_v'      => 1,
 		'box_tex'      => absint($in['box_tex'] ?? 0),
 		'wm_onscreen'  => empty($in['wm_onscreen']) ? 0 : 1,
 		'wm_download'  => empty($in['wm_download']) ? 0 : 1,

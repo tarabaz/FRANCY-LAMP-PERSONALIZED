@@ -102,10 +102,11 @@ export class Preview3D {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(35, 1, 5, 6000);
     // con l'ambientazione l'inquadratura è un po' più larga (si vede il tavolino)
-    const wide = this.roomOn && this.sceneCfg.box && this.sceneCfg.box.on !== false; // console larga con la scatola
-    if (wide) this.camera.position.set(240, 190, 1260); else if (this.roomOn) this.camera.position.set(230, 70, 780); else this.camera.position.set(190, 40, 620);
+    // inquadratura centrata sul disco della lampada; con l'ambientazione un po' più da lontano (si vede il tavolo)
+    const wide = this.roomOn && this.sceneCfg.box && this.sceneCfg.box.on !== false;
+    if (wide) this.camera.position.set(150, 140, 1380); else if (this.roomOn) this.camera.position.set(200, 80, 800); else this.camera.position.set(190, 40, 620);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(wide ? 75 : 0, wide ? -75 : this.roomOn ? -40 : -25, 0);
+    this.controls.target.set(0, this.roomOn ? 0 : -25, 0);
     this.controls.enableDamping = true;
 
     this.ambient = new THREE.HemisphereLight(0xffffff, 0xd8d8d8, 1.1);
@@ -228,6 +229,8 @@ export class Preview3D {
     const boxCfg = this.sceneCfg.box, boxOn = !!(boxCfg && boxCfg.on !== false);
     const T = { w: boxOn ? 980 : 560, th: 22, legH: 700 };
     const zBack = lampBack - 70, zFront = Math.max(lampFront + 90, zBack + (boxOn ? 360 : 200));
+    // con la scatola la lampada sta a sinistra del tavolo: il tavolo (e muro, presa, insegna, scatola) si sposta a destra
+    const ox = boxOn ? 170 : 0;
     const depth = zFront - zBack, zMid = (zBack + zFront) / 2;
     // texture dall'admin (Libreria media) oppure quella generata
     const loadTex = (url, onload) => {
@@ -250,19 +253,19 @@ export class Preview3D {
     topGeo.rotateX(Math.PI / 2); // estrusione verso il basso
     const uv = topGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 420, uv.getY(i) / 140);
     const tabletop = new THREE.Mesh(topGeo, woodMat);
-    tabletop.position.set(0, top - 2, zMid);
+    tabletop.position.set(ox, top - 2, zMid);
     room.add(tabletop);
     // gambe sottili leggermente inclinate, nere
     const legMat = new THREE.MeshStandardMaterial({ color: 0x232325, roughness: 0.5, metalness: 0.35 });
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
       const leg = new THREE.Mesh(new THREE.CylinderGeometry(7, 5, T.legH, 16), legMat);
-      leg.position.set(sx * (hw - 40), top - T.th - T.legH / 2, zMid + sz * (hd - 30));
+      leg.position.set(ox + sx * (hw - 40), top - T.th - T.legH / 2, zMid + sz * (hd - 30));
       leg.rotation.z = sx * 0.04; leg.rotation.x = -sz * 0.03;
       room.add(leg);
     }
     const floorY = top - T.th - T.legH;
     const floorShadow = new THREE.Mesh(new THREE.PlaneGeometry(T.w * 1.5, depth * 2.6), new THREE.MeshBasicMaterial({ map: softShadowTexture(0.32), transparent: true, depthWrite: false }));
-    floorShadow.rotation.x = -Math.PI / 2; floorShadow.position.set(0, floorY + 0.5, zMid);
+    floorShadow.rotation.x = -Math.PI / 2; floorShadow.position.set(ox, floorY + 0.5, zMid);
     room.add(floorShadow);
 
     // muro dietro (sparisce girando la vista da dietro)
@@ -273,7 +276,7 @@ export class Preview3D {
       this.wallMat.map = loadTex(this.sceneCfg.wall, (t) => { const k = t.image.width / t.image.height || 1; t.repeat.set(2400 / 600, 1900 / (600 / k)); t.needsUpdate = true; });
     }
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(2400, 1900), this.wallMat);
-    wall.position.set(0, floorY + 950, wallZ);
+    wall.position.set(ox, floorY + 950, wallZ);
     room.add(wall);
     this.wall = wall; this.wallZ = wallZ;
 
@@ -292,7 +295,7 @@ export class Preview3D {
     led.rotation.x = Math.PI / 2; led.position.set(14, 14, 7 + 34 + 0.5); sock.add(led);
     const logo = new THREE.Mesh(new THREE.PlaneGeometry(18, 3), new THREE.MeshBasicMaterial({ color: 0x3a3a3c }));
     logo.position.set(0, -14, 7 + 34 + 0.3); sock.add(logo);
-    const sx = hw - 70, sy = floorY + 360;
+    const sx = ox + hw - 70, sy = floorY + 360;
     sock.position.set(sx, sy, wallZ + 4.5);
     room.add(sock);
 
@@ -350,9 +353,9 @@ export class Preview3D {
 
     // insegna sul tavolino, a sinistra, girata verso il centro
     const sign = this.sceneCfg.sign;
-    if (sign && sign.on !== false) this.buildSign(room, { x: boxOn ? -230 : -hw + 95, y: top, z: zMid + 12 }, sign);
+    if (sign && sign.on !== false) this.buildSign(room, { x: boxOn ? ox - hw + 90 : -hw + 95, y: top, z: zMid + 12 }, sign);
     // scatola di spedizione a destra, davanti al cavo, girata un po' verso il centro
-    if (boxOn) this.buildBox(room, { x: 300, y: top, z: zMid + 20 }, boxCfg);
+    if (boxOn) this.buildBox(room, { x: ox + hw - 185, y: top, z: zMid + 20 }, boxCfg);
 
     room.visible = this.roomOn !== false;
     this.room = room;
@@ -455,7 +458,8 @@ export class Preview3D {
   // al contorno esterno). Ogni faccia prende il suo rettangolo dello sviluppo; le linguette interne non servono.
   buildBox(room, at, cfg) {
     const L = 302, D = 233, Hh = 88;
-    // rettangoli nello sviluppo (frazioni della larghezza/altezza dell'immagine, misurati sulla fustella 585 × 641)
+    // rettangoli nello sviluppo (frazioni della larghezza/altezza dell'immagine, misurati sulla fustella 585 × 641;
+    // provati con la grafica finita: combaciano)
     const NW = 585, NH = 641;
     const X0 = 159 / NW, X1 = 426 / NW, SL = 81 / NW, SR = 504 / NW;          // colonna centrale, pareti laterali
     const A0 = 1 / NH, A1 = 75 / NH, B0 = 77 / NH, B1 = 282 / NH, C1 = 357 / NH, Dl = 565 / NH; // fronte, fondo, retro, coperchio
