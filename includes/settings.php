@@ -296,6 +296,7 @@ function flc_defaults() {
 		'scene_v'      => 0,
 		// posizioni nell'ambientazione (cm e gradi, rispetto al centro del tavolo; Y verso il davanti)
 		'lay_lamp_x'   => -17,
+		'lay_lamp_y'   => 0,
 		'lay_box_x'    => 30.5,
 		'lay_box_y'    => 2,
 		'lay_box_rot'  => -12,
@@ -469,6 +470,7 @@ function flc_sanitize_settings($in) {
 		'box_on'       => empty($in['box_on']) ? 0 : 1,
 		'scene_v'      => 1,
 		'lay_lamp_x'   => max(-45, min(45, round((float) ($in['lay_lamp_x'] ?? -17), 1))),
+		'lay_lamp_y'   => max(-5, min(25, round((float) ($in['lay_lamp_y'] ?? 0), 1))),
 		'lay_box_x'    => max(-45, min(45, round((float) ($in['lay_box_x'] ?? 30.5), 1))),
 		'lay_box_y'    => max(-15, min(15, round((float) ($in['lay_box_y'] ?? 2), 1))),
 		'lay_box_rot'  => max(-180, min(180, round((float) ($in['lay_box_rot'] ?? -12)))),
@@ -1098,11 +1100,11 @@ function flc_settings_page() {
 						<tr><th>Posizioni sul tavolo</th><td>
 							<p class="description">In centimetri rispetto al <strong>centro del tavolo</strong> (X: negativo = sinistra; Y: positivo = verso il davanti) e rotazione in gradi (positivo = gira verso sinistra). Il tavolo è largo circa 98 cm e profondo 36.</p>
 							<table class="flc-lay"><tr><th></th><th>X (cm)</th><th>Y (cm)</th><th>Rotazione (°)</th></tr>
-							<tr><td>Lampada</td><td><input type="number" step="0.5" min="-45" max="45" name="<?php echo $n('lay_lamp_x'); ?>" value="<?php echo esc_attr($s['lay_lamp_x']); ?>"></td><td>—</td><td>—</td></tr>
+							<tr><td>Lampada</td><td><input type="number" step="0.5" min="-45" max="45" name="<?php echo $n('lay_lamp_x'); ?>" value="<?php echo esc_attr($s['lay_lamp_x']); ?>"></td><td><input type="number" step="0.5" min="-5" max="25" name="<?php echo $n('lay_lamp_y'); ?>" value="<?php echo esc_attr($s['lay_lamp_y']); ?>" title="0 = 7 cm dal bordo dietro; positivo = più avanti"></td><td>—</td></tr>
 							<tr><td>Scatola</td><td><input type="number" step="0.5" min="-45" max="45" name="<?php echo $n('lay_box_x'); ?>" value="<?php echo esc_attr($s['lay_box_x']); ?>"></td><td><input type="number" step="0.5" min="-15" max="15" name="<?php echo $n('lay_box_y'); ?>" value="<?php echo esc_attr($s['lay_box_y']); ?>"></td><td><input type="number" step="1" min="-180" max="180" name="<?php echo $n('lay_box_rot'); ?>" value="<?php echo esc_attr($s['lay_box_rot']); ?>"></td></tr>
 							<tr><td>Targa</td><td><input type="number" step="0.5" min="-45" max="45" name="<?php echo $n('lay_sign_x'); ?>" value="<?php echo esc_attr($s['lay_sign_x']); ?>"></td><td><input type="number" step="0.5" min="-15" max="15" name="<?php echo $n('lay_sign_y'); ?>" value="<?php echo esc_attr($s['lay_sign_y']); ?>"></td><td><input type="number" step="1" min="-180" max="180" name="<?php echo $n('lay_sign_rot'); ?>" value="<?php echo esc_attr($s['lay_sign_rot']); ?>"></td></tr>
 							</table>
-							<p class="description">Valori predefiniti: lampada −17 · scatola 30,5 / 2 / −12° · targa −40 / 1,2 / 25°. Le posizioni restano sempre dentro il piano.</p></td></tr>
+							<p class="description">Lampada Y: 0 = a 7 cm dal bordo dietro, positivo = più avanti (il cavo si ricalcola da solo). Valori predefiniti: lampada −17 / 0 · scatola 30,5 / 2 / −12° · targa −40 / 1,2 / 25°. Le posizioni restano sempre dentro il piano.</p></td></tr>
 						<tr><th>Scatola di spedizione</th><td><label><input type="checkbox" name="<?php echo $n('box_on'); ?>" value="1" <?php checked(!empty($s['box_on'])); ?>> Mostra la scatola (30,2 × 23,3 × 8,8 cm) a destra della lampada</label>
 							<p class="description">Con la scatola il tavolino diventa una console da circa 1 m. La grafica qui sotto è lo <strong>sviluppo intero</strong> della scatola (fustella aperta), ritagliato esattamente al contorno esterno: ogni faccia prende il suo pezzo.</p></td></tr>
 						<?php $bu = $s['box_tex'] ? wp_get_attachment_image_url($s['box_tex'], 'thumbnail') : ''; ?>

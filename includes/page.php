@@ -55,7 +55,7 @@ function flc_frontend_config() {
 			'wood'   => $s['scene_wood'] ? (wp_get_attachment_image_url($s['scene_wood'], 'large') ?: '') : '',
 			'wall'   => $s['scene_wall'] ? (wp_get_attachment_image_url($s['scene_wall'], 'large') ?: '') : '',
 			'layout' => array(
-				'lampX' => (float) $s['lay_lamp_x'], 'boxX' => (float) $s['lay_box_x'], 'boxY' => (float) $s['lay_box_y'], 'boxRot' => (float) $s['lay_box_rot'],
+				'lampX' => (float) $s['lay_lamp_x'], 'lampY' => (float) $s['lay_lamp_y'], 'boxX' => (float) $s['lay_box_x'], 'boxY' => (float) $s['lay_box_y'], 'boxRot' => (float) $s['lay_box_rot'],
 				'signX' => (float) $s['lay_sign_x'], 'signY' => (float) $s['lay_sign_y'], 'signRot' => (float) $s['lay_sign_rot'],
 			),
 			'box'    => array(

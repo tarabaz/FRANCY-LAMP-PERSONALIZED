@@ -131,8 +131,8 @@ sulla faccia grande una **texture di sfondo** e sopra uno **strato oro metallizz
 dimensione, proporzione 16:10, es. 1600 × 1000) ha il disegno: PNG trasparente = tutto ciò che non è trasparente; senza
 trasparenza = il tono meno presente (nero su bianco o bianco su nero). Il colore del disegno non conta.
 **Posizioni sul tavolo** (Impostazioni → Anteprima 3D: ambientazione): in cm rispetto al centro del tavolo e gradi —
-lampada X (si sposta il tavolo, la lampada resta al centro della vista), scatola X/Y/rotazione, targa X/Y/rotazione
-(Y = verso il davanti). Predefiniti: lampada −17 · scatola 30,5 / 2 / −12° · targa −40 / 1,2 / 25°.
+lampada X e Y (si sposta il tavolo sotto la lampada, che resta al centro della vista; il cavo si ricalcola dallo spinotto al bordo dietro e alla presa), scatola X/Y/rotazione, targa X/Y/rotazione
+(Y = verso il davanti). Predefiniti: lampada −17 / 0 (Y 0 = 7 cm dal bordo dietro) · scatola 30,5 / 2 / −12° · targa −40 / 1,2 / 25°.
 
 **Scatola di spedizione** a destra della lampada (postale a libro, 30,2 × 23,3 × 8,8 cm a misura vera, girata di 12°
 verso il centro): la grafica è lo **sviluppo intero** (fustella aperta) ritagliato al contorno esterno, e ogni faccia

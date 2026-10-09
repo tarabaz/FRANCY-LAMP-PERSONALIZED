@@ -228,7 +228,11 @@ export class Preview3D {
     // con la scatola (30 × 23 cm) il tavolino diventa una console da ~1 m, profonda 36 cm
     const boxCfg = this.sceneCfg.box, boxOn = !!(boxCfg && boxCfg.on !== false);
     const T = { w: boxOn ? 980 : 560, th: 22, legH: 700 };
-    const zBack = lampBack - 70, zFront = Math.max(lampFront + 90, zBack + (boxOn ? 360 : 200));
+    // lampada Y (cm, positivo = più verso il davanti): il tavolo scorre indietro sotto la lampada, che resta sul piano
+    const layY = this.sceneCfg.layout || {};
+    const depthT = Math.max(lampFront - lampBack + 160, boxOn ? 360 : 200);
+    const lampY = THREE.MathUtils.clamp(+layY.lampY || 0, -5, Math.max(0, (depthT - (lampFront - lampBack) - 90) / 10)); // da 2 cm dal bordo dietro fino a ~2 cm dal davanti
+    const zBack = lampBack - 70 - lampY * 10, zFront = zBack + Math.max(depthT, lampFront + 90 - zBack);
     // posizioni regolabili (Impostazioni, in cm e gradi, rispetto al centro del tavolo; Y = verso il davanti).
     // La lampada resta ferma: spostarla lungo il tavolo vuol dire spostare il tavolo (e muro, presa, insegna, scatola).
     const lay = this.sceneCfg.layout || {};
