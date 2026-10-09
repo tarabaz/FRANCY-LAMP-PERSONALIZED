@@ -257,6 +257,10 @@ spazi, modificabile prima di importare). Pubblica subito o bozza; se esiste già
 o ne sostituisce l'immagine. Lo ZIP si apre nel browser e le immagini arrivano al sito una alla volta, quindi non
 contano i limiti di upload dell'hosting.
 
+**Sfondi IA, esempio caricato**: nella tabella degli sfondi (Impostazioni → Sfondi IA) ogni riga ha, oltre a
+"✨ Genera prova", **📁 Carica immagine**: un'immagine dalla Libreria media diventa l'esempio di quello sfondo mostrato
+ai clienti (ritagliata quadrata a 640 px, al posto della prova generata). Endpoint: `POST /sfondi/carica`.
+
 **Galleria per tanti disegni** (anche centinaia): la finestra "Scegli un template pronto" è grande, con la barra fissa
 in alto e la griglia che scorre sotto. Si può **cercare per nome** (senza accenti, più parole = tutte devono esserci,
 vale anche il nome della categoria), filtrare per **categoria** (chip con il numero di disegni) e regolare la

@@ -201,6 +201,42 @@ add_action('rest_api_init', function () {
 	));
 });
 
+// Carica: l'esempio di uno sfondo è un'immagine scelta dall'admin nella Libreria media invece che generata
+add_action('rest_api_init', function () {
+	register_rest_route('francy-lamp/v1', '/sfondi/carica', array(
+		'methods'             => 'POST',
+		'permission_callback' => function () { return current_user_can('manage_options'); },
+		'callback'            => function (WP_REST_Request $req) {
+			$id  = (string) $req->get_param('id');
+			$att = absint($req->get_param('attachment'));
+			if (!preg_match('/^[a-f0-9]{8}$/', $id)) {
+				return new WP_Error('flc_bg', 'Sfondo non valido.', array('status' => 400));
+			}
+			$src = $att ? get_attached_file($att) : '';
+			$info = $src && is_file($src) ? @getimagesize($src) : false;
+			if (!$info || !in_array($info['mime'], array('image/png', 'image/jpeg', 'image/webp'), true)) {
+				return new WP_Error('flc_bg', 'Serve un\'immagine PNG, JPG o WEBP.', array('status' => 400));
+			}
+			list($dir) = flc_bg_dir();
+			flc_bg_delete_test($id);
+			$ext  = array('image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp')[$info['mime']];
+			$file = "$dir/$id.$ext";
+			if (!@copy($src, $file)) {
+				return new WP_Error('flc_bg', 'Non riesco a salvare l\'immagine.', array('status' => 500));
+			}
+			// come le prove generate: un quadrato da 640 px al centro (è l'esempio mostrato ai clienti)
+			if (function_exists('wp_get_image_editor')) {
+				$ed = wp_get_image_editor($file);
+				if (!is_wp_error($ed)) {
+					$ed->resize(640, 640, true);
+					$ed->save($file);
+				}
+			}
+			return array('url' => flc_bg_test_url($id), 'time' => current_time('d/m H:i'));
+		},
+	));
+});
+
 // Tabella nella scheda "Stili e prompt" (dentro il form delle impostazioni: ha il suo salvataggio via REST,
 // e se ci sono modifiche non salvate le salva anche quando premi il "Salva" generale)
 function flc_bg_table_html($s) {
@@ -264,7 +300,7 @@ function flc_bg_table_html($s) {
 			<button type="button" class="button button-primary" id="flcBgSave">Salva sfondi</button>
 			<span id="flcBgMsg" class="description"></span>
 		</div>
-		<p class="description">La <strong>prova</strong> chiede a Gemini solo lo sfondo, senza soggetto, per vedere che tipo di immagine esce (costa come un ridisegno, circa 4 centesimi).
+		<p class="description">Con <strong>📁 Carica immagine</strong> usi come esempio un'immagine tua (Libreria media, ritagliata quadrata a 640 px) senza generarla. La <strong>prova</strong> chiede a Gemini solo lo sfondo, senza soggetto, per vedere che tipo di immagine esce (costa come un ridisegno, circa 4 centesimi).
 			Nel ridisegno vero l'IA lo adatta alla foto del cliente, quindi il risultato sarà simile ma non identico.</p>
 	</div>
 	<script>
@@ -294,6 +330,7 @@ function flc_bg_table_html($s) {
 				(r._err ? '<div class="err">' + esc(r._err) + '</div>' : '') + '</td>' +
 				'<td style="text-align:center"><input type="checkbox" class="o"' + (r.on ? ' checked' : '') + '></td>' +
 				'<td class="keep"><div class="acts"><button type="button" class="button button-small gen"' + (busy[r.id] ? ' disabled' : '') + '>' + (r.test ? '↻ Rigenera prova' : '✨ Genera prova') + '</button>' +
+				'<button type="button" class="button button-small up-img"' + (busy[r.id] ? ' disabled' : '') + ' title="Usa come esempio un\'immagine tua (Libreria media) invece di generarla">📁 Carica immagine</button>' +
 				'<button type="button" class="button-link-delete del">✕ Elimina</button></div></td></tr>';
 		}
 		function cats() { return [...new Set(rows.map((r) => r.cat.trim()).filter(Boolean))].sort(); }
@@ -338,6 +375,17 @@ function flc_bg_table_html($s) {
 				[rows[i - 1], rows[i]] = [rows[i], rows[i - 1]]; touch(i - 1); render();
 			} else if (t.classList.contains('dn') && i < rows.length - 1) {
 				[rows[i + 1], rows[i]] = [rows[i], rows[i + 1]]; touch(i + 1); render();
+			} else if (t.classList.contains('up-img')) {
+				if (!window.wp || !wp.media) { alert('Libreria media non disponibile.'); return; }
+				const frame = wp.media({ title: 'Esempio dello sfondo "' + (r.label || 'senza nome') + '"', library: { type: 'image' }, multiple: false, button: { text: 'Usa come esempio' } });
+				frame.on('select', async () => {
+					const x = frame.state().get('selection').first().toJSON();
+					busy[r.id] = true; r._err = ''; render();
+					try { const j = await post('carica', { id: r.id, attachment: x.id }); r.test = j.url; }
+					catch (err) { r._err = 'Immagine non caricata: ' + err.message; }
+					delete busy[r.id]; render();
+				});
+				frame.open();
 			} else if (t.classList.contains('gen')) {
 				if (!r.prompt.trim()) { r._err = 'Scrivi prima la descrizione.'; render(); return; }
 				busy[r.id] = true; r._err = ''; render();
