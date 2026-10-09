@@ -261,10 +261,12 @@ function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
   }
   const isSel = new Uint8Array(n);
   if (sel.size) for (let i = 0; i < n; i++) if (full[i] !== NONE && sel.has(comp[i])) isSel[i] = 1;
-  // grafiche aggiuntive: la loro sagoma esce sempre dal cerchio (fino all'anello nero), con il contorno nero
+  // il contorno nero si aggiunge solo alle parti dell'immagine toccate dal cliente: le grafiche aggiuntive hanno
+  // già il loro bordo (disegnato nella grafica o regolato con il suo slider "Bordo"), niente bordo in più
+  const dist = sel.size ? distanceFrom(isSel, size) : null;
+  // grafiche aggiuntive: la loro sagoma esce sempre dal cerchio (fino all'anello nero)
   let anySel = sel.size > 0;
   if (ov.mask) for (let i = 0; i < n; i++) if (ov.mask[i] && full[i] !== NONE) { isSel[i] = 1; anySel = true; }
-  const dist = anySel ? distanceFrom(isSel, size) : null;
   const lineW = Math.max(1, opts.lineMm * ppmm);
   const labels = new Uint8Array(full);
   const rArt2 = ov.rArt * ov.rArt, rKeep2 = ov.rKeep * ov.rKeep;
@@ -276,7 +278,7 @@ function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
     const slot = dy > 0 && Math.abs(dx) < ov.slotHalf;
     if (d2 > rKeep2 || slot || !anySel) { labels[i] = NONE; continue; }
     if (isSel[i]) continue;
-    if (dist[i] <= lineW) { labels[i] = blackIdx; continue; }
+    if (dist && dist[i] <= lineW) { labels[i] = blackIdx; continue; }
     labels[i] = NONE;
   }
   // aree aggiornate (contano solo i pixel stampati)

@@ -163,8 +163,9 @@ pieni e contorno nero): nel passo "Cornice e scritte" il cliente tocca una grafi
 Sul disegno la sposta trascinandola, la ingrandisce con la maniglia gialla e la ruota con quella bianca (o con gli
 slider della lista); la lista dei livelli ha anche ordine (▲▼) ed elimina. Le grafiche possono andare sopra la fascia
 fino all'anello nero esterno (sempre sopra), l'asola resta libera. Prima della conversione vengono disegnate
-sull'immagine e convertite con le bobine come il resto (contorno nero e buco esatto nella fascia come "sopra la
-fascia"), quindi in SVG/STL/3MF sono forme vere, separate per colore. I colori del disegno non cambiano: della grafica
+sull'immagine e convertite con le bobine come il resto (buco esatto nella fascia come "sopra la fascia", ma senza
+contorno nero aggiunto: vale il bordo già disegnato nella grafica). Lo slider **Bordo nero** (0–3 mm, 0 = nessuno) di
+ogni grafica aggiunge un contorno nero intorno a tutta la sagoma, dentro e fuori dal cerchio. Quindi in SVG/STL/3MF sono forme vere, separate per colore. I colori del disegno non cambiano: della grafica
 si aggiungono solo i colori che nel disco mancano.
 
 **Sostituisci un colore**: toccando un colore nell'elenco si sceglie un'altra bobina (anche una già presente): il

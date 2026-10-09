@@ -199,6 +199,7 @@ export const GUIDE = [
 <ul>
   <li><strong>Trascinala</strong> sull'anteprima per spostarla.</li>
   <li>Maniglia <strong>gialla</strong>: ingrandisce; maniglia <strong>bianca</strong>: ruota (oppure gli slider Dim. e Rot. nell'elenco).</li>
+  <li><strong>Bordo nero</strong>: aggiunge un contorno nero intorno a tutta la grafica (0 = solo quello già disegnato nella grafica).</li>
   <li>▲ ▼ cambiano l'ordine (sopra/sotto), ✕ la elimina.</li>
 </ul>
 <figure class="w-fig" data-gimg="grafiche"><figcaption>Una grafica aggiunta: maniglie sul disegno oppure gli slider Dim. e Rot.</figcaption></figure>

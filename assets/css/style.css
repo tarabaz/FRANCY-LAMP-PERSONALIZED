@@ -614,3 +614,6 @@ html.flc-page .flc { height: 100%; }
 .flc .acc-contact { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
 .flc .acc-contact a { color: var(--ink); font-weight: 700; }
 .flc .ai-locked .acc-contact { font-size: 13px; color: var(--ink); margin: 8px 0 0; }
+.flc .stk-layers .sl .sl-b { white-space: nowrap; }
+.flc .stk-layers .sl .sl-b b { font-weight: 600; color: var(--ink); }
+.flc .stk-layers .sl .sl-bi { grid-column: 2 / -1; }
