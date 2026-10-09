@@ -286,6 +286,8 @@ Codici che dai tu, senza account WordPress: valgono solo per il configuratore. S
 - **Nel configuratore**: "🔑 Accedi" in alto a sinistra (codice, oppure "Sei l'amministratore del sito?" con utente e
   password di WordPress). Da dentro il pulsante mostra 🎟️ nome del codice (o 👤 per l'admin) ed "Esci". Se l'ospite non
   ha il ridisegno ma un profilo sì, il passo 2 mostra il lucchetto con "Ho un codice: accedi".
+  Sotto (e nel popup "Accedi") c'è "Non hai un codice? Scrivici in DM su Instagram (@…)": il link si cambia in
+  Impostazioni → Accessi → "Chi non ha un codice" (Instagram, Facebook, WhatsApp o email; vuoto = nascosto).
 - **Sicurezza**: tutto è controllato dal server (ridisegno, limiti, convalida); il cookie è firmato e cambiando il
   codice chi era dentro esce; dopo 5 codici sbagliati dallo stesso IP blocco di 15 minuti. Con un codice valgono i
   limiti del codice e non quello per IP (in fiera tante persone hanno lo stesso wifi); il limite giornaliero di tutto

@@ -356,6 +356,7 @@ function flc_access_public() {
 		'configUrl' => esc_url_raw(rest_url('francy-lamp/v1/accesso/config')),
 		'account'   => null,
 		'admin'     => current_user_can('manage_options') ? wp_get_current_user()->display_name : '',
+		'contact'   => esc_url_raw(flc_settings()['acc_contact_url'] ?? ''), // link "Non hai un codice? Scrivici"
 		'error'     => '',
 	);
 	$cur = current_user_can('manage_options') ? null : flc_access_current();

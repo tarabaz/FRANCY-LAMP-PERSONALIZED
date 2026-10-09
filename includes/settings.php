@@ -279,6 +279,7 @@ function flc_defaults() {
 		'page_description' => '',
 		'page_wp_head' => 1,
 		'privacy_url'  => 'https://www.francystore3d.it/privacy-policy/',
+		'acc_contact_url' => 'https://www.instagram.com/francystore3d/', // "Non hai un codice? Scrivici" (vuoto = niente)
 		'cookie_url'   => '',
 		'copyright_name' => 'FrancyStore3D',
 		'stage_bg'     => '#3a3d44',
@@ -456,6 +457,7 @@ function flc_sanitize_settings($in) {
 		'page_description' => sanitize_text_field($in['page_description'] ?? ''),
 		'page_wp_head' => empty($in['page_wp_head']) ? 0 : 1,
 		'privacy_url'  => esc_url_raw($in['privacy_url'] ?? '') ?: $d['privacy_url'],
+		'acc_contact_url' => isset($in['acc_contact_url']) ? esc_url_raw(trim($in['acc_contact_url'])) : ($old['acc_contact_url'] ?? $d['acc_contact_url']),
 		'cookie_url'   => esc_url_raw($in['cookie_url'] ?? ''),
 		'copyright_name' => sanitize_text_field($in['copyright_name'] ?? '') ?: $d['copyright_name'],
 		'stage_bg'     => sanitize_hex_color($in['stage_bg'] ?? '') ?: $d['stage_bg'],
@@ -921,6 +923,10 @@ function flc_settings_page() {
 						</tbody>
 					</table>
 					</div>
+					<table class="form-table" role="presentation">
+						<tr><th>Chi non ha un codice</th><td><input type="url" class="regular-text" name="<?php echo $n('acc_contact_url'); ?>" value="<?php echo esc_attr($s['acc_contact_url']); ?>" placeholder="https://www.instagram.com/francystore3d/">
+							<p class="description">Accanto al lucchetto dell'IA e in "🔑 Accedi" compare "Non hai un codice? Scrivici in DM su Instagram". Lascia vuoto per non mostrarlo.</p></td></tr>
+					</table>
 					<p id="flcAccEmpty" class="description"<?php echo $acc['accounts'] ? ' hidden' : ''; ?>>Nessun codice: creane uno per la prossima fiera.</p>
 					<p><button type="button" class="button button-primary" id="flcAccAdd">+ Nuovo codice</button>
 						<span class="description">Il codice funziona dopo il salvataggio. Scadenza proposta: 30 giorni.</span></p>

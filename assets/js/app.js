@@ -2404,6 +2404,22 @@ function initAccess() {
     });
     $('#aiLockedBtn').addEventListener('click', () => { $('#accAdmin').hidden = true; $('#accCode').hidden = false; open(true); });
   }
+  // "Non hai un codice? Scrivici in DM": link scelto in Impostazioni → Accessi (Instagram o altro)
+  if (A.contact) {
+    let where = 'Scrivici';
+    try {
+      const u = new URL(A.contact), handle = u.pathname.split('/').filter(Boolean)[0];
+      if (/instagram\.com$/.test(u.hostname)) where = handle ? `Scrivici in DM su Instagram (@${handle})` : 'Scrivici in DM su Instagram';
+      else if (/facebook\.com$|m\.me$/.test(u.hostname)) where = 'Scrivici su Facebook';
+      else if (/wa\.me$|whatsapp\.com$/.test(u.hostname)) where = 'Scrivici su WhatsApp';
+      else if (u.protocol === 'mailto:') where = 'Scrivici una email';
+    } catch (e) { /* link strano: resta "Scrivici" */ }
+    document.querySelectorAll('.acc-contact').forEach((p) => {
+      const a = p.querySelector('a');
+      a.href = A.contact; a.textContent = where;
+      p.hidden = !!who && !p.closest('.ai-locked'); // da dentro il popup mostra solo "Esci"
+    });
+  }
   // arrivo da un link/QR con un codice non valido o scaduto
   if (A.error) {
     showErr(A.error);
