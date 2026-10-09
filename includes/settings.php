@@ -787,7 +787,19 @@ function flc_settings_page() {
 						<div>Fornitore IA</div>
 						<div class="big" style="font-size:18px"><?php echo esc_html($p[$s['primary']]['label'] ?? $s['primary']); ?></div>
 						<p class="description" style="margin:6px 0 0">Modello: <code><?php echo esc_html($s['primary'] === 'fal' ? $s['fal_model'] : $s['gemini_model']); ?></code><br>
-							<?php echo !empty($s['enabled']) && ($s['gemini_key'] || $s['fal_key']) ? '<span class="flc-badge ok">attivo</span>' : '<span class="flc-badge prev">non attivo: manca la chiave o è spento</span>'; ?></p>
+							<?php
+							// acceso per gli ospiti o solo per i codici d'accesso (colonne di Funzioni)
+							$has_key = $s['gemini_key'] || $s['fal_key'];
+							if (!$has_key) {
+								echo '<span class="flc-badge prev">non attivo: manca la chiave</span>';
+							} elseif (!empty($s['enabled'])) {
+								echo '<span class="flc-badge ok">attivo</span>';
+							} elseif (flc_access_feature_any('enabled', $s)) {
+								echo '<span class="flc-badge ok">attivo solo con codice d\'accesso</span>';
+							} else {
+								echo '<span class="flc-badge prev">spento per tutti (Funzioni → Ridisegno con IA)</span>';
+							}
+							?></p>
 					</div>
 				</div>
 				<div class="flc-card">
