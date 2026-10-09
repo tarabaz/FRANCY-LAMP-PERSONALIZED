@@ -150,7 +150,7 @@ l'incasso delle impostazioni. Profondità logaritmica nel 3D: niente sfarfallio 
 1,2 mm, STL/3MF ogni 0,4 mm) invece che in un numero fisso di tratti: il bordo del disco e della fascia sono tondi
 come in 2D, le curve piccole (lettere, contorni) restano leggere. Zip di stampa praticamente della stessa dimensione.
 
-**Zoom dell'anteprima 2D**: rotellina del mouse (ingrandisce nel punto sotto il puntatore), pizzico a due dita su
+**Zoom dell'anteprima 2D** (l'anteprima occupa tutta l'area grigia: il disco sta centrato e, ingrandendo, il disegno si allarga nello spazio libero invece di restare in un quadrato; solo visualizzazione, SVG/PNG/STL/3MF restano il disco da 200 mm): rotellina del mouse (ingrandisce nel punto sotto il puntatore), pizzico a due dita su
 telefono/tablet, pulsanti − + ⤢ nell'angolo (fino a 2000%, ⤢ = tutto il disco). Da ingranditi si trascina per
 spostarsi (il trascinamento non colora e non seleziona). Maniglie delle grafiche e tratteggio delle zone restano della
 stessa grandezza a schermo. Serve per toccare con precisione zone piccolissime con pennello e "sopra la fascia".

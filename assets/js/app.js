@@ -1664,7 +1664,8 @@ $('#svgHost').addEventListener('pointermove', (e) => {
   if (!pan.moved && Math.hypot(dx, dy) < 5) return;
   pan.moved = true;
   $('#svgHost').classList.add('panning');
-  const svg = $('#svgHost svg'), r = svg.getBoundingClientRect(), mmpx = state.vb.w / r.width;
+  // il viewBox quadrato sta dentro un'area rettangolare: la scala la decide il lato corto
+  const svg = $('#svgHost svg'), r = svg.getBoundingClientRect(), mmpx = state.vb.w / Math.min(r.width, r.height);
   state.vb.x = pan.vx - dx * mmpx; state.vb.y = pan.vy - dy * mmpx;
   clampZoom(); applyZoom();
 });
