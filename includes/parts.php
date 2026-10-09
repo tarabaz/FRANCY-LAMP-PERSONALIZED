@@ -189,3 +189,76 @@ add_action('rest_api_init', function () {
 		},
 	));
 });
+
+// ---------- Modello della targa dell'ambientazione 3D (Impostazioni → Anteprima e watermark) ----------
+// Stesso formato e cartella protetta dei pezzi della lampada; se non c'è, il configuratore usa quello del plugin.
+const FLC_SIGN_MODEL_OPTION = 'flc_sign_model';
+
+function flc_sign_model() {
+	$m = get_option(FLC_SIGN_MODEL_OPTION, array());
+	return is_array($m) && !empty($m['file']) && is_file(flc_parts_dir() . '/' . basename($m['file'])) ? $m : null;
+}
+
+add_action('rest_api_init', function () {
+	$admin = function () { return current_user_can('manage_options'); };
+	register_rest_route('francy-lamp/v1', '/scena/insegna', array(
+		array(
+			'methods'             => 'POST',
+			'permission_callback' => $admin,
+			'callback'            => function (WP_REST_Request $req) {
+				$f = $req->get_file_params()['mesh'] ?? null;
+				if (!$f || !empty($f['error']) || !is_uploaded_file($f['tmp_name']) || filesize($f['tmp_name']) > 20 * MB_IN_BYTES) {
+					return new WP_Error('flc_bad', 'File non ricevuto o troppo grande.', array('status' => 400));
+				}
+				$head = file_get_contents($f['tmp_name'], false, null, 0, 8);
+				$n    = strlen($head) === 8 ? unpack('V', substr($head, 4, 4))[1] : 0;
+				if (substr($head, 0, 4) !== 'FLM1' || $n < 1 || filesize($f['tmp_name']) !== 24 + $n * 18) {
+					return new WP_Error('flc_bad', 'Formato non valido.', array('status' => 400));
+				}
+				$old  = flc_sign_model();
+				$file = md5(wp_generate_uuid4() . wp_salt()) . '.flm';
+				if (!move_uploaded_file($f['tmp_name'], flc_parts_dir() . '/' . $file)) {
+					return new WP_Error('flc_io', 'Impossibile salvare il file.', array('status' => 500));
+				}
+				if ($old) {
+					@unlink(flc_parts_dir() . '/' . basename($old['file']));
+				}
+				update_option(FLC_SIGN_MODEL_OPTION, array('file' => $file, 'tris' => $n, 'name' => mb_substr(sanitize_file_name((string) $req->get_param('name')), 0, 80), 'time' => time()), false);
+				return array('ok' => true, 'tris' => $n);
+			},
+		),
+		array(
+			// il configuratore scarica la geometria con il token della pagina (come i pezzi della lampada)
+			'methods'             => 'GET',
+			'permission_callback' => '__return_true',
+			'callback'            => function (WP_REST_Request $req) {
+				if (!wp_verify_nonce((string) $req->get_header('x_wp_nonce'), 'wp_rest')) {
+					return new WP_Error('flc_forbidden', 'Non autorizzato.', array('status' => 403));
+				}
+				$m = flc_sign_model();
+				if (!$m) {
+					return new WP_Error('flc_404', 'Modello non trovato.', array('status' => 404));
+				}
+				$path = flc_parts_dir() . '/' . basename($m['file']);
+				nocache_headers();
+				header('Content-Type: application/octet-stream');
+				header('Content-Length: ' . filesize($path));
+				header('X-Content-Type-Options: nosniff');
+				readfile($path);
+				exit;
+			},
+		),
+	));
+	register_rest_route('francy-lamp/v1', '/scena/insegna/elimina', array(
+		'methods'             => 'POST',
+		'permission_callback' => $admin,
+		'callback'            => function () {
+			$m = flc_sign_model();
+			if ($m) {
+				@unlink(flc_parts_dir() . '/' . basename($m['file']));
+			}
+			delete_option(FLC_SIGN_MODEL_OPTION);
+			return array('ok' => true);
+		},
+	));
+});

@@ -54,12 +54,18 @@ function flc_frontend_config() {
 			'toggle' => !empty($s['scene_toggle']),
 			'wood'   => $s['scene_wood'] ? (wp_get_attachment_image_url($s['scene_wood'], 'large') ?: '') : '',
 			'wall'   => $s['scene_wall'] ? (wp_get_attachment_image_url($s['scene_wall'], 'large') ?: '') : '',
+			'layout' => array(
+				'lampX' => (float) $s['lay_lamp_x'], 'boxX' => (float) $s['lay_box_x'], 'boxY' => (float) $s['lay_box_y'], 'boxRot' => (float) $s['lay_box_rot'],
+				'signX' => (float) $s['lay_sign_x'], 'signY' => (float) $s['lay_sign_y'], 'signRot' => (float) $s['lay_sign_rot'],
+			),
 			'box'    => array(
 				'on'  => !empty($s['box_on']),
 				'tex' => $s['box_tex'] ? (wp_get_attachment_url($s['box_tex']) ?: '') : '',
 			),
 			'sign'   => array(
 				'on'        => !empty($s['sign_on']),
+				// STL caricato dall'admin (servito dal sito); vuoto = modello del plugin
+				'model'     => function_exists('flc_sign_model') && flc_sign_model() ? esc_url_raw(rest_url('francy-lamp/v1/scena/insegna')) : '',
 				'color'     => $s['sign_color'],
 				'material'  => $s['sign_material'],
 				'goldColor' => $s['sign_gold_color'],

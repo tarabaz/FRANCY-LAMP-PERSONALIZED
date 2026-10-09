@@ -293,7 +293,15 @@ function flc_defaults() {
 		'sign_gold'    => 0,  // texture dello strato oro (stessa dimensione; pieno/bianco = oro)
 		'sign_gold_color' => '#d4af37',
 		'box_on'       => 1,  // scatola di spedizione sul tavolino (a destra)
-		'scene_v'      => 0,  // 1 = ambientazione, insegna e scatola già salvate dalla scheda che le contiene
+		'scene_v'      => 0,
+		// posizioni nell'ambientazione (cm e gradi, rispetto al centro del tavolo; Y verso il davanti)
+		'lay_lamp_x'   => -17,
+		'lay_box_x'    => 30.5,
+		'lay_box_y'    => 2,
+		'lay_box_rot'  => -12,
+		'lay_sign_x'   => -40,
+		'lay_sign_y'   => 1.2,
+		'lay_sign_rot' => 25,  // 1 = ambientazione, insegna e scatola già salvate dalla scheda che le contiene
 		'box_tex'      => 0,  // grafica della scatola: sviluppo intero ritagliato al contorno (id Libreria media)
 		'wm_onscreen'  => 0, // watermark sulla vista a schermo: spento (resta solo sull'immagine scaricata)
 		'wm_download'  => 1,
@@ -460,6 +468,13 @@ function flc_sanitize_settings($in) {
 		'sign_gold_color' => sanitize_hex_color($in['sign_gold_color'] ?? '') ?: $d['sign_gold_color'],
 		'box_on'       => empty($in['box_on']) ? 0 : 1,
 		'scene_v'      => 1,
+		'lay_lamp_x'   => max(-45, min(45, round((float) ($in['lay_lamp_x'] ?? -17), 1))),
+		'lay_box_x'    => max(-45, min(45, round((float) ($in['lay_box_x'] ?? 30.5), 1))),
+		'lay_box_y'    => max(-15, min(15, round((float) ($in['lay_box_y'] ?? 2), 1))),
+		'lay_box_rot'  => max(-180, min(180, round((float) ($in['lay_box_rot'] ?? -12)))),
+		'lay_sign_x'   => max(-45, min(45, round((float) ($in['lay_sign_x'] ?? -40), 1))),
+		'lay_sign_y'   => max(-15, min(15, round((float) ($in['lay_sign_y'] ?? 1.2), 1))),
+		'lay_sign_rot' => max(-180, min(180, round((float) ($in['lay_sign_rot'] ?? 25)))),
 		'box_tex'      => absint($in['box_tex'] ?? 0),
 		'wm_onscreen'  => empty($in['wm_onscreen']) ? 0 : 1,
 		'wm_download'  => empty($in['wm_download']) ? 0 : 1,
@@ -657,6 +672,9 @@ function flc_settings_page() {
 		.flc-refs-list { display: flex; gap: 6px; flex-wrap: wrap; }
 		.flc-refs-list img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #dcdcde; }
 		.flc-refs-list img.def { opacity: .8; }
+		.flc-lay { border-collapse: collapse; margin: 6px 0; }
+		.flc-lay th, .flc-lay td { padding: 4px 10px 4px 0; text-align: left; font-weight: 600; }
+		.flc-lay input { width: 80px; }
 		.flc-guide-imgs img { max-width: 130px; max-height: 90px; object-fit: contain; background: #f6f7f7; border-radius: 6px; display: block; }
 		.flc-guide-imgs td { vertical-align: middle; }
 		.flc-stickers { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
@@ -1077,6 +1095,14 @@ function flc_settings_page() {
 						<tr><th>All'apertura</th><td><label><input type="checkbox" name="<?php echo $n('scene_on'); ?>" value="1" <?php checked(!empty($s['scene_on'])); ?>> Ambientazione accesa</label></td></tr>
 						<tr><th>Pulsante per il cliente</th><td><label><input type="checkbox" name="<?php echo $n('scene_toggle'); ?>" value="1" <?php checked(!empty($s['scene_toggle'])); ?>> Mostra il pulsante "🏠 Ambientazione" nella vista 3D</label>
 							<p class="description">Spento: il cliente vede sempre l'impostazione scelta sopra, senza poterla cambiare.</p></td></tr>
+						<tr><th>Posizioni sul tavolo</th><td>
+							<p class="description">In centimetri rispetto al <strong>centro del tavolo</strong> (X: negativo = sinistra; Y: positivo = verso il davanti) e rotazione in gradi (positivo = gira verso sinistra). Il tavolo è largo circa 98 cm e profondo 36.</p>
+							<table class="flc-lay"><tr><th></th><th>X (cm)</th><th>Y (cm)</th><th>Rotazione (°)</th></tr>
+							<tr><td>Lampada</td><td><input type="number" step="0.5" min="-45" max="45" name="<?php echo $n('lay_lamp_x'); ?>" value="<?php echo esc_attr($s['lay_lamp_x']); ?>"></td><td>—</td><td>—</td></tr>
+							<tr><td>Scatola</td><td><input type="number" step="0.5" min="-45" max="45" name="<?php echo $n('lay_box_x'); ?>" value="<?php echo esc_attr($s['lay_box_x']); ?>"></td><td><input type="number" step="0.5" min="-15" max="15" name="<?php echo $n('lay_box_y'); ?>" value="<?php echo esc_attr($s['lay_box_y']); ?>"></td><td><input type="number" step="1" min="-180" max="180" name="<?php echo $n('lay_box_rot'); ?>" value="<?php echo esc_attr($s['lay_box_rot']); ?>"></td></tr>
+							<tr><td>Targa</td><td><input type="number" step="0.5" min="-45" max="45" name="<?php echo $n('lay_sign_x'); ?>" value="<?php echo esc_attr($s['lay_sign_x']); ?>"></td><td><input type="number" step="0.5" min="-15" max="15" name="<?php echo $n('lay_sign_y'); ?>" value="<?php echo esc_attr($s['lay_sign_y']); ?>"></td><td><input type="number" step="1" min="-180" max="180" name="<?php echo $n('lay_sign_rot'); ?>" value="<?php echo esc_attr($s['lay_sign_rot']); ?>"></td></tr>
+							</table>
+							<p class="description">Valori predefiniti: lampada −17 · scatola 30,5 / 2 / −12° · targa −40 / 1,2 / 25°. Le posizioni restano sempre dentro il piano.</p></td></tr>
 						<tr><th>Scatola di spedizione</th><td><label><input type="checkbox" name="<?php echo $n('box_on'); ?>" value="1" <?php checked(!empty($s['box_on'])); ?>> Mostra la scatola (30,2 × 23,3 × 8,8 cm) a destra della lampada</label>
 							<p class="description">Con la scatola il tavolino diventa una console da circa 1 m. La grafica qui sotto è lo <strong>sviluppo intero</strong> della scatola (fustella aperta), ritagliato esattamente al contorno esterno: ogni faccia prende il suo pezzo.</p></td></tr>
 						<?php $bu = $s['box_tex'] ? wp_get_attachment_image_url($s['box_tex'], 'thumbnail') : ''; ?>
@@ -1089,6 +1115,11 @@ function flc_settings_page() {
 							<p>Colore <input type="color" name="<?php echo $n('sign_color'); ?>" value="<?php echo esc_attr($s['sign_color']); ?>">
 							&nbsp; Materiale <select name="<?php echo $n('sign_material'); ?>"><?php foreach (array('opaco' => 'Opaco', 'lucido' => 'Lucido', 'silk' => 'Silk', 'metallico' => 'Metallico') as $mk => $ml) : ?><option value="<?php echo esc_attr($mk); ?>" <?php selected($s['sign_material'], $mk); ?>><?php echo esc_html($ml); ?></option><?php endforeach; ?></select>
 							&nbsp; Colore dell'oro <input type="color" name="<?php echo $n('sign_gold_color'); ?>" value="<?php echo esc_attr($s['sign_gold_color']); ?>"></p>
+							<?php $sm = function_exists('flc_sign_model') ? flc_sign_model() : null; ?>
+							<p><strong>Modello:</strong> <span id="flcSignModel"><?php echo $sm ? esc_html(($sm['name'] ?: 'STL caricato') . ' · ' . number_format_i18n($sm['tris']) . ' triangoli') : 'quello del plugin (88 × 57 mm)'; ?></span>
+								&nbsp; <input type="file" id="flcSignStl" accept=".stl"> <button type="button" class="button" id="flcSignUp">Carica STL</button>
+								<button type="button" class="button-link" id="flcSignDel"<?php echo $sm ? '' : ' hidden'; ?>>Usa il modello del plugin</button></p>
+							<p class="description">STL in mm, con Y in alto come i pezzi della lampada e appoggiato sulla base. La faccia grande (quella piana più estesa) prende le texture e viene girata verso chi guarda; si carica subito, senza premere Salva.</p>
 							<p class="description">Faccia grande: 88 × 55 mm circa, quindi immagini in proporzione 16:10 (es. 1600 × 1000 px). Le due texture qui sotto devono avere la stessa dimensione: la prima è lo sfondo, la seconda dice dove va l'oro.</p></td></tr>
 						<?php foreach (array('sign_tex' => array('Insegna: sfondo', 'Texture della faccia grande dell\'insegna. Vuota: stesso colore del resto dell\'insegna.'), 'sign_gold' => array('Insegna: oro', 'Stessa dimensione dello sfondo. Il colore del disegno non conta: con un PNG trasparente diventa oro tutto ciò che non è trasparente; senza trasparenza diventa oro il disegno (il tono meno presente, nero su bianco o bianco su nero).')) as $tk => $tl) : $tu = $s[$tk] ? wp_get_attachment_image_url($s[$tk], 'thumbnail') : ''; ?>
 						<tr><th><?php echo esc_html($tl[0]); ?></th><td class="flc-scene-tex" data-field="<?php echo esc_attr($tk); ?>">
@@ -1375,6 +1406,42 @@ function flc_settings_page() {
 					stSync();
 				});
 				frame.open();
+			});
+		}
+		// modello STL della targa: convertito nel browser (stesso formato dei pezzi della lampada) e caricato subito
+		const signUp = $id('flcSignUp');
+		if (signUp) {
+			const api = <?php echo wp_json_encode(rest_url('francy-lamp/v1/')); ?>, nonce = <?php echo wp_json_encode(wp_create_nonce('wp_rest')); ?>;
+			const out = $id('flcSignModel');
+			const toFlm = (buf) => {
+				const dv = new DataView(buf); let pos = null;
+				if (buf.byteLength >= 84) { const n = dv.getUint32(80, true); if (84 + n * 50 === buf.byteLength) { pos = new Float32Array(n * 9); for (let i = 0; i < n; i++) for (let j = 0; j < 9; j++) pos[i * 9 + j] = dv.getFloat32(84 + i * 50 + 12 + j * 4, true); } }
+				if (!pos) { const o = [], re = /vertex\s+(\S+)\s+(\S+)\s+(\S+)/g, t = new TextDecoder().decode(buf); let m; while ((m = re.exec(t))) o.push(+m[1], +m[2], +m[3]); if (!o.length || o.length % 9) throw new Error('Non sembra un file STL valido.'); pos = new Float32Array(o); }
+				const n = pos.length / 9, mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+				for (let i = 0; i < pos.length; i++) { const k = i % 3; mn[k] = Math.min(mn[k], pos[i]); mx[k] = Math.max(mx[k], pos[i]); }
+				const step = Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2], 1e-3) / 65535, ob = new ArrayBuffer(24 + n * 18), o = new DataView(ob);
+				[70, 76, 77, 49].forEach((c, i) => o.setUint8(i, c)); o.setUint32(4, n, true); mn.forEach((v, i) => o.setFloat32(8 + i * 4, v, true)); o.setFloat32(20, step, true);
+				for (let i = 0; i < pos.length; i++) o.setUint16(24 + i * 2, Math.round((pos[i] - mn[i % 3]) / step), true);
+				return { blob: new Blob([ob], { type: 'application/octet-stream' }), n, size: [mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]] };
+			};
+			signUp.addEventListener('click', async () => {
+				const f = $id('flcSignStl').files[0];
+				if (!f) { out.textContent = 'Scegli prima un file STL.'; return; }
+				try {
+					out.textContent = 'Converto…';
+					const r0 = toFlm(await f.arrayBuffer()), fd = new FormData();
+					fd.append('mesh', r0.blob, 'insegna.flm'); fd.append('name', f.name);
+					const r = await fetch(api + 'scena/insegna', { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce }, body: fd });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status);
+					out.textContent = f.name + ' · ' + r0.n.toLocaleString('it-IT') + ' triangoli · ' + r0.size.map((v) => v.toFixed(0)).join(' × ') + ' mm (caricato)';
+					$id('flcSignDel').hidden = false;
+				} catch (e) { out.textContent = 'Errore: ' + e.message; }
+			});
+			$id('flcSignDel').addEventListener('click', async () => {
+				if (!confirm('Tornare al modello della targa del plugin?')) return;
+				await fetch(api + 'scena/insegna/elimina', { method: 'POST', credentials: 'same-origin', headers: { 'X-WP-Nonce': nonce } });
+				out.textContent = 'quello del plugin (88 × 57 mm)'; $id('flcSignDel').hidden = true;
 			});
 		}
 		// texture dell'ambientazione 3D (legno del tavolino, muro)

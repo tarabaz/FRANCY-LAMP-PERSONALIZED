@@ -229,8 +229,11 @@ export class Preview3D {
     const boxCfg = this.sceneCfg.box, boxOn = !!(boxCfg && boxCfg.on !== false);
     const T = { w: boxOn ? 980 : 560, th: 22, legH: 700 };
     const zBack = lampBack - 70, zFront = Math.max(lampFront + 90, zBack + (boxOn ? 360 : 200));
-    // con la scatola la lampada sta a sinistra del tavolo: il tavolo (e muro, presa, insegna, scatola) si sposta a destra
-    const ox = boxOn ? 170 : 0;
+    // posizioni regolabili (Impostazioni, in cm e gradi, rispetto al centro del tavolo; Y = verso il davanti).
+    // La lampada resta ferma: spostarla lungo il tavolo vuol dire spostare il tavolo (e muro, presa, insegna, scatola).
+    const lay = this.sceneCfg.layout || {};
+    const num = (v, d) => (v === '' || v == null || !Number.isFinite(+v) ? d : +v);
+    const ox = -num(lay.lampX, boxOn ? -17 : 0) * 10;
     const depth = zFront - zBack, zMid = (zBack + zFront) / 2;
     // texture dall'admin (Libreria media) oppure quella generata
     const loadTex = (url, onload) => {
@@ -353,9 +356,13 @@ export class Preview3D {
 
     // insegna sul tavolino, a sinistra, girata verso il centro
     const sign = this.sceneCfg.sign;
-    if (sign && sign.on !== false) this.buildSign(room, { x: boxOn ? ox - hw + 90 : -hw + 95, y: top, z: zMid + 12 }, sign);
+    const hdIn = (zFront - zBack) / 2 - 40; // le posizioni restano dentro il piano
+    const clampX = (x) => THREE.MathUtils.clamp(x, -hw + 40, hw - 40), clampZ = (z) => THREE.MathUtils.clamp(z, -hdIn, hdIn);
+    if (sign && sign.on !== false) {
+      this.buildSign(room, { x: ox + clampX(num(lay.signX, boxOn ? -40 : (-hw + 95) / 10) * 10), y: top, z: zMid + clampZ(num(lay.signY, 1.2) * 10), rot: num(lay.signRot, 25) }, sign);
+    }
     // scatola di spedizione a destra, davanti al cavo, girata un po' verso il centro
-    if (boxOn) this.buildBox(room, { x: ox + hw - 185, y: top, z: zMid + 20 }, boxCfg);
+    if (boxOn) this.buildBox(room, { x: ox + clampX(num(lay.boxX, (hw - 185) / 10) * 10), y: top, z: zMid + clampZ(num(lay.boxY, 2) * 10), rot: num(lay.boxRot, -12) }, boxCfg);
 
     room.visible = this.roomOn !== false;
     this.room = room;
@@ -363,26 +370,42 @@ export class Preview3D {
     this.setLit(this.lit);
   }
 
-  // Insegna (modello assets/models/insegna.flm, in mm): faccia grande con texture di sfondo e sopra un secondo strato
+  // Insegna (modello in assets/js/insegna-model.js, formato FLM1 in mm): faccia grande con texture di sfondo e sopra un secondo strato
   // oro metallizzato solo dove la seconda texture ha il disegno (PNG trasparente: tutto ciò che non è trasparente;
   // senza trasparenza: il tono meno presente, quindi va bene sia nero su bianco sia bianco su nero; il colore non conta)
   buildSign(room, at, cfg) {
-    const url = new URL('../models/insegna.flm', import.meta.url).href;
-    fetch(url).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }).then((buf) => {
+    // modello caricato dall'admin (Impostazioni, servito dal sito come i pezzi della lampada) oppure quello del plugin
+    const load = cfg.model
+      ? fetch(cfg.model, { credentials: 'same-origin', headers: this.lampCfg.nonce ? { 'X-WP-Nonce': this.lampCfg.nonce } : {} })
+        .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+      : import('./insegna-model.js').then(({ INSEGNA_FLM }) => {
+        const bin = atob(INSEGNA_FLM), buf = new ArrayBuffer(bin.length), u8 = new Uint8Array(buf);
+        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        return buf;
+      });
+    load.then((buf) => {
       const pos = decodeFlm(buf);
-      // nel file: faccia grande verso +X (inclinata all'indietro), base su y = 0, larghezza lungo Z
       const bb = new THREE.Box3().setFromArray(pos);
-      const fn = new THREE.Vector3(0.97, 0.26, 0).normalize();
-      const front = [], rest = [], uv = [];
+      // faccia grande: la superficie piana più estesa (Y in alto come la lampada); tra le due facce parallele si tiene
+      // quella con più area, a parità quella rivolta più in alto (le targhe da tavolo sono inclinate all'indietro)
       const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+      const areas = new Map(), triN = [];
       for (let i = 0; i < pos.length; i += 9) {
         a.fromArray(pos, i); b.fromArray(pos, i + 3); c.fromArray(pos, i + 6);
-        n.subVectors(c, b).cross(a.clone().sub(b)).normalize(); // normale (verso dei vertici del file)
-        const tri = Array.from(pos.subarray(i, i + 9));
-        if (Math.abs(n.dot(fn)) > 0.985 && (a.x + b.x + c.x) / 3 > bb.min.x + (bb.max.x - bb.min.x) * 0.15) front.push(...tri);
-        else rest.push(...tri);
+        n.subVectors(c, b).cross(a.clone().sub(b));
+        const ar = n.length() / 2;
+        n.normalize(); triN.push(n.clone());
+        const k = [n.x, n.y, n.z].map((v) => Math.round(v * 20) / 20).join(',');
+        areas.set(k, (areas.get(k) || 0) + ar);
       }
-      // la faccia grande è la più avanti (+X) tra le due parallele: il resto (retro, bordi) prende il materiale dell'insegna
+      let bestK = null, bestA = 0;
+      for (const [k, v] of areas) if (v > bestA) { bestA = v; bestK = k; }
+      let fn = new THREE.Vector3(...bestK.split(',').map(Number)).normalize();
+      const oppK = [-fn.x, -fn.y, -fn.z].map((v) => Math.round(v * 20) / 20).join(','), oppA = areas.get(oppK) || 0;
+      if (oppA > bestA * 0.9 && -fn.y > fn.y) fn = fn.negate(); // quasi uguali: quella rivolta verso l'alto
+      const front = [], rest = [], uv = [];
+      for (let i = 0, t = 0; i < pos.length; i += 9, t++) (triN[t].dot(fn) > 0.985 ? front : rest).push(...pos.subarray(i, i + 9));
+      // la faccia grande è la più avanti tra le parallele: il resto (retro, bordi) prende il materiale dell'insegna
       let maxD = -Infinity;
       for (let i = 0; i < front.length; i += 3) maxD = Math.max(maxD, front[i] * fn.x + front[i + 1] * fn.y + front[i + 2] * fn.z);
       const out = [], back = [...rest];
@@ -391,10 +414,19 @@ export class Preview3D {
         const d = (a.dot(fn) + b.dot(fn) + c.dot(fn)) / 3;
         (d > maxD - 0.6 ? out : back).push(...front.slice(i, i + 9));
       }
-      // UV della faccia: guardandola da davanti, destra = -Z, alto = Y
-      let ymin = Infinity, ymax = -Infinity;
-      for (let i = 1; i < out.length; i += 3) { ymin = Math.min(ymin, out[i]); ymax = Math.max(ymax, out[i]); }
-      for (let i = 0; i < out.length; i += 3) uv.push((bb.max.z - out[i + 2]) / (bb.max.z - bb.min.z), (out[i + 1] - ymin) / (ymax - ymin || 1));
+      // UV della faccia guardandola da davanti: destra = alto × normale, su = normale × destra
+      const up = Math.abs(fn.y) > 0.95 ? new THREE.Vector3(0, 0, -1) : new THREE.Vector3(0, 1, 0);
+      const hx = new THREE.Vector3().crossVectors(up, fn).normalize(), vy = new THREE.Vector3().crossVectors(fn, hx).normalize();
+      let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+      for (let i = 0; i < out.length; i += 3) {
+        a.set(out[i], out[i + 1], out[i + 2]);
+        const u = a.dot(hx), v = a.dot(vy);
+        u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
+      }
+      for (let i = 0; i < out.length; i += 3) {
+        a.set(out[i], out[i + 1], out[i + 2]);
+        uv.push((a.dot(hx) - u0) / (u1 - u0 || 1), (a.dot(vy) - v0) / (v1 - v0 || 1));
+      }
       const geo = (arr, withUv) => {
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
@@ -447,7 +479,7 @@ export class Preview3D {
       }
       // base centrata sull'origine, faccia verso il davanti (+Z) e girata di 25° verso il centro del tavolo
       group.children.forEach((m) => m.geometry.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2));
-      group.rotation.y = -Math.PI / 2 + THREE.MathUtils.degToRad(25);
+      group.rotation.y = -Math.atan2(fn.x, fn.z) + THREE.MathUtils.degToRad(at.rot ?? 25); // faccia verso il davanti, poi la rotazione scelta
       group.position.set(at.x, at.y, at.z);
       room.add(group);
       this.sign = group;
@@ -487,7 +519,7 @@ export class Preview3D {
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0xbfae94, transparent: true, opacity: 0.55 }));
     const g = new THREE.Group();
     g.add(box, edges);
-    g.rotation.y = THREE.MathUtils.degToRad(-12);
+    g.rotation.y = THREE.MathUtils.degToRad(at.rot ?? -12);
     g.position.set(at.x, at.y, at.z);
     room.add(g);
     this.box = g;
