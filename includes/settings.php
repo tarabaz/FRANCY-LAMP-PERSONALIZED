@@ -286,6 +286,12 @@ function flc_defaults() {
 		'scene_toggle' => 1,  // il cliente vede il pulsante per accenderla/spegnerla
 		'scene_wood'   => 0,  // texture del legno del tavolino (id Libreria media, 0 = quella del plugin)
 		'scene_wall'   => 0,  // texture del muro (id Libreria media, 0 = tinta unita)
+		'sign_on'      => 1,  // insegna sul tavolino dell'ambientazione
+		'sign_color'   => '#2f2e30',
+		'sign_material' => 'opaco',
+		'sign_tex'     => 0,  // texture di sfondo della faccia (id Libreria media)
+		'sign_gold'    => 0,  // texture dello strato oro (stessa dimensione; pieno/bianco = oro)
+		'sign_gold_color' => '#d4af37',
 		'wm_onscreen'  => 0, // watermark sulla vista a schermo: spento (resta solo sull'immagine scaricata)
 		'wm_download'  => 1,
 		'wm_image'     => '',
@@ -437,6 +443,12 @@ function flc_sanitize_settings($in) {
 		'scene_toggle' => empty($in['scene_toggle']) ? 0 : 1,
 		'scene_wood'   => absint($in['scene_wood'] ?? 0),
 		'scene_wall'   => absint($in['scene_wall'] ?? 0),
+		'sign_on'      => empty($in['sign_on']) ? 0 : 1,
+		'sign_color'   => sanitize_hex_color($in['sign_color'] ?? '') ?: $d['sign_color'],
+		'sign_material' => in_array($in['sign_material'] ?? '', array('opaco', 'lucido', 'silk', 'metallico'), true) ? $in['sign_material'] : 'opaco',
+		'sign_tex'     => absint($in['sign_tex'] ?? 0),
+		'sign_gold'    => absint($in['sign_gold'] ?? 0),
+		'sign_gold_color' => sanitize_hex_color($in['sign_gold_color'] ?? '') ?: $d['sign_gold_color'],
 		'wm_onscreen'  => empty($in['wm_onscreen']) ? 0 : 1,
 		'wm_download'  => empty($in['wm_download']) ? 0 : 1,
 		'wm_image'     => esc_url_raw($in['wm_image'] ?? ''),
@@ -1053,6 +1065,18 @@ function flc_settings_page() {
 						<tr><th>All'apertura</th><td><label><input type="checkbox" name="<?php echo $n('scene_on'); ?>" value="1" <?php checked(!empty($s['scene_on'])); ?>> Ambientazione accesa</label></td></tr>
 						<tr><th>Pulsante per il cliente</th><td><label><input type="checkbox" name="<?php echo $n('scene_toggle'); ?>" value="1" <?php checked(!empty($s['scene_toggle'])); ?>> Mostra il pulsante "🏠 Ambientazione" nella vista 3D</label>
 							<p class="description">Spento: il cliente vede sempre l'impostazione scelta sopra, senza poterla cambiare.</p></td></tr>
+						<tr><th>Insegna sul tavolino</th><td><label><input type="checkbox" name="<?php echo $n('sign_on'); ?>" value="1" <?php checked(!empty($s['sign_on'])); ?>> Mostra l'insegna a sinistra della lampada</label>
+							<p>Colore <input type="color" name="<?php echo $n('sign_color'); ?>" value="<?php echo esc_attr($s['sign_color']); ?>">
+							&nbsp; Materiale <select name="<?php echo $n('sign_material'); ?>"><?php foreach (array('opaco' => 'Opaco', 'lucido' => 'Lucido', 'silk' => 'Silk', 'metallico' => 'Metallico') as $mk => $ml) : ?><option value="<?php echo esc_attr($mk); ?>" <?php selected($s['sign_material'], $mk); ?>><?php echo esc_html($ml); ?></option><?php endforeach; ?></select>
+							&nbsp; Colore dell'oro <input type="color" name="<?php echo $n('sign_gold_color'); ?>" value="<?php echo esc_attr($s['sign_gold_color']); ?>"></p>
+							<p class="description">Faccia grande: 88 × 55 mm circa, quindi immagini in proporzione 16:10 (es. 1600 × 1000 px). Le due texture qui sotto devono avere la stessa dimensione: la prima è lo sfondo, la seconda dice dove va l'oro.</p></td></tr>
+						<?php foreach (array('sign_tex' => array('Insegna: sfondo', 'Texture della faccia grande dell\'insegna. Vuota: stesso colore del resto dell\'insegna.'), 'sign_gold' => array('Insegna: oro', 'Stessa dimensione dello sfondo. Il colore del disegno non conta: con un PNG trasparente diventa oro tutto ciò che non è trasparente; senza trasparenza diventa oro il disegno (il tono meno presente, nero su bianco o bianco su nero).')) as $tk => $tl) : $tu = $s[$tk] ? wp_get_attachment_image_url($s[$tk], 'thumbnail') : ''; ?>
+						<tr><th><?php echo esc_html($tl[0]); ?></th><td class="flc-scene-tex" data-field="<?php echo esc_attr($tk); ?>">
+							<span class="tex-prev"><?php echo $tu ? '<img src="' . esc_url($tu) . '" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:6px;vertical-align:middle">' : '<span class="description">nessuna</span>'; ?></span>
+							<input type="hidden" name="<?php echo $n($tk); ?>" value="<?php echo (int) $s[$tk]; ?>">
+							<button type="button" class="button tex-pick">Scegli immagine…</button> <button type="button" class="button-link tex-reset"<?php echo $tu ? '' : ' hidden'; ?>>Togli</button>
+							<p class="description"><?php echo esc_html($tl[1]); ?></p></td></tr>
+						<?php endforeach; ?>
 						<?php foreach (array('scene_wood' => array('Texture del legno', 'Immagine del legno del piano (meglio con le venature in orizzontale, almeno 1024 px). Vuota: legno generato dal plugin.'), 'scene_wall' => array('Texture del muro', 'Immagine ripetibile del muro (intonaco, mattoni…). Vuota: muro chiaro in tinta unita.')) as $tk => $tl) : $tu = $s[$tk] ? wp_get_attachment_image_url($s[$tk], 'thumbnail') : ''; ?>
 						<tr><th><?php echo esc_html($tl[0]); ?></th><td class="flc-scene-tex" data-field="<?php echo esc_attr($tk); ?>">
 							<span class="tex-prev"><?php echo $tu ? '<img src="' . esc_url($tu) . '" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:6px;vertical-align:middle">' : '<span class="description">predefinita</span>'; ?></span>

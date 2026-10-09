@@ -54,6 +54,15 @@ function flc_frontend_config() {
 			'toggle' => !empty($s['scene_toggle']),
 			'wood'   => $s['scene_wood'] ? (wp_get_attachment_image_url($s['scene_wood'], 'large') ?: '') : '',
 			'wall'   => $s['scene_wall'] ? (wp_get_attachment_image_url($s['scene_wall'], 'large') ?: '') : '',
+			'sign'   => array(
+				'on'        => !empty($s['sign_on']),
+				'color'     => $s['sign_color'],
+				'material'  => $s['sign_material'],
+				'goldColor' => $s['sign_gold_color'],
+				// immagini intere (non ridimensionate): sfondo e oro devono combaciare pixel per pixel
+				'tex'       => $s['sign_tex'] ? (wp_get_attachment_url($s['sign_tex']) ?: '') : '',
+				'gold'      => $s['sign_gold'] ? (wp_get_attachment_url($s['sign_gold']) ?: '') : '',
+			),
 		),
 		'lamp'      => function_exists('flc_parts_for_frontend') ? flc_parts_for_frontend() : null,
 		'watermark' => array(

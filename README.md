@@ -122,7 +122,12 @@ accesa di default) e `feature('feat_*')` dove serve in `assets/js/app.js`.
 è appoggiata su un tavolino da muro (piano in legno, gambe sottili), con il cavo che esce dal centro del retro della base a 2 cm dal piano (spinotto infilato 1,5 mm), passa
 sul piano, scende dietro e arriva all'alimentatore 12 V inserito nella presa italiana sul muro, in basso a destra. Il muro
 (con la presa) si dissolve quando la vista gira di lato o da dietro. Con 💡 Accesa una luce calda illumina muro e piano.
-Tutto generato dal codice (nessun modello da scaricare). Impostazioni: accesa all'apertura sì/no, pulsante
+Tutto generato dal codice (nessun modello da scaricare).
+**Insegna** sul tavolino, a sinistra della lampada e girata verso il centro (modello `assets/models/insegna.flm`,
+88 × 57 mm, convertito dallo STL): colore, materiale (opaco, lucido, silk, metallico) e colore dell'oro in Impostazioni;
+sulla faccia grande una **texture di sfondo** e sopra uno **strato oro metallizzato** dove la seconda texture (stessa
+dimensione, proporzione 16:10, es. 1600 × 1000) ha il disegno: PNG trasparente = tutto ciò che non è trasparente; senza
+trasparenza = il tono meno presente (nero su bianco o bianco su nero). Il colore del disegno non conta. Impostazioni: accesa all'apertura sì/no, pulsante
 "🏠 Ambientazione" per il cliente sì/no, texture del legno e del muro dalla Libreria media (vuote = legno generato e
 muro chiaro in tinta unita).
 

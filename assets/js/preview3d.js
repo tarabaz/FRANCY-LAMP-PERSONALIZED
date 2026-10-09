@@ -345,10 +345,105 @@ export class Preview3D {
     this.backGlow.position.set(0, top + 120, lampBack - 30);
     room.add(this.backGlow);
 
+    // insegna sul tavolino, a sinistra, girata verso il centro
+    const sign = this.sceneCfg.sign;
+    if (sign && sign.on !== false) this.buildSign(room, { x: -hw + 95, y: top, z: zMid + 12 }, sign);
+
     room.visible = this.roomOn !== false;
     this.room = room;
     this.scene.add(room);
     this.setLit(this.lit);
+  }
+
+  // Insegna (modello assets/models/insegna.flm, in mm): faccia grande con texture di sfondo e sopra un secondo strato
+  // oro metallizzato solo dove la seconda texture ha il disegno (PNG trasparente: tutto ciò che non è trasparente;
+  // senza trasparenza: il tono meno presente, quindi va bene sia nero su bianco sia bianco su nero; il colore non conta)
+  buildSign(room, at, cfg) {
+    const url = new URL('../models/insegna.flm', import.meta.url).href;
+    fetch(url).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }).then((buf) => {
+      const pos = decodeFlm(buf);
+      // nel file: faccia grande verso +X (inclinata all'indietro), base su y = 0, larghezza lungo Z
+      const bb = new THREE.Box3().setFromArray(pos);
+      const fn = new THREE.Vector3(0.97, 0.26, 0).normalize();
+      const front = [], rest = [], uv = [];
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+      for (let i = 0; i < pos.length; i += 9) {
+        a.fromArray(pos, i); b.fromArray(pos, i + 3); c.fromArray(pos, i + 6);
+        n.subVectors(c, b).cross(a.clone().sub(b)).normalize(); // normale (verso dei vertici del file)
+        const tri = Array.from(pos.subarray(i, i + 9));
+        if (Math.abs(n.dot(fn)) > 0.985 && (a.x + b.x + c.x) / 3 > bb.min.x + (bb.max.x - bb.min.x) * 0.15) front.push(...tri);
+        else rest.push(...tri);
+      }
+      // la faccia grande è la più avanti (+X) tra le due parallele: il resto (retro, bordi) prende il materiale dell'insegna
+      let maxD = -Infinity;
+      for (let i = 0; i < front.length; i += 3) maxD = Math.max(maxD, front[i] * fn.x + front[i + 1] * fn.y + front[i + 2] * fn.z);
+      const out = [], back = [...rest];
+      for (let i = 0; i < front.length; i += 9) {
+        a.fromArray(front, i); b.fromArray(front, i + 3); c.fromArray(front, i + 6);
+        const d = (a.dot(fn) + b.dot(fn) + c.dot(fn)) / 3;
+        (d > maxD - 0.6 ? out : back).push(...front.slice(i, i + 9));
+      }
+      // UV della faccia: guardandola da davanti, destra = -Z, alto = Y
+      let ymin = Infinity, ymax = -Infinity;
+      for (let i = 1; i < out.length; i += 3) { ymin = Math.min(ymin, out[i]); ymax = Math.max(ymax, out[i]); }
+      for (let i = 0; i < out.length; i += 3) uv.push((bb.max.z - out[i + 2]) / (bb.max.z - bb.min.z), (out[i + 1] - ymin) / (ymax - ymin || 1));
+      const geo = (arr, withUv) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+        if (withUv) g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        g.computeVertexNormals();
+        return g;
+      };
+      const preset = MATERIALS[cfg.material] || MATERIALS.opaco;
+      const bodyMat = new THREE.MeshStandardMaterial({ color: cfg.color || '#2f2e30', ...preset, envMap: preset.metalness > 0.2 ? this.envMap : null, side: THREE.DoubleSide });
+      const group = new THREE.Group();
+      group.add(new THREE.Mesh(geo(back, false), bodyMat));
+      const loadTex = (u, cb) => { const t = new THREE.TextureLoader().load(u, cb, undefined, (e) => console.warn('Texture insegna non caricata', u, e)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+      // sfondo della faccia
+      const faceMat = cfg.tex ? new THREE.MeshStandardMaterial({ map: loadTex(cfg.tex), roughness: preset.roughness, metalness: 0, side: THREE.DoubleSide }) : bodyMat;
+      group.add(new THREE.Mesh(geo(out, true), faceMat));
+      // strato oro: stessa faccia spostata di 0,15 mm in avanti
+      if (cfg.gold) {
+        const goldMat = new THREE.MeshStandardMaterial({ color: cfg.goldColor || '#d4af37', metalness: 1, roughness: 0.22, envMap: this.envMap, envMapIntensity: 1.9, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            // maschera: trasparenza dell'immagine, oppure luminosità se non è trasparente (bianco = oro)
+            const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+            const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0);
+            const d = ctx.getImageData(0, 0, cv.width, cv.height), px = d.data;
+            let transparent = false;
+            for (let i = 3; i < px.length; i += 16) if (px[i] < 250) { transparent = true; break; }
+            // senza trasparenza: lo sfondo è il tono che occupa più spazio, l'oro va sull'altro (nero su bianco o viceversa)
+            let invert = false;
+            if (!transparent) {
+              let sum = 0, cnt = 0;
+              for (let i = 0; i < px.length; i += 16) { sum += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]; cnt++; }
+              invert = sum / cnt > 128; // per lo più chiaro: il disegno è quello scuro
+            }
+            for (let i = 0; i < px.length; i += 4) {
+              let m = transparent ? px[i + 3] : Math.round(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]);
+              if (invert) m = 255 - m;
+              px[i] = px[i + 1] = px[i + 2] = m; px[i + 3] = 255;
+            }
+            ctx.putImageData(d, 0, 0);
+            goldMat.alphaMap = new THREE.CanvasTexture(cv);
+          } catch (e) { goldMat.alphaMap = loadTex(cfg.gold); } // immagine da un altro dominio: maschera diretta
+          goldMat.needsUpdate = true;
+        };
+        img.src = cfg.gold;
+        const gGeo = geo(out, true);
+        gGeo.translate(fn.x * 0.15, fn.y * 0.15, fn.z * 0.15);
+        group.add(new THREE.Mesh(gGeo, goldMat));
+      }
+      // base centrata sull'origine, faccia verso il davanti (+Z) e girata di 25° verso il centro del tavolo
+      group.children.forEach((m) => m.geometry.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2));
+      group.rotation.y = -Math.PI / 2 + THREE.MathUtils.degToRad(25);
+      group.position.set(at.x, at.y, at.z);
+      room.add(group);
+      this.sign = group;
+    }).catch((e) => console.warn('Insegna non caricata', e));
   }
 
   // muro: si dissolve quando la telecamera va verso il retro (da dietro si vede la lampada, non il muro)
