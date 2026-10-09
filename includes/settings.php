@@ -292,6 +292,8 @@ function flc_defaults() {
 		'sign_tex'     => 0,  // texture di sfondo della faccia (id Libreria media)
 		'sign_gold'    => 0,  // texture dello strato oro (stessa dimensione; pieno/bianco = oro)
 		'sign_gold_color' => '#d4af37',
+		'box_on'       => 1,  // scatola di spedizione sul tavolino (a destra)
+		'box_tex'      => 0,  // grafica della scatola: sviluppo intero ritagliato al contorno (id Libreria media)
 		'wm_onscreen'  => 0, // watermark sulla vista a schermo: spento (resta solo sull'immagine scaricata)
 		'wm_download'  => 1,
 		'wm_image'     => '',
@@ -449,6 +451,8 @@ function flc_sanitize_settings($in) {
 		'sign_tex'     => absint($in['sign_tex'] ?? 0),
 		'sign_gold'    => absint($in['sign_gold'] ?? 0),
 		'sign_gold_color' => sanitize_hex_color($in['sign_gold_color'] ?? '') ?: $d['sign_gold_color'],
+		'box_on'       => empty($in['box_on']) ? 0 : 1,
+		'box_tex'      => absint($in['box_tex'] ?? 0),
 		'wm_onscreen'  => empty($in['wm_onscreen']) ? 0 : 1,
 		'wm_download'  => empty($in['wm_download']) ? 0 : 1,
 		'wm_image'     => esc_url_raw($in['wm_image'] ?? ''),
@@ -1065,6 +1069,14 @@ function flc_settings_page() {
 						<tr><th>All'apertura</th><td><label><input type="checkbox" name="<?php echo $n('scene_on'); ?>" value="1" <?php checked(!empty($s['scene_on'])); ?>> Ambientazione accesa</label></td></tr>
 						<tr><th>Pulsante per il cliente</th><td><label><input type="checkbox" name="<?php echo $n('scene_toggle'); ?>" value="1" <?php checked(!empty($s['scene_toggle'])); ?>> Mostra il pulsante "🏠 Ambientazione" nella vista 3D</label>
 							<p class="description">Spento: il cliente vede sempre l'impostazione scelta sopra, senza poterla cambiare.</p></td></tr>
+						<tr><th>Scatola di spedizione</th><td><label><input type="checkbox" name="<?php echo $n('box_on'); ?>" value="1" <?php checked(!empty($s['box_on'])); ?>> Mostra la scatola (30,2 × 23,3 × 8,8 cm) a destra della lampada</label>
+							<p class="description">Con la scatola il tavolino diventa una console da circa 1 m. La grafica qui sotto è lo <strong>sviluppo intero</strong> della scatola (fustella aperta), ritagliato esattamente al contorno esterno: ogni faccia prende il suo pezzo.</p></td></tr>
+						<?php $bu = $s['box_tex'] ? wp_get_attachment_image_url($s['box_tex'], 'thumbnail') : ''; ?>
+						<tr><th>Scatola: grafica</th><td class="flc-scene-tex" data-field="box_tex">
+							<span class="tex-prev"><?php echo $bu ? '<img src="' . esc_url($bu) . '" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:6px;vertical-align:middle">' : '<span class="description">quella del plugin</span>'; ?></span>
+							<input type="hidden" name="<?php echo $n('box_tex'); ?>" value="<?php echo (int) $s['box_tex']; ?>">
+							<button type="button" class="button tex-pick">Scegli immagine…</button> <button type="button" class="button-link tex-reset"<?php echo $bu ? '' : ' hidden'; ?>>Usa quella del plugin</button>
+							<p class="description">PNG o JPG dello sviluppo con la stessa fustella (anche 4000–6000 px di lato: più è grande, più è nitida da vicino).</p></td></tr>
 						<tr><th>Insegna sul tavolino</th><td><label><input type="checkbox" name="<?php echo $n('sign_on'); ?>" value="1" <?php checked(!empty($s['sign_on'])); ?>> Mostra l'insegna a sinistra della lampada</label>
 							<p>Colore <input type="color" name="<?php echo $n('sign_color'); ?>" value="<?php echo esc_attr($s['sign_color']); ?>">
 							&nbsp; Materiale <select name="<?php echo $n('sign_material'); ?>"><?php foreach (array('opaco' => 'Opaco', 'lucido' => 'Lucido', 'silk' => 'Silk', 'metallico' => 'Metallico') as $mk => $ml) : ?><option value="<?php echo esc_attr($mk); ?>" <?php selected($s['sign_material'], $mk); ?>><?php echo esc_html($ml); ?></option><?php endforeach; ?></select>

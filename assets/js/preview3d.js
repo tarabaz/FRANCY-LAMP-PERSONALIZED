@@ -102,9 +102,10 @@ export class Preview3D {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(35, 1, 5, 6000);
     // con l'ambientazione l'inquadratura è un po' più larga (si vede il tavolino)
-    if (this.roomOn) this.camera.position.set(230, 70, 780); else this.camera.position.set(190, 40, 620);
+    const wide = this.roomOn && this.sceneCfg.box && this.sceneCfg.box.on !== false; // console larga con la scatola
+    if (wide) this.camera.position.set(240, 190, 1260); else if (this.roomOn) this.camera.position.set(230, 70, 780); else this.camera.position.set(190, 40, 620);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, this.roomOn ? -40 : -25, 0);
+    this.controls.target.set(wide ? 75 : 0, wide ? -75 : this.roomOn ? -40 : -25, 0);
     this.controls.enableDamping = true;
 
     this.ambient = new THREE.HemisphereLight(0xffffff, 0xd8d8d8, 1.1);
@@ -223,8 +224,10 @@ export class Preview3D {
     const room = new THREE.Group();
     const top = box.min.y;                         // il piano del tavolino è dove appoggia la lampada
     const lampBack = box.min.z, lampFront = box.max.z;
-    const T = { w: 560, th: 22, legH: 700 };
-    const zBack = lampBack - 70, zFront = Math.max(lampFront + 90, zBack + 200); // profondità ~ 25 cm
+    // con la scatola (30 × 23 cm) il tavolino diventa una console da ~1 m, profonda 36 cm
+    const boxCfg = this.sceneCfg.box, boxOn = !!(boxCfg && boxCfg.on !== false);
+    const T = { w: boxOn ? 980 : 560, th: 22, legH: 700 };
+    const zBack = lampBack - 70, zFront = Math.max(lampFront + 90, zBack + (boxOn ? 360 : 200));
     const depth = zFront - zBack, zMid = (zBack + zFront) / 2;
     // texture dall'admin (Libreria media) oppure quella generata
     const loadTex = (url, onload) => {
@@ -347,7 +350,9 @@ export class Preview3D {
 
     // insegna sul tavolino, a sinistra, girata verso il centro
     const sign = this.sceneCfg.sign;
-    if (sign && sign.on !== false) this.buildSign(room, { x: -hw + 95, y: top, z: zMid + 12 }, sign);
+    if (sign && sign.on !== false) this.buildSign(room, { x: boxOn ? -230 : -hw + 95, y: top, z: zMid + 12 }, sign);
+    // scatola di spedizione a destra, davanti al cavo, girata un po' verso il centro
+    if (boxOn) this.buildBox(room, { x: 300, y: top, z: zMid + 20 }, boxCfg);
 
     room.visible = this.roomOn !== false;
     this.room = room;
@@ -444,6 +449,44 @@ export class Preview3D {
       room.add(group);
       this.sign = group;
     }).catch((e) => console.warn('Insegna non caricata', e));
+  }
+
+  // Scatola postale 302 × 233 × 88 mm con la grafica dello sviluppo (immagine dello sviluppo intero, ritagliata
+  // al contorno esterno). Ogni faccia prende il suo rettangolo dello sviluppo; le linguette interne non servono.
+  buildBox(room, at, cfg) {
+    const L = 302, D = 233, Hh = 88;
+    // rettangoli nello sviluppo (frazioni della larghezza/altezza dell'immagine, misurati sulla fustella 585 × 641)
+    const NW = 585, NH = 641;
+    const X0 = 159 / NW, X1 = 426 / NW, SL = 81 / NW, SR = 504 / NW;          // colonna centrale, pareti laterali
+    const A0 = 1 / NH, A1 = 75 / NH, B0 = 77 / NH, B1 = 282 / NH, C1 = 357 / NH, Dl = 565 / NH; // fronte, fondo, retro, coperchio
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const geo = new THREE.BoxGeometry(L, Hh, D);
+    geo.translate(0, Hh / 2, 0);
+    const P = geo.attributes.position, N = geo.attributes.normal, UV = geo.attributes.uv;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i) / L + 0.5, y = P.getY(i) / Hh, z = P.getZ(i) / D + 0.5; // 0..1
+      const nx = N.getX(i), ny = N.getY(i), nz = N.getZ(i);
+      let u, v; // coordinate nello sviluppo (0..1, v dall'alto)
+      if (ny > 0.5) { u = lerp(X0, X1, x); v = lerp(C1, Dl, z); }            // coperchio: cerniera dietro
+      else if (ny < -0.5) { u = lerp(X0, X1, x); v = lerp(B1, B0, z); }      // fondo
+      else if (nz > 0.5) { u = lerp(X0, X1, x); v = lerp(A1, A0, y); }       // fronte (piega in basso)
+      else if (nz < -0.5) { u = lerp(X0, X1, x); v = lerp(B1, C1, y); }      // retro
+      else if (nx < -0.5) { u = lerp(X0, SL, y); v = lerp(B1, B0, z); }      // fianco sinistro
+      else { u = lerp(X1, SR, y); v = lerp(B1, B0, z); }                     // fianco destro
+      UV.setXY(i, u, 1 - v);
+    }
+    const tex = new THREE.TextureLoader().load(cfg.tex || new URL('../img/scatola.webp', import.meta.url).href, undefined, undefined, (e) => console.warn('Grafica della scatola non caricata', e));
+    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.82, metalness: 0 });
+    const box = new THREE.Mesh(geo, mat);
+    // spigoli: una linea sottile di cartone sui bordi verticali e sul perimetro del coperchio
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0xbfae94, transparent: true, opacity: 0.55 }));
+    const g = new THREE.Group();
+    g.add(box, edges);
+    g.rotation.y = THREE.MathUtils.degToRad(-12);
+    g.position.set(at.x, at.y, at.z);
+    room.add(g);
+    this.box = g;
   }
 
   // muro: si dissolve quando la telecamera va verso il retro (da dietro si vede la lampada, non il muro)

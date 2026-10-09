@@ -54,6 +54,10 @@ function flc_frontend_config() {
 			'toggle' => !empty($s['scene_toggle']),
 			'wood'   => $s['scene_wood'] ? (wp_get_attachment_image_url($s['scene_wood'], 'large') ?: '') : '',
 			'wall'   => $s['scene_wall'] ? (wp_get_attachment_image_url($s['scene_wall'], 'large') ?: '') : '',
+			'box'    => array(
+				'on'  => !empty($s['box_on']),
+				'tex' => $s['box_tex'] ? (wp_get_attachment_url($s['box_tex']) ?: '') : '',
+			),
 			'sign'   => array(
 				'on'        => !empty($s['sign_on']),
 				'color'     => $s['sign_color'],

@@ -127,7 +127,12 @@ Tutto generato dal codice (nessun modello da scaricare).
 88 × 57 mm, convertito dallo STL): colore, materiale (opaco, lucido, silk, metallico) e colore dell'oro in Impostazioni;
 sulla faccia grande una **texture di sfondo** e sopra uno **strato oro metallizzato** dove la seconda texture (stessa
 dimensione, proporzione 16:10, es. 1600 × 1000) ha il disegno: PNG trasparente = tutto ciò che non è trasparente; senza
-trasparenza = il tono meno presente (nero su bianco o bianco su nero). Il colore del disegno non conta. Impostazioni: accesa all'apertura sì/no, pulsante
+trasparenza = il tono meno presente (nero su bianco o bianco su nero). Il colore del disegno non conta.
+**Scatola di spedizione** a destra della lampada (postale a libro, 30,2 × 23,3 × 8,8 cm a misura vera, girata di 12°
+verso il centro): la grafica è lo **sviluppo intero** (fustella aperta) ritagliato al contorno esterno, e ogni faccia
+prende il suo rettangolo (coperchio con la cerniera dietro, fronte, retro, fianchi, fondo; le linguette interne non
+servono). Predefinita: `assets/img/scatola.webp`; si cambia in Impostazioni → Scatola: grafica (stessa fustella, anche
+4000–6000 px). Con la scatola il tavolino diventa una console da ~1 m × 36 cm e l'inquadratura iniziale si allarga. Impostazioni: accesa all'apertura sì/no, pulsante
 "🏠 Ambientazione" per il cliente sì/no, texture del legno e del muro dalla Libreria media (vuote = legno generato e
 muro chiaro in tinta unita).
 
