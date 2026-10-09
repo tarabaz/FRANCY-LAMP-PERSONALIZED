@@ -73,6 +73,9 @@ Il pannello sinistro è una sequenza di **passi a fisarmonica**, uno aperto alla
    escono: niente fessure bianche e niente parti sovrapposte in STL/3MF. Gli archi vengono campionati ogni mezzo grado. Fuori dal cerchio conta solo dove c'è davvero l'immagine: serve un po' di zoom perché qualcosa sporga.
    Una zona che riempirebbe gran parte della fascia (sfondo) non esce; se una parte copre una scritta compare un
    avviso. Si spegne in Impostazioni → Disco → Sopra la fascia.
+   Con l'interruttore acceso compare **Cornice trasparente** (acceso di serie): fascia, scritte e linea interna al 22% e
+   sotto l'immagine com'è inquadrata, per vedere cosa c'è dietro e toccarlo. Solo a schermo: SVG, STL, 3MF, anteprime
+   e 3D restano identici.
 5. **Conferma**: riepilogo (immagine, stile, sfondo, colori, fascia, scritte), modulo di invio e "Scarica l'anteprima".
 
 **Progetto .francy** (💾 Salva e 📂 Apri nella barra in alto): il cliente scarica sul suo computer un file `.francy`

@@ -188,6 +188,7 @@ export const GUIDE = [
 <ul>
   <li>Le parti escono con il loro contorno nero fino all'anello nero esterno, che resta sempre sopra.</li>
   <li>Serve un po' di zoom sull'immagine perché qualcosa sporga dal cerchio.</li>
+  <li><strong>Cornice trasparente</strong> (accesa in automatico): la fascia diventa quasi trasparente e sotto vedi la tua immagine, così capisci subito cosa può uscire e dove toccare. È solo un aiuto a schermo: il disco e i file non cambiano. Spegnila per rivedere il disco com'è.</li>
   <li>Lo sfondo non esce (riempirebbe tutta la fascia); se una parte copre una scritta compare un avviso.</li>
 </ul>
 </div>

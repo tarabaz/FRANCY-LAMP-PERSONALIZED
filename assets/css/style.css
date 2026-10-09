@@ -609,3 +609,5 @@ html.flc-page .flc { height: 100%; }
   .flc .acc-btn { padding: 5px 10px; font-size: 12.5px; max-width: 170px; }
   .flc .acc-pop { left: auto; right: 0; width: min(300px, calc(100vw - 24px)); }
 }
+.flc .ov-see { margin: 2px 0 8px; font-size: 13px; }
+.flc .ov-see small { color: var(--muted); font-weight: 400; }

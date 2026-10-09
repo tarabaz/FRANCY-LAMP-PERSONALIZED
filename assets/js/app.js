@@ -1265,7 +1265,10 @@ function render() {
   const guide = state.painting && state.baseLayers
     ? `<g id="guida-zone" fill="none" stroke="#d0342c" stroke-opacity=".75" stroke-width="${0.22 * zoomUnit()}" stroke-dasharray="${0.8 * zoomUnit()} ${0.5 * zoomUnit()}" pointer-events="none">${state.baseLayers.map((d) => (d ? `<path d="${d}"/>` : '')).join('')}</g>`
     : '';
-  $('#svgHost').innerHTML = guide ? svg.replace('</svg>', guide + '</svg>') : svg;
+  let shown = guide ? svg.replace('</svg>', guide + '</svg>') : svg;
+  // sopra la fascia: cornice trasparente per vedere (e toccare) cosa c'è sotto; solo a schermo, i file restano uguali
+  if (ovSeeOn()) shown = ovSeeSvg(shown);
+  $('#svgHost').innerHTML = shown;
   applyZoom();
   renderOverlay();
   const n = colors.size;
@@ -1844,6 +1847,36 @@ $('#svgHost').addEventListener('pointercancel', endDrag);
 
 // ---------------- sopra la fascia: interfaccia ----------------
 if (CFG.overflow) $('#ovBox').hidden = false;
+// "Cornice trasparente": sotto la fascia si vede l'immagine com'è inquadrata, la cornice resta al 22%
+function ovSeeOn() { return state.overflow && $('#ovSee').checked && !state.template && !state.fullDisc && !!state.img; }
+var ovGhost = { key: "", url: "" }; // var: render() può girare prima di questa riga
+function ovGhostUrl() {
+  const g = geometry();
+  const key = [state.img.src ? state.img.src.length + state.img.src.slice(-40) : state.img.width, state.img.width, state.img.height, state.zoom, state.ox, state.oy, adjust.b, adjust.c, adjust.s].join('|');
+  if (ovGhost.key === key) return ovGhost.url;
+  const pxmm = 4, size = Math.round(2 * g.rBandOut * pxmm), inner = Math.round(2 * g.rImgArt * pxmm), shift = (size - inner) / 2;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size);
+  ctx.save(); ctx.translate(shift, shift); drawImageTo(ctx, inner, false); ctx.restore(); // stessa inquadratura della conversione
+  applyAdjust(ctx, size);
+  ovGhost = { key, url: c.toDataURL('image/jpeg', 0.85) };
+  return ovGhost.url;
+}
+function ovSeeSvg(svg) {
+  const g = geometry(), r = g.rBandOut, ri = g.rImg;
+  const ring = `M${-r} 0a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0ZM${-ri} 0a${ri} ${ri} 0 1 0 ${2 * ri} 0a${ri} ${ri} 0 1 0 ${-2 * ri} 0Z`;
+  // anche dentro la sagoma del disco: niente immagine nell'asola in basso
+  const disc = (svg.match(/<g id="base-bianca"[^>]*><path[^>]*\sd="([^"]+)"/) || [])[1];
+  const ghost = `<g id="ov-sotto" pointer-events="none"><clipPath id="ovClip"><path clip-rule="evenodd" d="${ring}"/></clipPath>`
+    + (disc ? `<clipPath id="ovDisc"><path clip-rule="evenodd" d="${disc}"/></clipPath>` : '')
+    + `<g${disc ? ' clip-path="url(#ovDisc)"' : ''}><image href="${ovGhostUrl()}" x="${-r}" y="${-r}" width="${2 * r}" height="${2 * r}" clip-path="url(#ovClip)" preserveAspectRatio="none"/></g></g>`;
+  const style = '<style>#cornice-fascia,#cornice-scritte,#cornice-linea-interna,#cornice-contorno-asola{opacity:.22}</style>';
+  // l'immagine va subito sopra la base bianca: le parti già scelte (disegno) e la cornice restano sopra
+  return svg.replace(/(<g id="base-bianca"[\s\S]*?<\/g>)/, `$1${style}${ghost}`);
+}
+$('#ovSee').addEventListener('change', () => render());
 function updateOvUi() {
   const n = state.overflow ? state.ovSeeds.length : 0;
   $('#ovPanel').hidden = !state.overflow;
