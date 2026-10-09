@@ -640,6 +640,8 @@ function flc_settings_page() {
 	?>
 	<style>
 		.flc-set { max-width: 1280px; }
+		/* tabelle larghe (codici d'accesso, funzioni per profilo): usano tutto lo schermo */
+		.flc-set.flc-wide { max-width: none; }
 		.flc-layout { display: flex; gap: 22px; align-items: flex-start; margin-top: 14px; }
 		.flc-nav { position: sticky; top: 46px; flex: 0 0 220px; background: #fff; border: 1px solid #dcdcde; border-radius: 10px; padding: 6px; }
 		.flc-nav .nav-tab { display: flex; gap: 10px; align-items: flex-start; float: none; margin: 0; border: 0; background: none; padding: 9px 10px; border-radius: 7px; color: #1d2327; font-weight: 400; }
@@ -1638,6 +1640,7 @@ function flc_settings_page() {
 			if (![...panes].some((p) => p.dataset.tab === k)) k = 'panoramica';
 			tabs.forEach((t) => t.classList.toggle('nav-tab-active', t.dataset.tab === k));
 			panes.forEach((p) => p.classList.toggle('on', p.dataset.tab === k));
+			document.querySelector('.flc-set').classList.toggle('flc-wide', k === 'accessi' || k === 'funzioni');
 			document.querySelector('.flc-sticky').style.display = k === 'panoramica' || k === 'lampada' ? 'none' : '';
 			try { localStorage.setItem('flcSettingsTab', k); } catch (e) {}
 			window.scrollTo(0, 0);
