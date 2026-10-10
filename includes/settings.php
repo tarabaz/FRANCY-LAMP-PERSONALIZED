@@ -296,6 +296,16 @@ function flc_defaults() {
 		'box_on'       => 1,  // scatola di spedizione sul tavolino (a destra)
 		'scene_v'      => 0,
 		// posizioni nell'ambientazione (cm e gradi, rispetto al centro del tavolo; Y verso il davanti)
+		// progetto Bambu Studio (.3mf) generato dal plugin: valori del processo (Impostazioni → Stampa 3MF)
+		'bb_closing'   => 0.1,       // Qualità → Precisione → Raggio chiusura del gap (mm)
+		'bb_wall_gen'  => 'arachne', // Qualità → Generatore parete
+		'bb_min_feature' => 15,      // Qualità → Generatore parete → Dimensione minima caratteristica (%)
+		'bb_min_bead'  => 70,        // Qualità → Generatore parete → Larghezza minima parete (%)
+		'bb_overlap'   => 25,        // Resistenza → Avanzate → Sovrapposizione riempimento/parete (%)
+		'bb_wall_loops' => 2,        // Resistenza → Pareti → Loop pareti
+		'bb_gap_speed' => 60,        // Velocità → Riempimento gap (mm/s)
+		'bb_xy'        => 0,         // Qualità → Precisione → Compensazione contorni X-Y (mm)
+		'bb_flow'      => 0,         // correzione % del rapporto di flusso dei colori del disegno (bianco della base escluso)
 		'lay_lamp_x'   => -17,
 		'lay_lamp_y'   => 0,
 		'lay_box_x'    => 30.5,
@@ -473,6 +483,15 @@ function flc_sanitize_settings($in) {
 		'sign_gold_color' => sanitize_hex_color($in['sign_gold_color'] ?? '') ?: $d['sign_gold_color'],
 		'box_on'       => empty($in['box_on']) ? 0 : 1,
 		'scene_v'      => 1,
+		'bb_closing'   => max(0, min(0.5, round((float) ($in['bb_closing'] ?? $d['bb_closing']), 3))),
+		'bb_wall_gen'  => in_array($in['bb_wall_gen'] ?? '', array('arachne', 'classic'), true) ? $in['bb_wall_gen'] : $d['bb_wall_gen'],
+		'bb_min_feature' => max(1, min(100, (int) ($in['bb_min_feature'] ?? $d['bb_min_feature']))),
+		'bb_min_bead'  => max(10, min(100, (int) ($in['bb_min_bead'] ?? $d['bb_min_bead']))),
+		'bb_overlap'   => max(0, min(100, (int) ($in['bb_overlap'] ?? $d['bb_overlap']))),
+		'bb_wall_loops' => max(1, min(6, (int) ($in['bb_wall_loops'] ?? $d['bb_wall_loops']))),
+		'bb_gap_speed' => max(10, min(500, (int) ($in['bb_gap_speed'] ?? $d['bb_gap_speed']))),
+		'bb_xy'        => max(-0.2, min(0.2, round((float) ($in['bb_xy'] ?? $d['bb_xy']), 3))),
+		'bb_flow'      => max(-5, min(5, round((float) ($in['bb_flow'] ?? $d['bb_flow']), 1))),
 		'lay_lamp_x'   => max(-45, min(45, round((float) ($in['lay_lamp_x'] ?? -17), 1))),
 		'lay_lamp_y'   => max(-5, min(25, round((float) ($in['lay_lamp_y'] ?? 0), 1))),
 		'lay_box_x'    => max(-45, min(45, round((float) ($in['lay_box_x'] ?? 30.5), 1))),
@@ -583,6 +602,7 @@ function flc_settings_page() {
 		'anteprima'     => array('dashicons-shield-alt', 'Anteprima e watermark', 'Immagine da condividere'),
 		'lampada'       => array('dashicons-lightbulb', 'Lampada 3D', 'Pezzi e colori'),
 		'ordini'        => array('dashicons-email-alt', 'Ordini', 'Notifiche e anti-spam'),
+		'stampa'        => array('dashicons-printer', 'Stampa 3MF', 'Impostazioni Bambu Studio'),
 	);
 	// stili IA (card nella sezione Stili)
 	$saved      = get_option(FLC_OPTION, array());
@@ -729,6 +749,8 @@ function flc_settings_page() {
 		.flc-qr-x { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 20px; cursor: pointer; }
 		.flc-qr-url code { word-break: break-all; }
 		.flc-qr-box [hidden] { display: none !important; }
+		.flc-bb-table td { vertical-align: top; }
+		.flc-bb-table .flc-bb-risk { color: #8a2424; }
 		.flc-dirty { color: #8a5a00; background: #fcf3dc; border-radius: 10px; padding: 2px 10px; margin-left: 10px; vertical-align: middle; }
 		.flc-set .flc-tab { display: none; padding-top: 6px; }
 		.flc-set .flc-tab.on { display: block; }
@@ -1488,6 +1510,70 @@ function flc_settings_page() {
 					</table>
 				</div>
 			</section>
+			<!-- ===================== STAMPA 3MF (Bambu Studio) ===================== -->
+			<?php
+			// righe: chiave, nome in Bambu Studio, dove si trova, campo, consigliato, cosa fa, se esageri
+			$bb_rows = array(
+				array('bb_closing', 'Raggio chiusura del gap', 'Qualità → Precisione', array('number', 0, 0.5, 0.01, 'mm'), '0,1',
+					'Quando Bambu taglia gli strati, chiude le fessure più piccole di questo raggio. Sono proprio le microfessure tra un colore e l\'altro che da lampada accesa diventano puntini bianchi.',
+					'Oltre 0,2 mm inizia a chiudere anche dettagli voluti: linee nere sottili, pupille, punte e spazi stretti tra due zone si impastano. Sotto 0,05 tornano i puntini.'),
+				array('bb_wall_gen', 'Generatore parete', 'Qualità → Generatore parete', array('select', array('arachne' => 'Arachne', 'classic' => 'Classico')), 'Arachne',
+					'Arachne varia la larghezza delle linee e riempie le zone strette e i punti dove si incontrano due colori. Classico usa linee tutte uguali e lascia vuoto ciò che non entra.',
+					'Con Classico tornano le fessure tra i colori (puntini da accesa). Arachne è un po\' più lento da calcolare, ma non peggiora la stampa.'),
+				array('bb_min_feature', 'Dimensione minima caratteristica', 'Qualità → Generatore parete', array('number', 1, 100, 1, '%'), '15%',
+					'Sotto questa larghezza (in % dell\'ugello) un dettaglio viene ignorato. Più è basso, più stampa anche i dettagli sottilissimi del disegno.',
+					'Troppo basso (sotto 5%): prova a stampare schegge minuscole che escono come fili o puntini sporchi. Troppo alto (oltre 30%): spariscono dettagli fini e tornano i buchini.'),
+				array('bb_min_bead', 'Larghezza minima parete', 'Qualità → Generatore parete', array('number', 10, 100, 1, '%'), '70%',
+					'La linea più sottile che Arachne è disposto a stampare (in % dell\'ugello). Più è bassa, più riempie le zone strette invece di lasciarle vuote.',
+					'Troppo bassa (sotto 40%): linee sottilissime e deboli, sottoestrusione e superficie ruvida. Il vecchio profilo a 15% era uno dei motivi della superficie fatta male. Troppo alta (85%+): restano fessure nelle zone strette.'),
+				array('bb_overlap', 'Sovrapposizione riempimento/parete', 'Resistenza → Avanzate', array('number', 0, 100, 1, '%'), '25%',
+					'Quanto il riempimento pieno di ogni colore entra sopra il suo bordo. Aggancia meglio interno e contorno ed elimina i buchini tra i due.',
+					'Oltre 35–40%: troppo materiale lungo i bordi, si formano creste e la superficie diventa ruvida (il vecchio profilo era al 60%). Sotto 15%: buchini tra bordo e interno.'),
+				array('bb_wall_loops', 'Loop pareti', 'Resistenza → Pareti', array('number', 1, 6, 1, ''), '2',
+					'Quanti giri di contorno fa ogni zona colorata prima del riempimento.',
+					'Più giri (3+): nelle zone strette resta meno spazio per il riempimento e nascono più fessure tra i giri. 1 giro: bordi delle zone meno netti.'),
+				array('bb_gap_speed', 'Riempimento gap', 'Velocità → Velocità altri layer', array('number', 10, 500, 1, 'mm/s'), '60',
+					'Velocità delle linee corte che tappano gli spazi rimasti tra le pareti. Più lenta = l\'estrusore fa in tempo a riempire davvero.',
+					'Troppo veloce (200+): sui tratti cortissimi esce meno materiale e i buchini restano. Troppo lenta (sotto 30): solo tempo in più, a volte un filo di materiale in eccesso nei punti piccoli.'),
+				array('bb_xy', 'Compensazione contorni X-Y', 'Qualità → Precisione', array('number', -0.2, 0.2, 0.01, 'mm'), '0',
+					'Allarga (positivo) o restringe (negativo) il contorno esterno di tutto il disco. Con i colori come parti dello stesso oggetto non agisce tra un colore e l\'altro.',
+					'Diverso da 0 cambia il diametro del disco: può non entrare più nella cornice della lampada o restare lasco. Lasciala a 0.'),
+				array('bb_flow', 'Rapporto di flusso dei colori (correzione)', 'Filamento → Rapporto di flusso', array('number', -5, 5, 0.5, '%'), '0',
+					'Corregge in percentuale il flusso di tutti i filamenti del disegno (il bianco della base resta com\'è). +1% = un filo di materiale in più ovunque.',
+					'Oltre +2%: sovraestrusione, superficie ruvida e bordi gonfi (è la causa più probabile della superficie fatta male di una volta). Sotto 0: buchini e superficie poco coprente.'),
+			);
+			?>
+			<section class="flc-tab" data-tab="stampa">
+				<div class="flc-head"><h2>Stampa 3MF</h2><p>Impostazioni di Bambu Studio messe nel progetto <code>.3mf</code> che il plugin genera (pacchetto del disco, disegni pronti). Partono dal processo "Francy Tombino 0.16" che hai provato: cambia un valore alla volta e fai un test.</p></div>
+				<div class="flc-card">
+					<h2><span class="dashicons dashicons-printer"></span> Processo di stampa</h2>
+					<p class="intro">Ogni riga ha il nome come lo trovi nell'interfaccia italiana di Bambu Studio e dove si trova. Il resto del profilo (stampante H2C, filamenti, ugelli, altezza layer 0,16) resta quello del progetto di riferimento.</p>
+					<table class="widefat flc-bb-table">
+						<thead><tr><th style="width:230px">Impostazione</th><th style="width:150px">Valore</th><th>Cosa fa</th><th>Se esageri</th></tr></thead>
+						<tbody>
+						<?php foreach ($bb_rows as $r) : list($k, $label, $where, $f, $rec, $what, $risk) = $r; ?>
+							<tr>
+								<td><strong><?php echo esc_html($label); ?></strong><br><small class="description"><?php echo esc_html($where); ?></small></td>
+								<td>
+									<?php if ($f[0] === 'select') : ?>
+										<select name="<?php echo $n($k); ?>" data-rec="<?php echo esc_attr(array_search($rec, $f[1], true) ?: $rec); ?>"><?php foreach ($f[1] as $v => $l) : ?><option value="<?php echo esc_attr($v); ?>" <?php selected($s[$k], $v); ?>><?php echo esc_html($l); ?></option><?php endforeach; ?></select>
+									<?php else : ?>
+										<input type="number" name="<?php echo $n($k); ?>" value="<?php echo esc_attr($s[$k]); ?>" min="<?php echo esc_attr($f[1]); ?>" max="<?php echo esc_attr($f[2]); ?>" step="<?php echo esc_attr($f[3]); ?>" style="width:80px" data-rec="<?php echo esc_attr(str_replace(array(',', '%'), array('.', ''), $rec)); ?>"> <?php echo esc_html($f[4]); ?>
+									<?php endif; ?>
+									<br><small class="description">consigliato: <?php echo esc_html($rec); ?></small>
+								</td>
+								<td><?php echo esc_html($what); ?></td>
+								<td class="flc-bb-risk"><?php echo esc_html($risk); ?></td>
+							</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+					<p><button type="button" class="button" id="flcBbReset">Rimetti i valori consigliati</button>
+						<span class="description">Poi salva. Valgono per i prossimi file generati: i progetti già scaricati non cambiano.</span></p>
+					<p class="description"><strong>Come provare una modifica:</strong> in Bambu Studio taglia un quadrato di 40×40 mm nella zona con più colori, stampalo e guardalo in controluce con la torcia del telefono (puntini) e di sbieco con la luce radente (ruvidità).</p>
+				</div>
+			</section>
+
 
 			<div class="flc-sticky"><?php submit_button('Salva impostazioni', 'primary', 'submit', false); ?> <span id="flcDirty" class="flc-dirty" hidden>Hai modifiche non salvate</span></div>
 		</form>
@@ -1684,6 +1770,10 @@ function flc_settings_page() {
 		// link tra schede (Funzioni ↔ Accessi)
 		document.querySelectorAll('.flc-goto').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); show(a.dataset.tab); history.replaceState(null, '', '#' + a.dataset.tab); }));
 		flcAccessUi(form);
+		// Stampa 3MF: valori consigliati (processo "Francy Tombino 0.16")
+		document.getElementById('flcBbReset').addEventListener('click', () => document.querySelectorAll('.flc-bb-table [data-rec]').forEach((el) => {
+			if (el.value !== el.dataset.rec) { el.value = el.dataset.rec; el.dispatchEvent(new Event('input', { bubbles: true })); }
+		}));
 		// stili: card spenta = più chiara; ripristino del prompt originale
 		document.querySelectorAll('.flc-style-cb').forEach((cb) => cb.addEventListener('change', () => cb.closest('.flc-style').classList.toggle('off', !cb.checked)));
 		document.querySelectorAll('.flc-reset').forEach((b) => b.addEventListener('click', () => {

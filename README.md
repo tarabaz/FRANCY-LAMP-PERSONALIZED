@@ -222,7 +222,10 @@ agganciato sotto e i colori del disco stanno dentro il passo "Colori e contorni"
      Le impostazioni di stampa vengono dal tuo progetto di riferimento (`assets/bambu/h2c-template.json`).
      Processo "Francy Tombino 0.16" (0,16 mm High Quality con le modifiche anti-puntini da lampada accesa):
      generatore parete Arachne, raggio chiusura del gap 0,1 mm, larghezza minima parete 70%, dimensione minima
-     caratteristica 15%, sovrapposizione riempimento/parete 25%, 2 pareti, supporti spenti.
+     caratteristica 15%, sovrapposizione riempimento/parete 25%, 2 pareti, riempimento gap 60 mm/s, supporti spenti.
+     Questi valori si cambiano in **Impostazioni → Stampa 3MF** (nomi come nell'interfaccia italiana di Bambu Studio,
+     con cosa fa ogni voce e cosa succede se esageri; "Rimetti i valori consigliati" torna al processo provato). C'è
+     anche la correzione % del rapporto di flusso dei colori del disegno (il bianco della base resta com'è).
    - `LEGGIMI-filamenti.txt` e `riepilogo.json`: bobine da montare, ruolo di ogni colore, area
 3. In **Francy Lamp Factory → Progetti** compare la voce con codice (es. `FL-2026-0001`), anteprima, cliente,
    filamenti, stato (Nuovo / In lavorazione / Stampato / Consegnato / Annullato) e il pulsante **Scarica zip**.

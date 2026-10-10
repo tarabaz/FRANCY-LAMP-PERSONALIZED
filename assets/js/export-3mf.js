@@ -70,6 +70,35 @@ function resizeSettings(settings, src, colors) {
   return out;
 }
 
+// Processo scelto in Impostazioni → Stampa 3MF (nomi dell'interfaccia di Bambu Studio tra parentesi).
+// Le chiavi cambiate finiscono anche in different_settings_to_system, così Bambu le mostra come modificate.
+function applyProcess(settings, p, nFil, T) {
+  const str = (v) => String(+(+v).toFixed(4));
+  const set = (k, v) => {
+    if (!(k in settings)) return;
+    const old = settings[k];
+    settings[k] = Array.isArray(old) ? old.map(() => v) : v;
+    if (JSON.stringify(settings[k]) !== JSON.stringify(T[k]) && Array.isArray(settings.different_settings_to_system)) {
+      const list = (settings.different_settings_to_system[0] || '').split(';').filter(Boolean);
+      if (!list.includes(k)) { list.push(k); list.sort(); settings.different_settings_to_system[0] = list.join(';'); }
+    }
+  };
+  if (p.closing != null) set('slice_closing_radius', str(p.closing)); // Raggio chiusura del gap
+  if (p.wallGen) set('wall_generator', p.wallGen === 'classic' ? 'classic' : 'arachne'); // Generatore parete
+  if (p.minFeature != null) set('min_feature_size', `${Math.round(p.minFeature)}%`); // Dimensione minima caratteristica
+  if (p.minBead != null) set('min_bead_width', `${Math.round(p.minBead)}%`); // Larghezza minima parete
+  if (p.overlap != null) set('infill_wall_overlap', `${Math.round(p.overlap)}%`); // Sovrapposizione riempimento/parete
+  if (p.wallLoops != null) set('wall_loops', String(Math.round(p.wallLoops))); // Loop pareti
+  if (p.gapSpeed != null) set('gap_infill_speed', String(Math.round(p.gapSpeed))); // Riempimento gap (velocità)
+  if (p.xy != null) set('xy_contour_compensation', str(p.xy)); // Compensazione contorni X-Y
+  // Rapporto di flusso: correzione in % sui filamenti del disegno, il bianco della base (filamento 1) resta com'è
+  const fr = settings.filament_flow_ratio;
+  if (p.flow && Array.isArray(fr) && fr.length % nFil === 0) {
+    const per = fr.length / nFil;
+    settings.filament_flow_ratio = fr.map((v, i) => (i < per ? v : str(Math.round(+v * (1 + p.flow / 100) * 1000) / 1000)));
+  }
+}
+
 // parts: come per gli STL. opts: { template, white, black, filamentName(hex), title, baseThickness, artThickness, thumb, thumbSmall }
 export async function build3mf(parts, opts) {
   const { template, white, black } = opts;
@@ -98,6 +127,7 @@ export async function build3mf(parts, opts) {
     return best;
   });
   const settings = resizeSettings(T, src, colors);
+  if (opts.process) applyProcess(settings, opts.process, colors.length, T);
 
   // mesh: una parte per gruppo di colore, vertici in coordinate locali centrate (come Bambu Studio)
   const total = opts.baseThickness + opts.artThickness;

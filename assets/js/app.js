@@ -2095,6 +2095,7 @@ async function make3mf(ps, previewOff, title = 'Disco lampada FrancyStore3D') {
     template, white: WHITE, black: BLACK, title,
     filamentName: (h) => (state.filaments.length ? nearestFilament(h).name : ''),
     baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness, thumb, thumbSmall,
+    process: CFG.bambu || null, // Impostazioni → Stampa 3MF
   });
 }
 

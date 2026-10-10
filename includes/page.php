@@ -76,6 +76,12 @@ function flc_frontend_config() {
 			),
 		),
 		'lamp'      => function_exists('flc_parts_for_frontend') ? flc_parts_for_frontend() : null,
+		// processo del progetto Bambu Studio (.3mf) che il configuratore genera (Impostazioni → Stampa 3MF)
+		'bambu'     => array(
+			'closing' => (float) $s['bb_closing'], 'wallGen' => $s['bb_wall_gen'], 'minFeature' => (int) $s['bb_min_feature'],
+			'minBead' => (int) $s['bb_min_bead'], 'overlap' => (int) $s['bb_overlap'], 'wallLoops' => (int) $s['bb_wall_loops'],
+			'gapSpeed' => (int) $s['bb_gap_speed'], 'xy' => (float) $s['bb_xy'], 'flow' => (float) $s['bb_flow'],
+		),
 		'watermark' => array(
 			'screen'   => (bool) $s['wm_onscreen'],
 			'download' => (bool) $s['wm_download'],
