@@ -871,16 +871,22 @@ function run() {
   applyAdjust(ctx, size); // le regolazioni (luminosità…) su tutto il raster
   // grafiche aggiuntive: disegnate sopra l'immagine (dopo le regolazioni), poi convertite insieme al disegno;
   // la loro sagoma (mask) può uscire dal cerchio come le parti di "sopra la fascia"
-  let mask = null;
+  // lock: sagoma delle grafiche col lucchetto chiuso (🔒): secchiello, penna e "svuota" non le toccano
+  let mask = null, lock = null;
   if (layersOn) {
     const k = size / (2 * rRaster), px = (v) => (v + rRaster) * k;
     const m = document.createElement('canvas'); m.width = m.height = size;
     const mctx = m.getContext('2d');
+    const lc = document.createElement('canvas'); lc.width = lc.height = size;
+    const lctx = lc.getContext('2d');
     for (const L of state.layers) {
       if (!L.img || !L.img.naturalWidth) continue;
+      // grafica sbloccata sopra una bloccata: dove la copre, si può colorare
+      lctx.globalCompositeOperation = L.editable ? 'destination-out' : 'source-over';
+      const tg = [ctx, mctx, lctx];
       // bordo nero regolabile intorno a tutta la grafica (slider "Bordo"), sotto la grafica stessa
-      if ((L.outline || 0) * k >= 0.5) layerOutline([ctx, mctx], L, px(L.x), px(L.y), L.size * k, L.outline * k, size);
-      for (const cx of [ctx, mctx]) {
+      if ((L.outline || 0) * k >= 0.5) layerOutline(tg, L, px(L.x), px(L.y), L.size * k, L.outline * k, size);
+      for (const cx of tg) {
         cx.save(); cx.translate(px(L.x), px(L.y)); cx.rotate(L.rot * Math.PI / 180);
         const w = L.size * k, h = w * L.img.naturalHeight / L.img.naturalWidth;
         cx.drawImage(L.img, -w / 2, -h / 2, w, h); cx.restore();
@@ -889,6 +895,11 @@ function run() {
     const md = mctx.getImageData(0, 0, size, size).data;
     mask = new Uint8Array(size * size);
     for (let i = 0; i < mask.length; i++) mask[i] = md[i * 4 + 3] > 110 ? 1 : 0;
+    if (state.layers.some((L) => !L.editable)) {
+      const ld = lctx.getImageData(0, 0, size, size).data;
+      lock = new Uint8Array(size * size);
+      for (let i = 0; i < lock.length; i++) lock[i] = ld[i * 4 + 3] > 110 ? 1 : 0;
+    }
   }
   const imageData = ctx.getImageData(0, 0, size, size).data;
   // disco intero: si lavora solo dentro la sagoma vera del disco (fori laterali e asola esclusi)
@@ -926,7 +937,7 @@ function run() {
       slotHalf: (FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder + 0.6) * size / (2 * rRaster),
       seeds: state.overflow ? state.ovSeeds : [],
       imgRect: imgRect(inner, shift),
-      mask,
+      mask, lock,
     } : null,
   };
   const id = ++jobId;
@@ -1762,7 +1773,7 @@ async function addLayer(s) {
   if (!state.img) { setStatus('Carica prima un\'immagine'); return; }
   let img;
   try { img = await loadLayerImg(s.url); } catch (e) { setStatus('Grafica non disponibile'); return; }
-  const L = { uid: ++layerUid, id: s.id, name: s.name, url: s.url, thumb: s.thumb, x: 0, y: 0, size: 30, rot: 0, outline: 0, img };
+  const L = { uid: ++layerUid, id: s.id, name: s.name, url: s.url, thumb: s.thumb, x: 0, y: 0, size: 30, rot: 0, outline: 0, editable: false, img };
   state.layers.push(L); state.layerSel = L.uid;
   if (state.view === '3d') document.querySelector('.tabs button[data-view="2d"]').click();
   renderLayers(); run();
@@ -1776,10 +1787,13 @@ function renderLayers() {
   [...state.layers].reverse().forEach((L) => { // in alto nella lista = sopra nel disegno
     const li = document.createElement('li');
     li.className = L.uid === state.layerSel ? 'sel' : '';
-    li.innerHTML = `<img alt=""><span class="nm"></span><span class="ops"><button type="button" data-a="up" title="Sopra">▲</button><button type="button" data-a="dn" title="Sotto">▼</button><button type="button" data-a="del" title="Elimina">✕</button></span>
+    li.innerHTML = `<img alt=""><span class="nm"></span><span class="ops"><button type="button" data-a="lock" class="lk"></button><button type="button" data-a="up" title="Sopra">▲</button><button type="button" data-a="dn" title="Sotto">▼</button><button type="button" data-a="del" title="Elimina">✕</button></span>
       <span class="sl">Dim.<input type="range" min="5" max="150" step="1" data-k="size">Rot.<input type="range" min="-180" max="180" step="1" data-k="rot"><span class="sl-b">Bordo nero <b></b></span><input type="range" min="0" max="3" step="0.1" data-k="outline" class="sl-bi" title="Bordo nero intorno a tutta la grafica (0 = solo quello già disegnato)"></span>`;
     li.querySelector('img').src = L.thumb;
     li.querySelector('.nm').textContent = L.name;
+    const lk = li.querySelector('[data-a=lock]');
+    lk.textContent = L.editable ? '🔓' : '🔒';
+    lk.title = L.editable ? 'Sbloccata: puoi ricolorarla con secchiello e penna (tocca per proteggerla)' : 'Protetta: sta sopra a tutto, secchiello e penna non la toccano (tocca per poterla ricolorare)';
     li.querySelector('[data-k=size]').value = L.size;
     li.querySelector('[data-k=rot]').value = L.rot;
     li.querySelector('[data-k=outline]').value = L.outline || 0;
@@ -1790,6 +1804,7 @@ function renderLayers() {
       if (act) {
         const i = state.layers.indexOf(L);
         if (act === 'del') { state.layers.splice(i, 1); if (state.layerSel === L.uid) state.layerSel = null; }
+        else if (act === 'lock') L.editable = !L.editable;
         else if (act === 'up' && i < state.layers.length - 1) [state.layers[i], state.layers[i + 1]] = [state.layers[i + 1], state.layers[i]];
         else if (act === 'dn' && i > 0) [state.layers[i], state.layers[i - 1]] = [state.layers[i - 1], state.layers[i]];
         else return;
@@ -2170,7 +2185,7 @@ async function buildPackage(customer) {
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
     lampada: lampSummary(),
-    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, disegno_pronto_elaborato: state.fullDisc ? state.fullDisc.name : null, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, grafiche: state.layers.map((x) => ({ id: x.id, nome: x.name, x: x.x, y: x.y, larghezza_mm: x.size, rotazione: x.rot, bordo_mm: x.outline || 0 })), ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
+    impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, disegno_pronto_elaborato: state.fullDisc ? state.fullDisc.name : null, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, grafiche: state.layers.map((x) => ({ id: x.id, nome: x.name, x: x.x, y: x.y, larghezza_mm: x.size, rotazione: x.rot, bordo_mm: x.outline || 0, ricolorabile: !!x.editable })), ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
     'FrancyStore3D - disco lampada personalizzato', '',
@@ -2652,7 +2667,7 @@ async function projectBlob() {
     P.fullDisc = state.fullDisc ? { name: state.fullDisc.name, id: state.fullDisc.id || null } : null;
     P.overflow = state.overflow; P.ovSeeds = state.ovSeeds;
     P.paints = state.paints; P.locks = state.locks; P.centers = state.centers || null;
-    P.layers = await Promise.all(state.layers.map(async (L) => ({ id: L.id, name: L.name, image: await srcToDataUrl(L.url), x: L.x, y: L.y, size: L.size, rot: L.rot, outline: L.outline || 0 })));
+    P.layers = await Promise.all(state.layers.map(async (L) => ({ id: L.id, name: L.name, image: await srcToDataUrl(L.url), x: L.x, y: L.y, size: L.size, rot: L.rot, outline: L.outline || 0, editable: !!L.editable })));
   }
   P.band = state.bandColor; P.textColor = state.textColor;
   P.texts = { tl: $('#tTL').value, tr: $('#tTR').value, bl: $('#tBL').value, br: $('#tBR').value, pTL: +$('#pTL').value, pTR: +$('#pTR').value, pBL: +$('#pBL').value, pBR: +$('#pBR').value, size: +$('#textSize').value };
@@ -2736,7 +2751,7 @@ async function openProject(file) {
     // grafiche aggiuntive
     state.layers = [];
     for (const L of P.layers || []) {
-      try { const img = await loadImg(L.image); state.layers.push({ uid: ++layerUid, id: L.id, name: L.name, url: L.image, thumb: L.image, x: L.x, y: L.y, size: L.size, rot: L.rot, outline: +L.outline || 0, img }); } catch (e) { /* grafica illeggibile: si salta */ }
+      try { const img = await loadImg(L.image); state.layers.push({ uid: ++layerUid, id: L.id, name: L.name, url: L.image, thumb: L.image, x: L.x, y: L.y, size: L.size, rot: L.rot, outline: +L.outline || 0, editable: !!L.editable, img }); } catch (e) { /* grafica illeggibile: si salta */ }
     }
     state.layerSel = null; renderLayers();
     applyFrame();

@@ -340,6 +340,16 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
     const c = comp[at];
     for (let i = 0; i < labs.length; i++) if (comp[i] === c && labs[i] !== NONE) labs[i] = pt.to;
   }
+  // le grafiche aggiuntive protette (🔒, il predefinito) stanno sopra tutto, anche sopra secchiello, penna e
+  // "svuota i colori": dove c'è una di loro (sagoma + 1 px per il suo contorno) torna la conversione di partenza
+  const mask = opts.ov && opts.ov.lock;
+  if (mask && mask.length === labs.length) {
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      if (labs[i] === base[i]) continue;
+      if (mask[i] || (x > 0 && mask[i - 1]) || (x < size - 1 && mask[i + 1]) || (y > 0 && mask[i - size]) || (y < size - 1 && mask[i + size])) labs[i] = base[i];
+    }
+  }
 }
 function penStroke(labs, size, pt, sc, off) {
   const pxPerMm = 1 / sc;
