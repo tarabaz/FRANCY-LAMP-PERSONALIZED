@@ -221,6 +221,15 @@ function convert(rgba, size, ppmm, opts, progress) {
 }
 
 // ---------- sopra la fascia ----------
+// Zona dell'asola in basso che resta libera: la "U" del contorno nero (semicerchio in alto, lati dritti fino al
+// bordo) più un piccolo margine. dx, dy in pixel dal centro. Senza slotCy (vecchie pagine): striscia verticale.
+function inSlot(dx, dy, ov) {
+  const w = ov.slotHalf;
+  if (ov.slotCy == null) return dy > 0 && Math.abs(dx) < w;
+  if (dy >= ov.slotCy) return Math.abs(dx) < w;
+  const ey = dy - ov.slotCy;
+  return dx * dx + ey * ey < w * w;
+}
 // full: etichette su tutto il raster. Dentro il cerchio del disegno resta tutto; fuori (fino all'anello nero)
 // restano solo le zone toccate (seeds, in mm) e un contorno nero di spessore pari alle linee del disegno,
 // tranne la zona dell'asola in basso. Ritorna anche le etichette con la "zona cornice" (vedi frameLabelsOf).
@@ -279,7 +288,7 @@ function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
     if (full[i] === NONE) continue;
     const dx = x - cx, dy = y - cx, d2 = dx * dx + dy * dy;
     if (d2 <= rArt2) continue;
-    const slot = dy > 0 && Math.abs(dx) < ov.slotHalf;
+    const slot = inSlot(dx, dy, ov);
     if (d2 > rKeep2 || slot || !anySel) { labels[i] = NONE; continue; }
     if (isSel[i]) continue;
     if (dist && dist[i] <= lineW) { labels[i] = blackIdx; continue; }
@@ -363,7 +372,7 @@ function penStroke(labs, size, pt, sc, off, ov) {
   const cx = (size - 1) / 2, rA2 = ov ? ov.rArt * ov.rArt : 0, rK2 = ov ? ov.rKeep * ov.rKeep : 0;
   const ring = (xx, yy) => {
     const dx = xx - cx, dy = yy - cx, d2 = dx * dx + dy * dy;
-    return d2 > rA2 && d2 <= rK2 && !(dy > 0 && Math.abs(dx) < ov.slotHalf);
+    return d2 > rA2 && d2 <= rK2 && !inSlot(dx, dy, ov);
   };
   const r = Math.max(0.5, (pt.w / 2) * pxPerMm);
   const R = Math.ceil(r), r2 = r * r;

@@ -973,6 +973,8 @@ function run() {
       rArt: g.rImgArt * size / (2 * rRaster), rImg: g.rImg * size / (2 * rRaster),
       rKeep: (g.rBandOut + 0.3) * size / (2 * rRaster),          // l'anello nero esterno ci va sopra
       slotHalf: (FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder + 0.6) * size / (2 * rRaster),
+      // centro del semicerchio del contorno dell'asola (stesso calcolo di slotBorderShapes in frame.js)
+      slotCy: Math.min(g.R - FRAME.bottomSlot.centerFromBottom, g.rBandIn - 0.5 + FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder) * size / (2 * rRaster),
       seeds: state.overflow ? state.ovSeeds : [],
       imgRect: imgRect(inner, shift),
       mask, lock,

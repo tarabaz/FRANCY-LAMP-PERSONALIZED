@@ -165,7 +165,7 @@ stessa grandezza a schermo. Serve per toccare con precisione zone piccolissime c
 pieni e contorno nero): nel passo "Cornice e scritte" il cliente tocca una grafica per aggiungerla come livello.
 Sul disegno la sposta trascinandola, la ingrandisce con la maniglia gialla e la ruota con quella bianca (o con gli
 slider della lista); la lista dei livelli ha anche ordine (▲▼) ed elimina. Le grafiche possono andare sopra la fascia
-fino all'anello nero esterno (sempre sopra), l'asola resta libera. Prima della conversione vengono disegnate
+fino all'anello nero esterno (sempre sopra), l'asola resta libera (segue la forma a U del suo contorno nero: le parti possono arrivare fin sulla curva, non vengono tagliate dritte). Prima della conversione vengono disegnate
 sull'immagine e convertite con le bobine come il resto (buco esatto nella fascia come "sopra la fascia", ma senza
 contorno nero aggiunto: vale il bordo già disegnato nella grafica). Lo slider **Bordo nero** (0–3 mm, 0 = nessuno) di
 ogni grafica aggiunge un contorno nero intorno a tutta la sagoma, dentro e fuori dal cerchio. Le grafiche stanno
