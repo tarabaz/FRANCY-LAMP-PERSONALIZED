@@ -105,6 +105,7 @@ export const GUIDE = [
 <div class="w-gallery w-pairs" data-gallery="styles"></div>
 <figure class="w-fig" data-gimg="stili-ia"><figcaption>I quattro stili: tocca quello che vuoi prima di ridisegnare.</figcaption></figure>
 <p>Sotto gli stili vedi un <strong>esempio</strong> di prima/dopo dello stile scelto.</p>
+<p data-feat="feat_ai_expand"><strong>Allarga l'immagine (+25% per lato)</strong>: l'IA disegna anche il continuo della scena intorno alla tua foto. Utile quando la foto è "stretta" e vuoi immagine anche sopra la fascia o vuoi allontanare lo zoom senza vedere i bordi.</p>
 <h4>È una carta da gioco</h4>
 <p>Se hai fotografato una carta (es. Pokémon), l'IA tiene solo l'illustrazione e toglie cornice, scritte e simboli della carta.</p>
 <h4>Rimuovi lo sfondo</h4>
@@ -173,7 +174,7 @@ export const GUIDE = [
 <p data-feat="feat_pen">La penna può anche <strong>uscire dal cerchio</strong>: il tratto continua sopra la fascia fino all'anello nero esterno, anche dove l'immagine non arriva. Utile per allungare a mano una coda, un'ala o un orecchio.</p>
 <h4>Gli altri pulsanti</h4>
 <ul>
-  <li data-feat="feat_clear"><strong>Svuota i colori</strong>: rende tutto bianco tranne il nero, per ricolorare da zero.</li>
+  <li data-feat="feat_clear"><strong>Svuota i colori</strong>: rende tutto bianco tranne il nero, per ricolorare da zero (chiede conferma; si torna indietro con ↶ Annulla).</li>
   <li><strong>↶ Annulla</strong>: toglie l'ultimo tocco o tratto.</li>
   <li><strong>Fine</strong>: chiude gli strumenti.</li>
 </ul>

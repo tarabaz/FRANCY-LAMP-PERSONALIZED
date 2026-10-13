@@ -273,6 +273,7 @@ else if (CFG.access && CFG.access.aiLocked) {
   $('#aiLocked').hidden = false;
 }
 if (CFG.aiCard) $('#aiCardRow').hidden = false;
+if (feature('feat_ai_expand')) $('#aiExpandRow').hidden = false;
 
 // Contatori del giorno: quanti ridisegni restano a te e a tutto il sito
 function showQuota(q) {
@@ -390,12 +391,29 @@ $('#aiBtn').addEventListener('click', async () => {
   const [rw, rh] = AI_RATIOS.reduce((best, r) => (Math.abs(Math.log(ratio * r[1] / r[0])) < Math.abs(Math.log(ratio * best[1] / best[0])) ? r : best));
   const cx0 = 0, cy0 = 0, cw = o.width, ch = o.height;
   const s0 = coverFor(o) * src.zoom;
-  const k = Math.min(1, 1536 / Math.max(cw, ch));
+  // Il ridisegno deve avere ESATTAMENTE le proporzioni della foto (niente tagli se poi cambi zoom o spostamento):
+  // la foto va al centro di una tela nel formato dell'IA, il margine in più è la foto stessa sfumata;
+  // al ritorno quel margine si taglia via (pad = dove sta la foto nella tela, in frazioni).
+  // "Allarga l'immagine": +25% per lato, l'IA inventa il continuo della scena e il ridisegno si tiene tutto
+  const expand = feature('feat_ai_expand') && $('#aiExpand').checked;
+  const E = expand ? 1.5 : 1;
+  const R = rw / rh, EW = cw * E, EH = ch * E;
+  const PW = R > ratio ? EH * R : EW, PH = R > ratio ? EH : EW / R;
+  const k = Math.min(1, 1536 / Math.max(PW, PH));
   const c = document.createElement('canvas');
-  c.width = Math.round(cw * k); c.height = Math.round(ch * k);
+  c.width = Math.round(PW * k); c.height = Math.round(PH * k);
   const ctx = c.getContext('2d');
+  const iw = Math.round(cw * k), ih = Math.round(ch * k), ix = Math.round((c.width - iw) / 2), iy = Math.round((c.height - ih) / 2);
+  // zona da tenere al ritorno: la foto (normale) o la foto allargata del 25% per lato
+  const kw = Math.round(EW * k), kh = Math.round(EH * k);
+  const pad = { x: (c.width - kw) / 2 / c.width, y: (c.height - kh) / 2 / c.height, w: kw / c.width, h: kh / c.height };
+  const keep = { cx0: cx0 - (E - 1) / 2 * cw, cy0: cy0 - (E - 1) / 2 * ch, cw: EW, ch: EH }; // in pixel della foto
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-  ctx.drawImage(o, cx0, cy0, cw, ch, 0, 0, c.width, c.height);
+  if (ix > 0 || iy > 0) { // margine: la foto allargata e sfocata (l'IA la continua come sfondo, poi si taglia)
+    ctx.save(); ctx.filter = `blur(${Math.max(8, Math.round(Math.max(c.width, c.height) / 60))}px)`;
+    ctx.drawImage(o, cx0, cy0, cw, ch, 0, 0, c.width, c.height); ctx.restore();
+  }
+  ctx.drawImage(o, cx0, cy0, cw, ch, ix, iy, iw, ih);
   // con un ridisegno già fatto riparto dalla foto originale con le SUE regolazioni (quelle di adesso valgono per il ridisegno)
   const adj = originalImg ? originalImg.adj : { ...adjust };
   applyAdjust(ctx, c.width, c.height, adj);
@@ -410,7 +428,7 @@ $('#aiBtn').addEventListener('click', async () => {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', ...(CFG.nonce ? { 'X-WP-Nonce': CFG.nonce } : {}) },
-      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground(), bg_text: aiBackground() === 'custom' ? $('#aiBgText').value.trim().slice(0, 160) : '', card: card ? 1 : 0, aspect: `${rw}:${rh}` }),
+      body: JSON.stringify({ image, style: aiStyle, bg: aiBackground(), bg_text: aiBackground() === 'custom' ? $('#aiBgText').value.trim().slice(0, 160) : '', card: card ? 1 : 0, aspect: `${rw}:${rh}`, expand: expand ? 1 : 0 }),
     });
     const raw = await r.text();
     let j = {};
@@ -419,20 +437,33 @@ $('#aiBtn').addEventListener('click', async () => {
     if (!r.ok || !j.image) {
       throw new Error(j.message || `Il ridisegno non è riuscito (risposta del server: HTTP ${r.status}${raw && !j.message ? ' – ' + raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) : ''}).`);
     }
+    const full = new Image();
+    await new Promise((ok, ko) => { full.onload = ok; full.onerror = ko; full.src = j.image; });
+    // tolgo il margine aggiunto: resta la zona della foto, con le sue stesse proporzioni
+    let aiSrc = j.image;
+    if (pad.x > 0.001 || pad.y > 0.001) {
+      const t = document.createElement('canvas');
+      const sw = Math.round(pad.w * full.width), sh = Math.round(pad.h * full.height);
+      t.width = sw; t.height = sh;
+      t.getContext('2d').drawImage(full, Math.round(pad.x * full.width), Math.round(pad.y * full.height), sw, sh, 0, 0, sw, sh);
+      aiSrc = t.toDataURL('image/png');
+    }
     const img = new Image();
-    await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = j.image; });
+    await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = aiSrc; });
     if (!originalImg) originalImg = { img: o, zoom: src.zoom, ox: src.ox, oy: src.oy, mode: state.mode, adj };
-    state.aiImageSrc = j.image;
+    state.aiImageSrc = aiSrc;
     state.aiProvider = j.provider || '';
     state.aiBackground = aiBackgroundLabel();
     $('#aiUndo').hidden = false;
     selectMode('keep');
     if (aiStyle === 'ritratto') setPortrait(true); // il ritratto IA ha già la pelle in 3 toni
-    // stessa inquadratura di prima: il ridisegno copre la zona [cx0, cy0, cw, ch] della foto originale
-    // il ridisegno copre tutta l'immagine originale: stessa scala e stesso spostamento di prima
-    const s1 = (s0 * cw) / img.width;
-    state.aiCrop = { cx0, cy0, cw, ch };
-    setImage(img, Math.min(4, Math.max(1, s1 / coverFor(img))), src.ox + s0 * (cx0 + cw / 2 - o.width / 2), src.oy + s0 * (cy0 + ch / 2 - o.height / 2));
+    // stessa inquadratura di prima: il ridisegno copre la zona [cx0, cy0, cw, ch] della foto originale.
+    // Il formato dell'IA può essere un po' diverso da quello della foto (es. 3:4 per una foto 0,72): il ridisegno
+    // la copre in larghezza E in altezza (mai più piccolo dell'originale, così arriva ancora fino alla fascia)
+    // (con "Allarga" il ridisegno copre la foto + 25% per lato: la foto resta esattamente dov'era)
+    const s1 = s0 * Math.max(keep.cw / img.width, keep.ch / img.height);
+    state.aiCrop = keep;
+    setImage(img, Math.min(4, Math.max(1, s1 / coverFor(img))), src.ox + s0 * (keep.cx0 + keep.cw / 2 - o.width / 2), src.oy + s0 * (keep.cy0 + keep.ch / 2 - o.height / 2));
     aiMessage(`Ridisegno fatto${j.provider ? ' con ' + j.provider : ''}: ora il disco parte dall'immagine dell'IA.`, 'ok');
   } catch (err) {
     console.error(err);
@@ -1511,6 +1542,8 @@ $('#paintOff').addEventListener('click', () => { state.painting = false; updateP
 $('#paintUndo').addEventListener('click', () => { if (!state.paints.length) return; state.paints = state.paints.slice(0, -1); sendPaints(); });
 $('#paintClear').addEventListener('click', () => {
   if (!state.result) return;
+  // si preme facilmente per errore: chiedo conferma (si può comunque tornare indietro con ↶ Annulla)
+  if (!confirm('Sei sicuro di eliminare la colorazione?\n\nTutte le zone diventano bianche, restano solo le linee nere (e le grafiche protette 🔒). Puoi tornare indietro con ↶ Annulla.')) return;
   const to = paintIndexFor(WHITE);
   if (to >= state.result.palette.length) state.colorOverrides[to] = WHITE;
   state.paints = [...state.paints, { clear: true, to, hex: WHITE }];

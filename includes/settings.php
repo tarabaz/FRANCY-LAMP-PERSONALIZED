@@ -130,6 +130,7 @@ function flc_features() {
 		'card_enabled'       => array('Ridisegno con IA', 'È una carta da gioco', 'Toglie cornice e scritte delle carte.'),
 		'bg_enabled'         => array('Ridisegno con IA', 'Rimuovi lo sfondo', 'Scelta del nuovo sfondo.'),
 		'bg_custom'          => array('Ridisegno con IA', 'Sfondo scritto dal cliente', 'La voce "Personalizza…".'),
+		'feat_ai_expand'     => array('Ridisegno con IA', 'Allarga l\'immagine (+25% per lato)', 'L\'IA inventa il continuo della scena intorno alla foto.'),
 		'examples_enabled'   => array('Ridisegno con IA', 'Esempi degli stili', 'Immagini "originale → risultato".'),
 		'feat_mode'          => array('Colori e contorni', 'Tipo di immagine', '"Foto o disegno" / "Grafica con contorni".'),
 		'feat_convert'       => array('Colori e contorni', 'Numero di colori e spessore contorni', 'Gli slider principali della conversione.'),
@@ -170,6 +171,14 @@ function flc_features_public($s) {
 // Regola comune a tutti gli stili: niente scritte in nessuna lingua (le scritte le mette il configuratore sulla fascia)
 function flc_no_text_rule() {
 	return "\n\nNever draw text: remove every letter, word and number of the input in any language, including Japanese and Chinese characters, signs and logos (a sign stays as a blank shape).";
+}
+
+// Regola comune a tutti gli stili: stessa inquadratura e stessa scala dell'originale. Le IA tendono a "fare un passo
+// indietro" (soggetto più piccolo, margini intorno): sul disco l'immagine poi non arriva più fino alla fascia.
+function flc_framing_rule() {
+	return "\n\nFraming: the output must match the input image 1:1 in framing and scale. Every element keeps exactly the same size and position it has in the input; "
+		. 'do not zoom out, do not shrink the subject, do not add empty margins, borders, frames or padding, and do not crop anything away. '
+		. 'The illustration covers the whole canvas edge to edge, exactly as the input photo does, including the background near the edges.';
 }
 
 // Immagini di riferimento dello stile Tombino: quelle caricate in Impostazioni (id della Libreria media) o, se non ce ne sono,

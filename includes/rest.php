@@ -112,6 +112,10 @@ function flc_rest_redraw(WP_REST_Request $req) {
 	if ($req->get_param('card') && !empty($s['card_enabled'])) {
 		$s['card'] = true; // stesso formato della carta (arriva in "aspect" come per le foto)
 	}
+	// "Allarga l'immagine": la foto sta al centro, intorno c'è un margine sfocato da ridisegnare come continuo della scena
+	if ($req->get_param('expand') && !empty($s['feat_ai_expand'])) {
+		$s['expand'] = true;
+	}
 	// sfondo scritto dal cliente ("Personalizza…")
 	if ($bg === 'custom' && !empty($s['bg_enabled']) && !empty($s['bg_custom'])) {
 		$s['bg_custom_text'] = (string) $req->get_param('bg_text');
@@ -156,7 +160,12 @@ function flc_prompt_for_style($style, $s) {
 // Ridisegno con il fornitore principale e, se fallisce, con quello di riserva.
 // Ritorna array(mime, data, provider) oppure WP_Error con la lista degli errori in data['errors'].
 function flc_generate($bin, $mime, $style, $s, $bg = -1) {
-	$prompt    = flc_prompt_for_style($style, $s) . flc_no_text_rule();
+	$prompt    = flc_prompt_for_style($style, $s) . flc_no_text_rule() . flc_framing_rule();
+	if (!empty($s['expand'])) {
+		$prompt .= "\n\nOutpainting: the photo occupies only the center of the input; the blurred band all around it is just a placeholder. "
+			. 'Replace that blurred border by naturally extending the scene of the photo (same background, same setting, the parts of the subjects that continue beyond the photo edges), '
+			. 'drawn in the same style as the rest, so the whole canvas is one seamless illustration. Keep the central photo area exactly in the same position and scale.';
+	}
 	// Tombino: insieme alla foto partono 1–3 tombini finiti come riferimento dello stile (solo stile, non contenuto)
 	if ($style === 'tombino' && !empty($s['style_tombino'])) {
 		$s['ref_images'] = flc_tombino_refs($s);

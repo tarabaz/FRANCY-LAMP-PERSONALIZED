@@ -200,7 +200,7 @@ Il lucchetto accanto al nome riporta il colore in automatico. Un'immagine nuova 
 disponibili (o tra i colori del disco) e si tocca sull'anteprima 2D: la zona toccata (com'era nella conversione,
 anche dopo uno svuotamento: due zone vicine senza linea nera, es. il viola e la luce sul corpo di Gengar, restano
 separate) prende quel colore, le linee nere restano. Mentre si colora, i confini di tutte le zone sono tratteggiati
-in rosso sull'anteprima (solo a schermo, non nei file). **Svuota i colori** rende tutto bianco tranne
+in rosso sull'anteprima (solo a schermo, non nei file). **Svuota i colori** (chiede conferma) rende tutto bianco tranne
 il nero, **Annulla** toglie l'ultimo tocco. Il colore cambia nella mappa delle zone e il disegno viene
 ri-vettorializzato: in SVG, STL per colore e 3MF le zone ricolorate sono davvero forme del nuovo colore (es. la coda
 rossa finisce nello STL del rosso). Le bobine oltre il limite dei 13 colori sono disattivate. Una nuova conversione
@@ -445,9 +445,14 @@ In tutti gli stili l'IA deve togliere ogni scritta in qualsiasi lingua (anche gi
 loghi): le scritte le mette il configuratore sulla fascia. Ritratto, Tombino e Anime si possono nascondere. I prompt si modificano in Impostazioni → Stili IA; se il testo è
 quello predefinito non viene salvato, così gli aggiornamenti del plugin migliorano anche il tuo prompt.
 
-**Ridisegno con IA**: a Gemini va sempre **l'immagine intera** con le sue proporzioni (formato più vicino tra quelli
-che Gemini sa restituire), non solo la parte inquadrata; il risultato copre tutta l'immagine e viene rimesso con la
-stessa inquadratura, quindi si può ancora spostare e zoomare.
+**Ridisegno con IA**: a Gemini va sempre **l'immagine intera**, non solo la parte inquadrata. Gemini restituisce solo
+alcuni formati (1:1, 3:4, 16:9…): la foto viene messa al centro di una tela nel formato più vicino (il margine in più è
+la foto stessa sfocata) e al ritorno quel margine si taglia. Il ridisegno ha quindi **le stesse identiche proporzioni
+della foto** e torna con la stessa inquadratura: cambiando zoom o spostamento dopo, non risulta tagliato. In ogni
+prompt c'è anche la regola "stessa scala e inquadratura, niente margini" (le IA tendono a rimpicciolire il soggetto).
+**Allarga l'immagine (+25% per lato)** (interruttore nel riquadro IA, Impostazioni → Funzioni): la foto va al centro di
+una tela più grande del 50% e l'IA inventa il continuo della scena intorno; il ridisegno si tiene tutto e la foto resta
+esattamente dov'era, così c'è immagine anche per la fascia o per allontanare lo zoom.
 
 **È una carta da gioco**: interruttore nel riquadro IA, da accendere solo quando il cliente carica una carta (es.
 Pokémon). Viene mandata la carta intera e l'IA tiene solo l'illustrazione: toglie cornice, nome, PS, testi degli
