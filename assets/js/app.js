@@ -822,6 +822,12 @@ function layerOutline(targets, L, cxp, cyp, w, ow, size) {
   for (const cx of targets) cx.drawImage(t, x0, y0);
 }
 
+// almeno un tratto di penna esce dal cerchio del disegno (verso la fascia)
+function penOutside() {
+  const r = geometry().rImgArt;
+  return state.paints.some((p) => p.pen && (p.pts || []).some(([x, y]) => Math.hypot(x, y) > r - (p.w || 0) / 2));
+}
+
 function run() {
   if (!state.img) return;
   const g = geometry();
@@ -832,7 +838,8 @@ function run() {
   const fullDisc = !!state.fullDisc;
   const rArtEff = fullDisc ? g.R : g.rImgArt;
   const layersOn = !fullDisc && state.layers.length > 0;
-  const ovActive = !fullDisc && (state.overflow || layersOn);
+  // tratti di penna fuori dal cerchio del disegno: il raster arriva fino alla fascia anche senza "sopra la fascia"
+  const ovActive = !fullDisc && (state.overflow || layersOn || penOutside());
   const inner = Math.round(2 * rArtEff * ppmm);
   // stessa scala e margine di pixel interi: il disegno dentro il cerchio resta identico con o senza raster grande
   // (altrimenti mezzo pixel di spostamento cambia la scelta automatica dei colori)
@@ -1473,6 +1480,8 @@ const penEnd = (e) => {
   const to = paintIndexFor(st.hex);
   if (to >= state.result.palette.length) state.colorOverrides[to] = st.hex;
   state.paints = [...state.paints, { pen: true, pts: st.pts, w: st.w, to, hex: st.hex }];
+  // primo tratto che esce dal cerchio: serve la conversione con la zona della fascia (poi i tocchi si rifanno da soli)
+  if (!state.resultOv && !state.fullDisc && penOutside()) { setStatus('Coloro…'); run(); return; }
   sendPaints(); // il tratto disegnato resta visibile finché arriva il disegno aggiornato
 };
 $('#svgHost').addEventListener('pointerup', penEnd);

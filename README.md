@@ -113,7 +113,10 @@ una striscia gialla che consiglia PC o tablet; si chiude con un tocco e non torn
 
 **Penna** (in "Colora a mano", accanto al 🪣 Secchiello): ✏️ disegno a mano libera con la bobina scelta (pupille,
 riflessi, piccoli ritocchi); punta da 0,5 a 6 mm. Il tratto diventa zona vera nei file, resta dopo i ricalcoli e si
-toglie con Annulla. Per spostarsi mentre si usa la penna: due dita oppure Maiusc + trascina.
+toglie con Annulla. Per spostarsi mentre si usa la penna: due dita oppure Maiusc + trascina. Un tratto che esce dal
+cerchio del disegno continua sopra la fascia fino all'anello nero esterno (asola esclusa), anche dove la foto non
+arriva (per allungare a mano un disegno che dopo l'IA non copre la fascia): quei tratti escono sempre, senza toccarli
+come "sopra la fascia".
 
 **Funzioni** (Impostazioni → Funzioni): un interruttore per ogni cosa che il cliente può fare (immagine, IA, colori,
 cornice e scritte, anteprima, convalida). Le funzioni spente spariscono dal configuratore; la convalida spenta viene

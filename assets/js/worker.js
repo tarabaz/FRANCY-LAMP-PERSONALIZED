@@ -8,6 +8,7 @@ const NONE = 255; // pixel fuori dal cerchio
 let last = null; // ultima conversione, per riunire le zone senza rifare tutto
 let lastFull = null; // "sopra la fascia": etichette PRIMA del taglio al cerchio (anche fuori dal cerchio)
 let paintBase = null; // etichette appena convertite, prima delle colorazioni a mano (per rifarle / annullarle)
+let penOut = null; // pixel fuori dal cerchio del disegno disegnati con la penna: escono sopra la fascia da soli
 let lastCenters = null; // { key, centers, skin }: colori scelti per l'immagine, riusati se cambiano solo grafiche/"sopra la fascia"
 
 self.onmessage = (e) => {
@@ -198,6 +199,7 @@ function convert(rgba, size, ppmm, opts, progress) {
   // 4. Sopra la fascia: fuori dal cerchio restano solo le zone toccate dal cliente (con il loro contorno nero)
   // colorazioni a mano (se la conversione è rifatta con le stesse impostazioni, es. "sopra la fascia")
   paintBase = labels.slice();
+  penOut = null;
   if (opts.paints && opts.paints.length) applyPaints(labels, palette, size, ppmm, opts, opts.paints);
 
   let framePath = '', seedsOut = [], frameLabels = null;
@@ -267,6 +269,8 @@ function applyOverflow(full, palette, size, ppmm, opts, seedsMm) {
   // grafiche aggiuntive: la loro sagoma esce sempre dal cerchio (fino all'anello nero)
   let anySel = sel.size > 0;
   if (ov.mask) for (let i = 0; i < n; i++) if (ov.mask[i] && full[i] !== NONE) { isSel[i] = 1; anySel = true; }
+  // tratti di penna fuori dal cerchio: escono sempre (anche oltre il bordo della foto)
+  if (penOut && penOut.length === n) for (let i = 0; i < n; i++) if (penOut[i] && full[i] !== NONE) { isSel[i] = 1; anySel = true; }
   const lineW = Math.max(1, opts.lineMm * ppmm);
   const labels = new Uint8Array(full);
   const rArt2 = ov.rArt * ov.rArt, rKeep2 = ov.rKeep * ov.rKeep;
@@ -315,6 +319,7 @@ function traceWithFrame(labels, frameLabels, size, ncolors, opts) {
 // la zona come era disegnata, non tutto il bianco unito.
 function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice()) {
   const sc = opts.scale ?? 1, off = opts.offset ?? 0, toPx = (v) => Math.round((v - off) / sc);
+  penOut = null;
   const blackIdx = palette.findIndex((p) => p.black);
   let comp = null;
   for (const pt of paints) {
@@ -327,7 +332,7 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
     // "svuota i colori": tutto ciò che non è nero diventa il colore "to" (il bianco)
     if (pt.clear) { for (let i = 0; i < labs.length; i++) if (labs[i] !== NONE && labs[i] !== blackIdx) labs[i] = pt.to; continue; }
     // penna: tratto a mano libera (punti in mm, spessore w in mm) disegnato direttamente nelle zone
-    if (pt.pen) { penStroke(labs, size, pt, sc, off); continue; }
+    if (pt.pen) { penStroke(labs, size, pt, sc, off, opts.ov); continue; }
     const x = toPx(pt.x), y = toPx(pt.y), R = Math.ceil(1.5 * ppmm);
     let at = -1;
     for (let rr = 0; rr <= R && at < 0; rr++) for (let yy = y - rr; yy <= y + rr && at < 0; yy++) for (let xx = x - rr; xx <= x + rr; xx++) {
@@ -351,8 +356,15 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
     }
   }
 }
-function penStroke(labs, size, pt, sc, off) {
+// Con "sopra la fascia" (ov) la penna disegna anche fuori dal cerchio, fino all'anello nero esterno (asola esclusa),
+// pure dove la foto non arriva: quei pixel vanno in penOut e applyOverflow li tiene sempre.
+function penStroke(labs, size, pt, sc, off, ov) {
   const pxPerMm = 1 / sc;
+  const cx = (size - 1) / 2, rA2 = ov ? ov.rArt * ov.rArt : 0, rK2 = ov ? ov.rKeep * ov.rKeep : 0;
+  const ring = (xx, yy) => {
+    const dx = xx - cx, dy = yy - cx, d2 = dx * dx + dy * dy;
+    return d2 > rA2 && d2 <= rK2 && !(dy > 0 && Math.abs(dx) < ov.slotHalf);
+  };
   const r = Math.max(0.5, (pt.w / 2) * pxPerMm);
   const R = Math.ceil(r), r2 = r * r;
   const disk = [];
@@ -363,7 +375,11 @@ function penStroke(labs, size, pt, sc, off) {
       const xx = x + disk[k + 1], yy = y + disk[k + 2];
       if (xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
       const j = yy * size + xx;
-      if (labs[j] !== NONE) labs[j] = pt.to;
+      if (ov && ring(xx, yy)) {
+        labs[j] = pt.to;
+        if (!penOut) penOut = new Uint8Array(size * size);
+        penOut[j] = 1;
+      } else if (labs[j] !== NONE) labs[j] = pt.to;
     }
   };
   const P = (pt.pts || []).map(([x, y]) => [(x - off) / sc, (y - off) / sc]);

@@ -170,6 +170,7 @@ export const GUIDE = [
 <p data-feat="feat_pen">Disegna a mano libera con la bobina scelta: pupille, riflessi, piccoli ritocchi. Lo slider <strong>Punta</strong> va da 0,5 a 6 mm.</p>
 <div data-feat="feat_pen"><figure class="w-fig" data-gimg="penna"><figcaption>La penna con lo slider della punta.</figcaption></figure></div>
 <p data-feat="feat_pen"> Per i dettagli ingrandisci con lo zoom; per spostarti mentre usi la penna: due dita oppure Maiusc + trascina.</p>
+<p data-feat="feat_pen">La penna può anche <strong>uscire dal cerchio</strong>: il tratto continua sopra la fascia fino all'anello nero esterno, anche dove l'immagine non arriva. Utile per allungare a mano una coda, un'ala o un orecchio.</p>
 <h4>Gli altri pulsanti</h4>
 <ul>
   <li data-feat="feat_clear"><strong>Svuota i colori</strong>: rende tutto bianco tranne il nero, per ricolorare da zero.</li>
