@@ -972,7 +972,8 @@ function run() {
     ov: ovActive ? {
       rArt: g.rImgArt * size / (2 * rRaster), rImg: g.rImg * size / (2 * rRaster),
       rKeep: (g.rBandOut + 0.3) * size / (2 * rRaster),          // l'anello nero esterno ci va sopra
-      slotHalf: (FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder + 0.6) * size / (2 * rRaster),
+      // U dell'asola: le parti ci entrano 0,5 mm sotto, poi parts() le taglia con la forma esatta del contorno nero
+      slotHalf: (FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder - 0.5) * size / (2 * rRaster),
       // centro del semicerchio del contorno dell'asola (stesso calcolo di slotBorderShapes in frame.js)
       slotCy: Math.min(g.R - FRAME.bottomSlot.centerFromBottom, g.rBandIn - 0.5 + FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder) * size / (2 * rRaster),
       seeds: state.overflow ? state.ovSeeds : [],
@@ -1285,6 +1286,30 @@ function minusOverflow(d, framePath) {
   return out;
 }
 
+// Contorno nero dell'asola: le parti che escono ci arrivano sotto (il convertitore le lascia entrare 0,5 mm) e qui
+// vengono tagliate con la sua forma esatta. Il limite è solo il nero: niente striscia di fascia in mezzo.
+const slotCache = new Map();
+function minusSlot(d, slotD) {
+  if (!d || !slotD) return d;
+  const key = slotD.length + '|' + d;
+  if (slotCache.has(key)) return slotCache.get(key);
+  let out = d;
+  try {
+    const g = geometry(), W = FRAME.bottomSlot.diameter / 2 + FRAME.slotBorder + 0.5, yTop = g.rBandIn - 1;
+    // solo se il colore ha punti vicino all'asola (quasi sempre no: niente calcoli inutili)
+    const nums = d.match(/-?\d+(?:\.\d+)?/g) || [];
+    let near = false;
+    for (let i = 0; i + 1 < nums.length; i += 2) if (Math.abs(+nums[i]) < W && +nums[i + 1] > yTop) { near = true; break; }
+    if (near) {
+      if (!slotCache.has('slot:' + slotD)) slotCache.set('slot:' + slotD, svgToPolys(slotD));
+      out = polysToPath(polygonClipping.difference(tracedToPolys(d), slotCache.get('slot:' + slotD)));
+    }
+  } catch (err) { console.error('asola:', err); }
+  if (slotCache.size > 60) slotCache.clear();
+  slotCache.set(key, out);
+  return out;
+}
+
 function parts() {
   let frame = buildFrame(state.font, texts());
   // due scritte che si accavallano (stessa metà)?
@@ -1297,8 +1322,8 @@ function parts() {
     const text = minusOverflow(frame.text, fgPath);
     // la sagoma copre una scritta? (il testo "bucato" diventa più corto)
     state.ovTextHit = !!frame.text && (!text || Math.abs(svgArea(text) - svgArea(frame.text)) > 0.5);
-    frame = { ...frame, band: minusOverflow(frame.band, fgPath), innerLine: minusOverflow(frame.innerLine, fgPath), text,
-      slotBorder: minusOverflow(frame.slotBorder, fgPath) };
+    // il contorno dell'asola resta intero (sopra a tutto, come l'anello esterno): sono le parti a essere tagliate
+    frame = { ...frame, band: minusOverflow(frame.band, fgPath), innerLine: minusOverflow(frame.innerLine, fgPath), text };
   }
   const band = state.bandColor, txt = state.textColor;
   const zArt = FRAME.baseThickness, hArt = FRAME.artThickness;
@@ -1308,8 +1333,9 @@ function parts() {
   if (state.result) {
     const pal = state.result.palette;
     // prima i colori, poi il nero del disegno (in caso di sovrapposizione al bordo vince il nero)
-    pal.forEach((p, i) => { if (!p.black && p.area > 0) art({ id: `disegno-colore-${i + 1}`, d: state.result.layers[i], color: artColor(i), area: p.area }); });
-    pal.forEach((p, i) => { if (p.black && p.area > 0) art({ id: 'disegno-nero', d: state.result.layers[i], color: artColor(i), black: true, area: p.area }); });
+    const cut = (d) => (fgPath && frame.slotBorder ? minusSlot(d, frame.slotBorder) : d);
+    pal.forEach((p, i) => { if (!p.black && p.area > 0) art({ id: `disegno-colore-${i + 1}`, d: cut(state.result.layers[i]), color: artColor(i), area: p.area }); });
+    pal.forEach((p, i) => { if (p.black && p.area > 0) art({ id: 'disegno-nero', d: cut(state.result.layers[i]), color: artColor(i), black: true, area: p.area }); });
   }
   if (state.fullDisc && !state.template) return list; // disegno pronto elaborato: la cornice è già nel disegno
   art({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, black: true });
