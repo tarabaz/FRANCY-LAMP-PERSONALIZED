@@ -409,7 +409,10 @@ $('#aiBtn').addEventListener('click', async () => {
   const pad = { x: (c.width - kw) / 2 / c.width, y: (c.height - kh) / 2 / c.height, w: kw / c.width, h: kh / c.height };
   const keep = { cx0: cx0 - (E - 1) / 2 * cw, cy0: cy0 - (E - 1) / 2 * ch, cw: EW, ch: EH }; // in pixel della foto
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-  if (ix > 0 || iy > 0) { // margine: la foto allargata e sfocata (l'IA la continua come sfondo, poi si taglia)
+  // "Allarga": il margine è grigio pieno, tela vuota da riempire (con la foto sfocata l'IA ridisegnava i soggetti
+  // sfocati: code doppie, stacchi netti). Solo formato: foto sfocata, tanto al ritorno quel margine si taglia.
+  if (expand) { ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, c.width, c.height); }
+  else if (ix > 0 || iy > 0) { // margine: la foto allargata e sfocata (l'IA la continua come sfondo, poi si taglia)
     ctx.save(); ctx.filter = `blur(${Math.max(8, Math.round(Math.max(c.width, c.height) / 60))}px)`;
     ctx.drawImage(o, cx0, cy0, cw, ch, 0, 0, c.width, c.height); ctx.restore();
   }
@@ -417,6 +420,11 @@ $('#aiBtn').addEventListener('click', async () => {
   // con un ridisegno già fatto riparto dalla foto originale con le SUE regolazioni (quelle di adesso valgono per il ridisegno)
   const adj = originalImg ? originalImg.adj : { ...adjust };
   applyAdjust(ctx, c.width, c.height, adj);
+  if (expand) { // le regolazioni non devono cambiare il grigio della tela vuota (il prompt dice #808080)
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, c.width, iy); ctx.fillRect(0, iy + ih, c.width, c.height - iy - ih);
+    ctx.fillRect(0, iy, ix, ih); ctx.fillRect(ix + iw, iy, c.width - ix - iw, ih);
+  }
   const image = c.toDataURL('image/jpeg', 0.9);
 
   $('#aiBox').classList.add('busy');

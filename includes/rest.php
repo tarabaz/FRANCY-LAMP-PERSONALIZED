@@ -162,9 +162,12 @@ function flc_prompt_for_style($style, $s) {
 function flc_generate($bin, $mime, $style, $s, $bg = -1) {
 	$prompt    = flc_prompt_for_style($style, $s) . flc_no_text_rule() . flc_framing_rule();
 	if (!empty($s['expand'])) {
-		$prompt .= "\n\nOutpainting: the photo occupies only the center of the input; the blurred band all around it is just a placeholder. "
-			. 'Replace that blurred border by naturally extending the scene of the photo (same background, same setting, the parts of the subjects that continue beyond the photo edges), '
-			. 'drawn in the same style as the rest, so the whole canvas is one seamless illustration. Keep the central photo area exactly in the same position and scale.';
+		$prompt .= "\n\nOUTPAINTING (very important): the input photo occupies only the central part of the canvas (about two thirds of the width and of the height). "
+			. 'The flat medium gray (#808080) border all around it is EMPTY CANVAS, not part of the scene. Fill that whole gray border by continuing the background of the photo outward, '
+			. 'as if the camera had captured a wider view: the same environment, ground, sky, trees, walls or patterns, with the same light and perspective, flowing seamlessly from the photo edges with no visible seam or line. '
+			. 'Do NOT repeat, mirror or duplicate any character, animal, person, tail, face or object of the photo in the border, and do not add new characters: only background and the natural continuation of whatever is cut by the photo edge. '
+			. 'Never draw a frame, border, outline or rectangle around the central photo, and never make a picture-in-picture or a second larger copy of the scene behind it: the result is ONE single continuous scene filling the whole canvas, where nobody can tell where the original photo ended. '
+			. 'No gray must remain. The central photo area keeps exactly the same position, size and content, redrawn in the same style as everything else.';
 	}
 	// Tombino: insieme alla foto partono 1–3 tombini finiti come riferimento dello stile (solo stile, non contenuto)
 	if ($style === 'tombino' && !empty($s['style_tombino'])) {

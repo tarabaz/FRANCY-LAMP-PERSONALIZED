@@ -452,7 +452,9 @@ della foto** e torna con la stessa inquadratura: cambiando zoom o spostamento do
 prompt c'è anche la regola "stessa scala e inquadratura, niente margini" (le IA tendono a rimpicciolire il soggetto).
 **Allarga l'immagine (+25% per lato)** (interruttore nel riquadro IA, Impostazioni → Funzioni): la foto va al centro di
 una tela più grande del 50% e l'IA inventa il continuo della scena intorno; il ridisegno si tiene tutto e la foto resta
-esattamente dov'era, così c'è immagine anche per la fascia o per allontanare lo zoom.
+esattamente dov'era, così c'è immagine anche per la fascia o per allontanare lo zoom. Intorno alla foto la tela è grigio
+pieno (#808080) e il prompt la descrive come tela vuota da riempire continuando lo sfondo, senza duplicare soggetti, senza
+cornici né "immagine nell'immagine" (con la foto sfocata come margine l'IA ridisegnava code doppie e quadri nel quadro).
 
 **È una carta da gioco**: interruttore nel riquadro IA, da accendere solo quando il cliente carica una carta (es.
 Pokémon). Viene mandata la carta intera e l'IA tiene solo l'illustrazione: toglie cornice, nome, PS, testi degli
