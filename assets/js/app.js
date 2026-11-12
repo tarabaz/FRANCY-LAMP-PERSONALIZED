@@ -721,6 +721,20 @@ function updateColorLimit() {
   if (+el.value > max) { el.value = max; $('#colorsOut').textContent = max; schedule(); }
 }
 
+// Ordine cromatico per tutte le scelte colore: prima i neutri (dal bianco al nero), poi le tinte nel giro
+// rossi → arancio/marroni → gialli → verdi → azzurri → blu → viola → rosa; dentro ogni tinta dal più chiaro al più scuro.
+function chromaKey(hex) {
+  const [L, a, b] = hexToLab(hex);
+  const C = Math.hypot(a, b);
+  if (C < 6) return [0, -L, 0];                                    // neutri: bianco → grigi → nero
+  const h = ((Math.atan2(b, a) * 180 / Math.PI) + 360 - 15) % 360; // il giro parte dai rossi
+  return [1, Math.floor(h / 30), -L];
+}
+function chromaSort(list, hexOf = (x) => x) {
+  const k = new Map(list.map((x) => [x, chromaKey(hexOf(x))]));
+  return [...list].sort((x, y) => { const p = k.get(x), q = k.get(y); return p[0] - q[0] || p[1] - q[1] || p[2] - q[2]; });
+}
+
 // Riquadro con i colori del catalogo filamenti (per scegliere una bobina)
 let popover = null;
 function closePopover() { if (popover) { popover.remove(); popover = null; } }
@@ -729,7 +743,7 @@ function openFilamentPopover(anchor, onPick, allowed) {
   closePopover();
   popover = document.createElement('div');
   popover.className = 'fil-popover';
-  for (const f of state.filaments) {
+  for (const f of chromaSort(state.filaments, (x) => x.hex)) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'swatch';
@@ -750,7 +764,7 @@ function renderPickers() {
     const host = $(id + ' .swatches');
     host.innerHTML = '';
     const current = (key === 'band' ? state.bandColor : state.textColor).toLowerCase();
-    const choices = [...new Set([WHITE, BLACK, ...drawingColors(), current])];
+    const choices = chromaSort([...new Set([WHITE, BLACK, ...drawingColors(), current])]);
     for (const c of choices) {
       const b = document.createElement('button');
       b.type = 'button';
@@ -1511,7 +1525,7 @@ function renderPaintSwatches() {
   const host = $('#paintSwatches');
   host.innerHTML = '';
   const set = colorSet();
-  for (const hex of [BLACK, ...state.filaments.map((f) => f.hex)]) {
+  for (const hex of chromaSort([...new Set([BLACK, ...state.filaments.map((f) => f.hex)])])) {
     const b = document.createElement('button');
     b.type = 'button';
     b.style.background = hex;
@@ -2756,7 +2770,7 @@ function renderLampPickers() {
     const box = document.createElement('div');
     box.className = 'picker';
     box.innerHTML = `<span class="picker-label">Colore ${escapeAttr(p.name.toLowerCase())}</span><div class="swatches"></div>`;
-    for (const c of p.choices) {
+    for (const c of chromaSort(p.choices)) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'swatch' + (c.toLowerCase() === current ? ' active' : '');
