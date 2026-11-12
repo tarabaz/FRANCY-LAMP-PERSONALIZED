@@ -315,6 +315,8 @@ function flc_defaults() {
 		'bb_gap_speed' => 60,        // Velocità → Riempimento gap (mm/s)
 		'bb_xy'        => 0,         // Qualità → Precisione → Compensazione contorni X-Y (mm)
 		'bb_flow'      => 0,         // correzione % del rapporto di flusso dei colori del disegno (bianco della base escluso)
+		'bb_thin1'     => 0.3,       // "colori scuri sottili": TD fino a questo valore → 1 layer di colore
+		'bb_thin2'     => 0.8,       // TD fino a questo valore → 2 layer (oltre: 3, come sempre)
 		'lay_lamp_x'   => -17,
 		'lay_lamp_y'   => 0,
 		'lay_box_x'    => 30.5,
@@ -501,6 +503,8 @@ function flc_sanitize_settings($in) {
 		'bb_gap_speed' => max(10, min(500, (int) ($in['bb_gap_speed'] ?? $d['bb_gap_speed']))),
 		'bb_xy'        => max(-0.2, min(0.2, round((float) ($in['bb_xy'] ?? $d['bb_xy']), 3))),
 		'bb_flow'      => max(-5, min(5, round((float) ($in['bb_flow'] ?? $d['bb_flow']), 1))),
+		'bb_thin1'     => max(0, min(5, round((float) ($in['bb_thin1'] ?? $d['bb_thin1']), 2))),
+		'bb_thin2'     => max(0, min(5, round((float) ($in['bb_thin2'] ?? $d['bb_thin2']), 2))),
 		'lay_lamp_x'   => max(-45, min(45, round((float) ($in['lay_lamp_x'] ?? -17), 1))),
 		'lay_lamp_y'   => max(-5, min(25, round((float) ($in['lay_lamp_y'] ?? 0), 1))),
 		'lay_box_x'    => max(-45, min(45, round((float) ($in['lay_box_x'] ?? 30.5), 1))),
@@ -1550,6 +1554,12 @@ function flc_settings_page() {
 				array('bb_flow', 'Rapporto di flusso dei colori (correzione)', 'Filamento → Rapporto di flusso', array('number', -5, 5, 0.5, '%'), '0',
 					'Corregge in percentuale il flusso di tutti i filamenti del disegno (il bianco della base resta com\'è). +1% = un filo di materiale in più ovunque.',
 					'Oltre +2%: sovraestrusione, superficie ruvida e bordi gonfi (è la causa più probabile della superficie fatta male di una volta). Sotto 0: buchini e superficie poco coprente.'),
+				array('bb_thin1', 'Colori scuri sottili: 1 layer fino a TD', 'Solo nel secondo progetto dello zip (…-scuri-sottili.3mf)', array('number', 0, 5, 0.05, 'mm'), '0,3',
+					'Nel progetto "scuri sottili" i colori con TD (trasparenza della bobina, Filamenti) fino a questo valore si stampano con 1 solo layer in cima, sotto c\'è il bianco: da accesa passa molta più luce. Senza TD conta quanto è scuro il colore.',
+					'Troppo alto: anche colori medi diventano da 1 layer e da spenta risultano slavati (si vede il bianco sotto). Troppo basso: i colori scuri restano spessi e da accesa restano spenti.'),
+				array('bb_thin2', 'Colori scuri sottili: 2 layer fino a TD', 'Solo nel secondo progetto dello zip', array('number', 0, 5, 0.05, 'mm'), '0,8',
+					'I colori con TD tra la soglia precedente e questa si stampano con 2 layer invece di 3. Oltre questa soglia restano a 3 layer (colori chiari e traslucidi). Il nero resta sempre pieno.',
+					'Troppo alto: anche i colori chiari si assottigliano e perdono saturazione. Troppo basso: niente colori a 2 layer, solo 1 o 3.'),
 			);
 			?>
 			<section class="flc-tab" data-tab="stampa">

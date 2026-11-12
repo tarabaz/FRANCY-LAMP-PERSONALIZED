@@ -67,7 +67,7 @@ function setFilaments(list) {
   state.filaments = (list || [])
     .filter((f) => f && /^#[0-9a-f]{6}$/i.test(f.hex))
     // name: nome vero (solo admin) oppure il codice neutro che il server rimette a posto alla convalida
-    .map((f) => ({ name: String(f.name || f.tok || f.hex), label: String(f.label || ''), hex: f.hex.toLowerCase(), lab: hexToLab(f.hex) }));
+    .map((f) => ({ name: String(f.name || f.tok || f.hex), label: String(f.label || ''), hex: f.hex.toLowerCase(), lab: hexToLab(f.hex), td: f.td != null && f.td !== '' && +f.td > 0 ? +f.td : null }));
   if (state.filaments.length) {
     const oldBlack = BLACK;
     // bobine fisse scelte nel catalogo (bianco della base, nero delle linee); altrimenti le più vicine
@@ -2179,6 +2179,32 @@ function colorSummary(ps) {
   return [...byHex.values()].map((e) => ({ ...e, roles: [...e.roles], area: Math.round(e.area) }));
 }
 
+// "Colori scuri più sottili": i colori che lasciano passare poca luce (TD basso della bobina, o colore scuro se il
+// TD non c'è) si stampano con 1 o 2 layer invece di 3, sempre IN CIMA; sotto, al loro posto, il bianco della base.
+// Da accesa passano molta più luce, da spenta quasi uguali. Il nero (linee, cornice, anello) resta sempre pieno.
+function thinDarkParts(ps) {
+  const b = CFG.bambu || {}, t1 = b.thin1 ?? 0.3, t2 = b.thin2 ?? 0.8;
+  const H = FRAME.artThickness, L = H / 3; // 3 layer da 0,16 mm
+  const out = [], info = new Map();
+  for (const p of ps) {
+    const hex = (p.color || '').toLowerCase();
+    if (p.layer !== 'motivo' || p.black || !p.d || hex === WHITE.toLowerCase() || isNearBlack(hex)) { out.push(p); continue; }
+    if (!info.has(hex)) {
+      const f = state.filaments.length ? nearestFilament(hex) : null;
+      const td = f && f.td ? f.td : null;
+      // senza TD: stima dalla luminosità (L* del colore)
+      const n = td != null ? (td <= t1 ? 1 : td <= t2 ? 2 : 3) : (hexToLab(hex)[0] < 35 ? 1 : hexToLab(hex)[0] < 55 ? 2 : 3);
+      info.set(hex, { colore: hex, filamento: f ? f.name : '', td, layer: n, spessore_mm: +(n * L).toFixed(2), stima: td == null });
+    }
+    const n = info.get(hex).layer;
+    if (n >= 3) { out.push(p); continue; }
+    const depth = n * L;
+    out.push({ ...p, z: p.z + (H - depth), depth });
+    out.push({ ...p, id: p.id + '-sotto-bianco', color: WHITE, z: p.z, depth: H - depth, black: false });
+  }
+  return { parts: out, info: [...info.values()] };
+}
+
 // progetto Bambu Studio con parti e filamenti già assegnati (profili dal progetto modello H2C)
 async function make3mf(ps, previewOff, title = 'Disco lampada FrancyStore3D') {
   const tplUrl = CFG.bambuTemplateUrl || new URL('../bambu/h2c-template.json', import.meta.url).href;
@@ -2252,6 +2278,18 @@ async function buildPackage(customer) {
   } catch (err) {
     console.error('3MF non creato', err); // lo zip resta valido anche senza
   }
+  // seconda versione: colori scuri più sottili (1-2 layer in cima, bianco sotto), per confrontarle da accese
+  let thin = null;
+  try {
+    thin = thinDarkParts(ps);
+    if (thin.info.some((x) => x.layer < 3)) {
+      const t = await make3mf(thin.parts, previewOff, 'Disco lampada FrancyStore3D - colori scuri sottili');
+      files.push({ name: '05_bambu/disco-lampada-scuri-sottili.3mf', data: await bytes(t.blob) });
+    } else thin.none = true;
+  } catch (err) {
+    console.error('3MF scuri sottili non creato', err);
+    thin = null;
+  }
 
   const colors = colorSummary(ps);
   const summary = {
@@ -2263,6 +2301,7 @@ async function buildPackage(customer) {
     scritte: texts(),
     fascia: state.bandColor, colore_scritte: state.textColor,
     lampada: lampSummary(),
+    spessori_colori_scuri_sottili: thin ? thin.info : null, // solo per 05_bambu/disco-lampada-scuri-sottili.3mf
     impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, disegno_pronto_elaborato: state.fullDisc ? state.fullDisc.name : null, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, grafiche: state.layers.map((x) => ({ id: x.id, nome: x.name, x: x.x, y: x.y, larghezza_mm: x.size, rotazione: x.rot, bordo_mm: x.outline || 0, ricolorabile: !!x.editable })), ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
@@ -2273,6 +2312,9 @@ async function buildPackage(customer) {
     ...stlReadme({ baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness }),
     ...stl.list.map((l) => `  ${l.file}  ${l.color}${l.filament ? '  ' + l.filament : ''}`), '',
     ...(bambu ? ['PROGETTO BAMBU STUDIO (05_bambu/disco-lampada.3mf)', 'Apri il file con Bambu Studio: parti, colori degli slot e ugelli sono già assegnati.', ...bambu.list.map((l) => `  filamento ${l.filament}${l.filament === 1 ? ' (ugello 1, bobina fissa)' : ' (ugello 2, AMS)'}: ${l.part}`), ''] : []),
+    ...(thin && !thin.none ? ['VERSIONE "COLORI SCURI SOTTILI" (05_bambu/disco-lampada-scuri-sottili.3mf)',
+      'Stesso disco, ma i colori che lasciano passare poca luce hanno meno layer (sempre in cima, sotto c\'è il bianco): da accesa si illuminano di più. Il nero resta pieno.',
+      ...thin.info.filter((x) => x.layer < 3).map((x) => `  ${x.colore}${x.filamento ? ' ' + x.filamento : ''}: ${x.layer} layer (${x.spessore_mm} mm)${x.td != null ? ', TD ' + x.td : ', stimato dal colore'}`), ''] : []),
     ...(lampSummary().length ? ['PEZZI DELLA LAMPADA', ...lampSummary().map((l) => `- ${l.parte}: ${l.colore}${l.filamento ? '  ' + l.filamento : ''}${l.scelto_dal_cliente ? '  (scelto dal cliente)' : ''}`), ''] : []),
     'Cartelle: 01_anteprime, 02_immagini (originale, eventuale ridisegno IA, ritaglio usato), 03_vettoriale (SVG, EPS), 04_stl, 05_bambu (progetto .3mf).',
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '');

@@ -81,6 +81,7 @@ function flc_frontend_config() {
 			'closing' => (float) $s['bb_closing'], 'wallGen' => $s['bb_wall_gen'], 'minFeature' => (int) $s['bb_min_feature'],
 			'minBead' => (int) $s['bb_min_bead'], 'overlap' => (int) $s['bb_overlap'], 'wallLoops' => (int) $s['bb_wall_loops'],
 			'gapSpeed' => (int) $s['bb_gap_speed'], 'xy' => (float) $s['bb_xy'], 'flow' => (float) $s['bb_flow'],
+			'thin1' => (float) $s['bb_thin1'], 'thin2' => (float) $s['bb_thin2'],
 		),
 		'watermark' => array(
 			'screen'   => (bool) $s['wm_onscreen'],

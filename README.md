@@ -231,6 +231,13 @@ agganciato sotto e i colori del disco stanno dentro il passo "Colori e contorni"
      Questi valori si cambiano in **Impostazioni → Stampa 3MF** (nomi come nell'interfaccia italiana di Bambu Studio,
      con cosa fa ogni voce e cosa succede se esageri; "Rimetti i valori consigliati" torna al processo provato). C'è
      anche la correzione % del rapporto di flusso dei colori del disegno (il bianco della base resta com'è).
+   - `05_bambu/disco-lampada-scuri-sottili.3mf` (seconda versione, per confronto): i colori che lasciano passare poca
+     luce si stampano con **1 o 2 layer invece di 3**, sempre in cima (superficie piatta); sotto c'è il bianco, sullo
+     stesso filamento della base, quindi nessun cambio colore in più. Da accesa i colori scuri si illuminano molto di più,
+     da spenta restano quasi uguali. Lo spessore viene dal **TD** della bobina (Filamenti): fino a 0,3 → 1 layer, fino a
+     0,8 → 2 layer, oltre → 3 (soglie in Impostazioni → Stampa 3MF); senza TD si stima da quanto è scuro il colore. Il nero
+     (linee, cornice, anello, asola) resta sempre pieno. In riepilogo.json (`spessori_colori_scuri_sottili`) e nel LEGGIMI
+     c'è lo spessore scelto per ogni colore. Se nessun colore si assottiglia, il secondo file non viene creato.
    - `LEGGIMI-filamenti.txt` e `riepilogo.json`: bobine da montare, ruolo di ogni colore, area
 3. In **Francy Lamp Factory → Progetti** compare la voce con codice (es. `FL-2026-0001`), anteprima, cliente,
    filamenti, stato (Nuovo / In lavorazione / Stampato / Consegnato / Annullato) e il pulsante **Scarica zip**.
