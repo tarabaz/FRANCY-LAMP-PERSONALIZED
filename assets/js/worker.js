@@ -400,7 +400,15 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
   const sc = opts.scale ?? 1, off = opts.offset ?? 0, toPx = (v) => Math.round((v - off) / sc);
   penOut = null;
   const blackIdx = palette.findIndex((p) => p.black);
-  let comp = null;
+  // zone del secchiello: quelle della conversione di partenza (così dopo "svuota i colori" si riempie la zona com'era
+  // disegnata), ma divise anche dai tratti di penna NERI fatti a mano: un'area chiusa a mano è una zona vera
+  let comp = null, zones = base;
+  const zonesWithPen = () => {
+    if (blackIdx < 0) return base;
+    const z = base.slice();
+    for (let i = 0; i < z.length; i++) if (labs[i] === blackIdx && z[i] !== NONE) z[i] = blackIdx;
+    return z;
+  };
   for (const pt of paints) {
     if (!(pt.to >= 0 && pt.to < 250)) continue;
     // colore nuovo preso dal catalogo: voce in più nella palette (il colore vero lo decide l'app)
@@ -411,18 +419,23 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
     // "svuota i colori": tutto ciò che non è nero diventa il colore "to" (il bianco)
     if (pt.clear) { for (let i = 0; i < labs.length; i++) if (labs[i] !== NONE && labs[i] !== blackIdx) labs[i] = pt.to; continue; }
     // penna: tratto a mano libera (punti in mm, spessore w in mm) disegnato direttamente nelle zone
-    if (pt.pen) { penStroke(labs, size, pt, sc, off, opts.ov); continue; }
+    if (pt.pen) {
+      penStroke(labs, size, pt, sc, off, opts.ov);
+      if (pt.to === blackIdx) comp = null; // nuova linea nera: le zone vanno ricalcolate prima del prossimo secchiello
+      continue;
+    }
     const x = toPx(pt.x), y = toPx(pt.y), R = Math.ceil(1.5 * ppmm);
     let at = -1;
     for (let rr = 0; rr <= R && at < 0; rr++) for (let yy = y - rr; yy <= y + rr && at < 0; yy++) for (let xx = x - rr; xx <= x + rr; xx++) {
       if (Math.max(Math.abs(xx - x), Math.abs(yy - y)) !== rr || xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
       const j = yy * size + xx;
-      if (base[j] !== NONE && base[j] !== blackIdx) { at = j; break; }
+      if (!comp) { zones = zonesWithPen(); comp = components(zones, size).comp; }
+      if (zones[j] !== NONE && zones[j] !== blackIdx) { at = j; break; }
     }
     if (at < 0) continue;
-    if (!comp) comp = components(base, size).comp;
     const c = comp[at];
     for (let i = 0; i < labs.length; i++) if (comp[i] === c && labs[i] !== NONE) labs[i] = pt.to;
+    if (pt.to === blackIdx) comp = null; // zona riempita di nero: anche lei fa da bordo
   }
   // le grafiche aggiuntive protette (🔒, il predefinito) stanno sopra tutto, anche sopra secchiello, penna e
   // "svuota i colori": dove c'è una di loro (sagoma + 1 px per il suo contorno) torna la conversione di partenza
