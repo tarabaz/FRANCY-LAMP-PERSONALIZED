@@ -117,6 +117,10 @@ function flc_filaments_public($list, $prefix) {
 		if (isset($f['td'])) {
 			$x['td'] = $f['td'];
 		}
+		// bobina Bambu: tra due colori praticamente uguali il configuratore propone questa (il nome resta nascosto)
+		if (stripos((string) ($f['name'] ?? ''), 'bambu') !== false) {
+			$x['pri'] = 1;
+		}
 		if ($admin) {
 			$x['name'] = $f['name'];
 		}

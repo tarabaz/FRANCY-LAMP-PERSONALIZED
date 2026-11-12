@@ -67,7 +67,7 @@ function setFilaments(list) {
   state.filaments = (list || [])
     .filter((f) => f && /^#[0-9a-f]{6}$/i.test(f.hex))
     // name: nome vero (solo admin) oppure il codice neutro che il server rimette a posto alla convalida
-    .map((f) => ({ name: String(f.name || f.tok || f.hex), label: String(f.label || ''), hex: f.hex.toLowerCase(), lab: hexToLab(f.hex), td: f.td != null && f.td !== '' && +f.td > 0 ? +f.td : null }));
+    .map((f) => ({ name: String(f.name || f.tok || f.hex), label: String(f.label || ''), hex: f.hex.toLowerCase(), lab: hexToLab(f.hex), td: f.td != null && f.td !== '' && +f.td > 0 ? +f.td : null, pri: !!f.pri || /bambu/i.test(String(f.name || '')) }));
   if (state.filaments.length) {
     const oldBlack = BLACK;
     // bobine fisse scelte nel catalogo (bianco della base, nero delle linee); altrimenti le più vicine
@@ -721,18 +721,44 @@ function updateColorLimit() {
   if (+el.value > max) { el.value = max; $('#colorsOut').textContent = max; schedule(); }
 }
 
-// Ordine cromatico per tutte le scelte colore: prima i neutri (dal bianco al nero), poi le tinte nel giro
-// rossi → arancio/marroni → gialli → verdi → azzurri → blu → viola → rosa; dentro ogni tinta dal più chiaro al più scuro.
+// Ordine delle scelte colore: prima il bianco e il nero fissi, poi i neutri (dal chiaro allo scuro), poi le tinte
+// nell'ordine dell'arcobaleno (rosso → arancio → giallo → verde → azzurro → blu → viola → rosa), ognuna dal chiaro allo scuro.
+function hueOf(hex) {
+  const v = parseInt(hex.slice(1), 16), r = (v >> 16) / 255, g = ((v >> 8) & 255) / 255, b = (v & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (!d) return 0;
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h *= 60;
+  return h < 0 ? h + 360 : h;
+}
 function chromaKey(hex) {
+  hex = hex.toLowerCase();
+  if (hex === WHITE.toLowerCase()) return [-2, 0, 0];
+  if (hex === BLACK.toLowerCase()) return [-1, 0, 0];
   const [L, a, b] = hexToLab(hex);
-  const C = Math.hypot(a, b);
-  if (C < 6) return [0, -L, 0];                                    // neutri: bianco → grigi → nero
-  const h = ((Math.atan2(b, a) * 180 / Math.PI) + 360 - 15) % 360; // il giro parte dai rossi
-  return [1, Math.floor(h / 30), -L];
+  if (Math.hypot(a, b) < 6) return [0, -L, 0];          // neutri: bianchi sporchi → grigi
+  let h = hueOf(hex);
+  if (h >= 345 && L < 75) h -= 360;                        // rossi "freddi" insieme agli altri rossi (i rosa chiari restano rosa)
+  return [1, Math.floor((h + 10) / 20), -L];               // fasce di tinta da 20°, dentro dal chiaro allo scuro
 }
 function chromaSort(list, hexOf = (x) => x) {
   const k = new Map(list.map((x) => [x, chromaKey(hexOf(x))]));
   return [...list].sort((x, y) => { const p = k.get(x), q = k.get(y); return p[0] - q[0] || p[1] - q[1] || p[2] - q[2]; });
+}
+// Bobine da proporre nelle scelte colore: un solo bianco e un solo nero (quelli fissi) e niente doppioni di colore
+// praticamente uguale (ΔE < 3): tra due uguali resta la Bambu (o quella già usata nel disco)
+function pickerFilaments() {
+  const W = WHITE.toLowerCase(), K = BLACK.toLowerCase(), used = new Set(drawingColors ? drawingColors() : []);
+  const nearW = (f) => f.hex !== W && f.lab[0] > 90 && Math.hypot(f.lab[1], f.lab[2]) < 8;
+  const nearK = (f) => f.hex !== K && f.lab[0] < 22 && Math.hypot(f.lab[1], f.lab[2]) < 8;
+  const score = (f) => (f.hex === W || f.hex === K ? 4 : 0) + (used.has(f.hex) ? 2 : 0) + (f.pri ? 1 : 0);
+  const keep = [];
+  for (const f of [...state.filaments].sort((x, y) => score(y) - score(x))) {
+    if (nearW(f) || nearK(f)) continue;
+    if (keep.some((k) => Math.hypot(k.lab[0] - f.lab[0], k.lab[1] - f.lab[1], k.lab[2] - f.lab[2]) < 3)) continue;
+    keep.push(f);
+  }
+  return chromaSort(keep, (x) => x.hex);
 }
 
 // Riquadro con i colori del catalogo filamenti (per scegliere una bobina)
@@ -743,10 +769,10 @@ function openFilamentPopover(anchor, onPick, allowed) {
   closePopover();
   popover = document.createElement('div');
   popover.className = 'fil-popover';
-  for (const f of chromaSort(state.filaments, (x) => x.hex)) {
+  for (const f of pickerFilaments()) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'swatch';
+    b.className = 'swatch' + (f.pri ? ' bb' : ''); // bb: bobina Bambu (piccola B)
     b.style.background = f.hex;
     b.title = CFG.isAdmin ? f.name : f.label;
     b.disabled = !allowed(f.hex);
@@ -1525,13 +1551,15 @@ function renderPaintSwatches() {
   const host = $('#paintSwatches');
   host.innerHTML = '';
   const set = colorSet();
-  for (const hex of chromaSort([...new Set([BLACK, ...state.filaments.map((f) => f.hex)])])) {
+  const list = pickerFilaments().map((f) => f.hex);
+  if (!list.includes(BLACK.toLowerCase())) list.splice(list[0] === WHITE.toLowerCase() ? 1 : 0, 0, BLACK.toLowerCase());
+  for (const hex of list) {
     const b = document.createElement('button');
     b.type = 'button';
     b.style.background = hex;
     const f = state.filaments.find((x) => x.hex === hex);
     b.title = hex === BLACK ? 'Nero' : (CFG.isAdmin ? f && f.name : f && f.label) || hex;
-    b.className = state.brush === hex ? 'on' : '';
+    b.className = (state.brush === hex ? 'on' : '') + (f && f.pri ? ' bb' : ''); // bb: bobina Bambu (piccola B)
     b.disabled = !set.has(hex) && set.size >= MAX_FILAMENTS; // oltre i 13 colori non si va
     b.addEventListener('click', () => { state.brush = hex; renderPaintSwatches(); renderPalette(); });
     host.append(b);

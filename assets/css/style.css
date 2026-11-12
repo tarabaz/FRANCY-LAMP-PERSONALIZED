@@ -617,3 +617,10 @@ html.flc-page .flc { height: 100%; }
 .flc .stk-layers .sl .sl-b { white-space: nowrap; }
 .flc .stk-layers .sl .sl-b b { font-weight: 600; color: var(--ink); }
 .flc .stk-layers .sl .sl-bi { grid-column: 2 / -1; }
+/* bobina Bambu: piccola "B" in alto a destra del cerchio (pennello e riquadro bobine) */
+.flc #paintSwatches button.bb, .flc .fil-popover .swatch.bb { position: relative; overflow: visible; }
+.flc #paintSwatches button.bb::after, .flc .fil-popover .swatch.bb::after {
+  content: 'B'; position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%;
+  background: #1d1b19; color: #fff; font: 700 7px/11px system-ui, sans-serif; text-align: center; pointer-events: none;
+  box-shadow: 0 0 0 1px #fff;
+}
