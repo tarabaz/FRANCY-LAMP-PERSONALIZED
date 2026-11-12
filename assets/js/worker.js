@@ -12,7 +12,19 @@ let penOut = null; // pixel fuori dal cerchio del disegno disegnati con la penna
 let lastCenters = null; // { key, centers, skin }: colori scelti per l'immagine, riusati se cambiano solo grafiche/"sopra la fascia"
 
 self.onmessage = (e) => {
-  const { id, imageData, size, ppmm, opts, merge, ovToggle, ovSeeds, paints } = e.data;
+  const { id, imageData, size, ppmm, opts, merge, ovToggle, ovSeeds, paints, stagger } = e.data;
+  // giunture sfalsate: layer inferiori calcolati dall'ultima conversione (non la cambia)
+  if (stagger) {
+    try {
+      if (!last) throw new Error('giunture sfalsate: manca la conversione');
+      const mmPx = last.opts.scale ?? 1 / last.ppmm;
+      const low = staggerLabels(last.labels, last.size, last.palette, mmPx, stagger.grow, stagger.core);
+      self.postMessage({ id, low: trace(low, last.size, last.palette.length, last.opts) });
+    } catch (err) {
+      self.postMessage({ id, error: String(err && err.stack || err) });
+    }
+    return;
+  }
   try {
     let result;
     if (merge) result = mergeColors(merge);
@@ -319,6 +331,59 @@ function traceWithFrame(labels, frameLabels, size, ncolors, opts) {
   const all = trace(frameLabels, size, ncolors + 1, opts);
   const framePath = all.pop();
   return { layers: all, framePath };
+}
+
+// ---------- giunture sfalsate ----------
+// Layer INFERIORI del motivo: i pixel neri entro `grow` mm da un colore prendono quel colore (il più vicino), così il
+// confine colore/nero sotto non è sotto quello del layer in alto e la luce non trova un passaggio dritto fino al
+// bianco. Il nero non scende mai sotto `core` mm (linea singola stampabile): sulle linee sottili il colore entra meno,
+// sotto `core` non entra per niente. NONE (fuori dal disegno) non conta.
+function staggerLabels(labels, size, palette, mmPx, grow, core) {
+  const n = size * size, black = palette.findIndex((p) => p.black);
+  const out = labels.slice();
+  if (black < 0 || !(grow > 0)) return out;
+  const R = grow / mmPx, C = core / mmPx, INF = 1e9, S2 = Math.SQRT2;
+  const D = new Float32Array(n), N = new Int16Array(n).fill(-1);
+  for (let i = 0; i < n; i++) {
+    const l = labels[i];
+    if (l === black) D[i] = INF;
+    else if (l !== NONE) { D[i] = 0; N[i] = l; }
+    else D[i] = INF; // fuori dal disegno: non è una sorgente
+  }
+  const relax = (i, j, w) => { if (labels[i] === black && D[j] + w < D[i]) { D[i] = D[j] + w; N[i] = N[j]; } };
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const i = y * size + x;
+    if (labels[i] !== black) continue;
+    if (x > 0) relax(i, i - 1, 1);
+    if (y > 0) { relax(i, i - size, 1); if (x > 0) relax(i, i - size - 1, S2); if (x < size - 1) relax(i, i - size + 1, S2); }
+  }
+  for (let y = size - 1; y >= 0; y--) for (let x = size - 1; x >= 0; x--) {
+    const i = y * size + x;
+    if (labels[i] !== black) continue;
+    if (x < size - 1) relax(i, i + 1, 1);
+    if (y < size - 1) { relax(i, i + size, 1); if (x < size - 1) relax(i, i + size + 1, S2); if (x > 0) relax(i, i + size - 1, S2); }
+  }
+  // mezza larghezza locale della linea = massimo della distanza nei dintorni (filtro massimo separabile)
+  const r = Math.ceil(R + C / 2 + 1);
+  const Dm = new Float32Array(n);
+  for (let i = 0; i < n; i++) Dm[i] = labels[i] === black && D[i] < INF ? D[i] : 0;
+  const H1 = new Float32Array(n), H = new Float32Array(n);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    let m = 0;
+    for (let k = Math.max(0, x - r); k <= Math.min(size - 1, x + r); k++) { const v = Dm[y * size + k]; if (v > m) m = v; }
+    H1[y * size + x] = m;
+  }
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    let m = 0;
+    for (let k = Math.max(0, y - r); k <= Math.min(size - 1, y + r); k++) { const v = H1[k * size + x]; if (v > m) m = v; }
+    H[y * size + x] = m;
+  }
+  for (let i = 0; i < n; i++) {
+    if (labels[i] !== black || N[i] < 0) continue;
+    const d = D[i];
+    if (d <= R + 1e-6 && d <= H[i] - C / 2 + 1e-6) out[i] = N[i];
+  }
+  return out;
 }
 
 // ---------- colora a mano ----------

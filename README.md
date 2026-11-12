@@ -238,6 +238,11 @@ agganciato sotto e i colori del disco stanno dentro il passo "Colori e contorni"
      0,8 → 2 layer, oltre → 3 (soglie in Impostazioni → Stampa 3MF); senza TD si stima da quanto è scuro il colore. Il nero
      (linee, cornice, anello, asola) resta sempre pieno. In riepilogo.json (`spessori_colori_scuri_sottili`) e nel LEGGIMI
      c'è lo spessore scelto per ogni colore. Se nessun colore si assottiglia, il secondo file non viene creato.
+   - `05_bambu/disco-lampada-sfalsato.3mf` (terza versione, per confronto): **giunture sfalsate**. Nei 2 layer sotto ogni
+     colore entra fino a 0,2 mm sotto le linee nere, il layer in alto resta normale: la fessura tra colore e nero sopra
+     non coincide più con quella sotto, quindi la luce non trova un passaggio dritto fino al bianco (niente puntini da
+     accesa). Il nero sotto non scende mai sotto 0,42 mm (linea singola con ugello 0,4): sulle linee più sottili il colore
+     entra meno, sotto 0,42 non entra. Valori in Impostazioni → Stampa 3MF; in riepilogo.json `giunture_sfalsate`.
    - `LEGGIMI-filamenti.txt` e `riepilogo.json`: bobine da montare, ruolo di ogni colore, area
 3. In **Francy Lamp Factory → Progetti** compare la voce con codice (es. `FL-2026-0001`), anteprima, cliente,
    filamenti, stato (Nuovo / In lavorazione / Stampato / Consegnato / Annullato) e il pulsante **Scarica zip**.

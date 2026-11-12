@@ -995,8 +995,23 @@ function run() {
   worker.postMessage({ id, imageData, size, ppmm, opts }, [imageData.buffer]);
 }
 
+// richieste a parte al worker (non toccano la conversione in corso): es. giunture sfalsate per l'export
+const workerSide = new Map();
+let workerSideN = 0;
+function askWorker(msg) {
+  return new Promise((ok, ko) => {
+    const id = 'side-' + (++workerSideN);
+    workerSide.set(id, { ok, ko });
+    worker.postMessage({ ...msg, id });
+  });
+}
 worker.onmessage = (e) => {
   const { id, progress, result, error } = e.data;
+  if (typeof id === 'string' && workerSide.has(id)) {
+    const w = workerSide.get(id); workerSide.delete(id);
+    if (error) w.ko(new Error(error)); else w.ok(e.data);
+    return;
+  }
   if (id !== jobId) return;
   if (progress) return setStatus(progress + '…');
   if (error) { console.error(error); return setStatus('Errore nella conversione'); }
@@ -1318,7 +1333,9 @@ function minusSlot(d, slotD) {
   return out;
 }
 
-function parts() {
+// low: layer inferiori delle giunture sfalsate (stessi indici della palette): il motivo si divide in 2 layer sotto con
+// i confini spostati e 1 layer in alto con i confini normali
+function parts(low = null) {
   let frame = buildFrame(state.font, texts());
   // due scritte che si accavallano (stessa metà)?
   const bx = frame.textBoxes || {};
@@ -1342,8 +1359,14 @@ function parts() {
     const pal = state.result.palette;
     // prima i colori, poi il nero del disegno (in caso di sovrapposizione al bordo vince il nero)
     const cut = (d) => (fgPath && frame.slotBorder ? minusSlot(d, frame.slotBorder) : d);
-    pal.forEach((p, i) => { if (!p.black && p.area > 0) art({ id: `disegno-colore-${i + 1}`, d: cut(state.result.layers[i]), color: artColor(i), area: p.area }); });
-    pal.forEach((p, i) => { if (p.black && p.area > 0) art({ id: 'disegno-nero', d: cut(state.result.layers[i]), color: artColor(i), black: true, area: p.area }); });
+    const L = hArt / 3;
+    const put = (o, i) => {
+      if (!low) return art({ ...o, d: cut(state.result.layers[i]) });
+      art({ ...o, d: cut(state.result.layers[i]), z: zArt + 2 * L, depth: L });          // layer in alto: confini normali
+      if (low[i]) art({ ...o, id: o.id + '-sotto', d: cut(low[i]), z: zArt, depth: 2 * L }); // 2 layer sotto: confini spostati
+    };
+    pal.forEach((p, i) => { if (!p.black && p.area > 0) put({ id: `disegno-colore-${i + 1}`, color: artColor(i), area: p.area }, i); });
+    pal.forEach((p, i) => { if (p.black && p.area > 0) put({ id: 'disegno-nero', color: artColor(i), black: true, area: p.area }, i); });
   }
   if (state.fullDisc && !state.template) return list; // disegno pronto elaborato: la cornice è già nel disegno
   art({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, black: true });
@@ -2278,6 +2301,17 @@ async function buildPackage(customer) {
   } catch (err) {
     console.error('3MF non creato', err); // lo zip resta valido anche senza
   }
+  // terza versione: giunture sfalsate (sotto il colore entra fino a 0,2 mm sotto il nero, il nero resta ≥ 0,42 mm)
+  let stag = null;
+  try {
+    const b = CFG.bambu || {};
+    const r = await askWorker({ stagger: { grow: b.stagGrow ?? 0.2, core: b.stagCore ?? 0.42 } });
+    const t = await make3mf(parts(r.low), previewOff, 'Disco lampada FrancyStore3D - giunture sfalsate');
+    files.push({ name: '05_bambu/disco-lampada-sfalsato.3mf', data: await bytes(t.blob) });
+    stag = { colore_sotto_il_nero_mm: b.stagGrow ?? 0.2, nero_minimo_mm: b.stagCore ?? 0.42 };
+  } catch (err) {
+    console.error('3MF giunture sfalsate non creato', err);
+  }
   // seconda versione: colori scuri più sottili (1-2 layer in cima, bianco sotto), per confrontarle da accese
   let thin = null;
   try {
@@ -2302,6 +2336,7 @@ async function buildPackage(customer) {
     fascia: state.bandColor, colore_scritte: state.textColor,
     lampada: lampSummary(),
     spessori_colori_scuri_sottili: thin ? thin.info : null, // solo per 05_bambu/disco-lampada-scuri-sottili.3mf
+    giunture_sfalsate: stag, // solo per 05_bambu/disco-lampada-sfalsato.3mf
     impostazioni: { modalita: state.mode, ritratto: $('#portrait').checked, colori: +$('#colors').value, luminosita: adjust.b, contrasto: adjust.c, saturazione: adjust.s, disegno_pronto_elaborato: state.fullDisc ? state.fullDisc.name : null, sopra_fascia: state.overflow ? state.ovSeeds.length : 0, grafiche: state.layers.map((x) => ({ id: x.id, nome: x.name, x: x.x, y: x.y, larghezza_mm: x.size, rotazione: x.rot, bordo_mm: x.outline || 0, ricolorabile: !!x.editable })), ia: !!state.aiImageSrc, stile_ia: state.aiImageSrc ? aiStyle : null, sfondo_ia: state.aiImageSrc ? (state.aiBackground || 'originale') : null, fornitore_ia: state.aiProvider || null },
   };
   const lines = [
@@ -2312,6 +2347,8 @@ async function buildPackage(customer) {
     ...stlReadme({ baseThickness: FRAME.baseThickness, artThickness: FRAME.artThickness }),
     ...stl.list.map((l) => `  ${l.file}  ${l.color}${l.filament ? '  ' + l.filament : ''}`), '',
     ...(bambu ? ['PROGETTO BAMBU STUDIO (05_bambu/disco-lampada.3mf)', 'Apri il file con Bambu Studio: parti, colori degli slot e ugelli sono già assegnati.', ...bambu.list.map((l) => `  filamento ${l.filament}${l.filament === 1 ? ' (ugello 1, bobina fissa)' : ' (ugello 2, AMS)'}: ${l.part}`), ''] : []),
+    ...(stag ? ['VERSIONE "GIUNTURE SFALSATE" (05_bambu/disco-lampada-sfalsato.3mf)',
+      `Stesso disco, ma nei 2 layer sotto ogni colore entra fino a ${stag.colore_sotto_il_nero_mm} mm sotto il nero (il nero non scende mai sotto ${stag.nero_minimo_mm} mm, una linea singola); il layer in alto resta normale. Le fessure tra colore e nero non sono più una sopra l'altra: da accesa niente puntini bianchi.`, ''] : []),
     ...(thin && !thin.none ? ['VERSIONE "COLORI SCURI SOTTILI" (05_bambu/disco-lampada-scuri-sottili.3mf)',
       'Stesso disco, ma i colori che lasciano passare poca luce hanno meno layer (sempre in cima, sotto c\'è il bianco): da accesa si illuminano di più. Il nero resta pieno.',
       ...thin.info.filter((x) => x.layer < 3).map((x) => `  ${x.colore}${x.filamento ? ' ' + x.filamento : ''}: ${x.layer} layer (${x.spessore_mm} mm)${x.td != null ? ', TD ' + x.td : ', stimato dal colore'}`), ''] : []),

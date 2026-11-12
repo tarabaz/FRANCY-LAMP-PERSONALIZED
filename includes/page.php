@@ -82,6 +82,7 @@ function flc_frontend_config() {
 			'minBead' => (int) $s['bb_min_bead'], 'overlap' => (int) $s['bb_overlap'], 'wallLoops' => (int) $s['bb_wall_loops'],
 			'gapSpeed' => (int) $s['bb_gap_speed'], 'xy' => (float) $s['bb_xy'], 'flow' => (float) $s['bb_flow'],
 			'thin1' => (float) $s['bb_thin1'], 'thin2' => (float) $s['bb_thin2'],
+			'stagGrow' => (float) $s['bb_stag_grow'], 'stagCore' => (float) $s['bb_stag_core'],
 		),
 		'watermark' => array(
 			'screen'   => (bool) $s['wm_onscreen'],

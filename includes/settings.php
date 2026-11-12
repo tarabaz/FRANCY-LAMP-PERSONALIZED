@@ -317,6 +317,8 @@ function flc_defaults() {
 		'bb_flow'      => 0,         // correzione % del rapporto di flusso dei colori del disegno (bianco della base escluso)
 		'bb_thin1'     => 0.3,       // "colori scuri sottili": TD fino a questo valore → 1 layer di colore
 		'bb_thin2'     => 0.8,       // TD fino a questo valore → 2 layer (oltre: 3, come sempre)
+		'bb_stag_grow' => 0.2,       // giunture sfalsate: quanto il colore entra sotto il nero nei 2 layer inferiori (mm)
+		'bb_stag_core' => 0.42,      // giunture sfalsate: nero minimo che resta sotto (mm, una linea singola con ugello 0,4)
 		'lay_lamp_x'   => -17,
 		'lay_lamp_y'   => 0,
 		'lay_box_x'    => 30.5,
@@ -505,6 +507,8 @@ function flc_sanitize_settings($in) {
 		'bb_flow'      => max(-5, min(5, round((float) ($in['bb_flow'] ?? $d['bb_flow']), 1))),
 		'bb_thin1'     => max(0, min(5, round((float) ($in['bb_thin1'] ?? $d['bb_thin1']), 2))),
 		'bb_thin2'     => max(0, min(5, round((float) ($in['bb_thin2'] ?? $d['bb_thin2']), 2))),
+		'bb_stag_grow' => max(0, min(0.5, round((float) ($in['bb_stag_grow'] ?? $d['bb_stag_grow']), 2))),
+		'bb_stag_core' => max(0.3, min(1, round((float) ($in['bb_stag_core'] ?? $d['bb_stag_core']), 2))),
 		'lay_lamp_x'   => max(-45, min(45, round((float) ($in['lay_lamp_x'] ?? -17), 1))),
 		'lay_lamp_y'   => max(-5, min(25, round((float) ($in['lay_lamp_y'] ?? 0), 1))),
 		'lay_box_x'    => max(-45, min(45, round((float) ($in['lay_box_x'] ?? 30.5), 1))),
@@ -1560,6 +1564,12 @@ function flc_settings_page() {
 				array('bb_thin2', 'Colori scuri sottili: 2 layer fino a TD', 'Solo nel secondo progetto dello zip', array('number', 0, 5, 0.05, 'mm'), '0,8',
 					'I colori con TD tra la soglia precedente e questa si stampano con 2 layer invece di 3. Oltre questa soglia restano a 3 layer (colori chiari e traslucidi). Il nero resta sempre pieno.',
 					'Troppo alto: anche i colori chiari si assottigliano e perdono saturazione. Troppo basso: niente colori a 2 layer, solo 1 o 3.'),
+				array('bb_stag_grow', 'Giunture sfalsate: colore sotto il nero', 'Solo nel terzo progetto dello zip (…-sfalsato.3mf)', array('number', 0, 0.5, 0.05, 'mm'), '0,2',
+					'Nei 2 layer sotto, ogni colore entra di questa misura sotto le linee nere; il layer in alto resta normale. Così la fessura tra colore e nero sopra non coincide con quella sotto e la luce non trova un passaggio dritto fino al bianco: niente puntini da accesa.',
+					'Troppo alto: le linee nere sotto si svuotano (resta solo il minimo qui sotto) e da accese diventano più grigie. Troppo basso (sotto 0,1): l\'effetto sparisce.'),
+				array('bb_stag_core', 'Giunture sfalsate: nero minimo sotto', 'Solo nel terzo progetto dello zip', array('number', 0.3, 1, 0.01, 'mm'), '0,42',
+					'Il nero nei layer sotto non scende mai sotto questa larghezza: è una linea singola con l\'ugello da 0,4. Sulle linee più sottili di colore+nero+colore il colore entra meno, sotto questa misura non entra.',
+					'Sotto 0,42 con ugello 0,4 Bambu può saltare la linea (vuoto sotto il nero, linea grigia da accesa). Più alto: il colore entra solo sulle linee larghe.'),
 			);
 			?>
 			<section class="flc-tab" data-tab="stampa">
