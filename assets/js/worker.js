@@ -401,12 +401,18 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
   penOut = null;
   const blackIdx = palette.findIndex((p) => p.black);
   // zone del secchiello: quelle della conversione di partenza (così dopo "svuota i colori" si riempie la zona com'era
-  // disegnata), ma divise anche dai tratti di penna NERI fatti a mano: un'area chiusa a mano è una zona vera
+  // disegnata), ma divise anche da quello che è fatto a mano: ogni tratto di penna (di qualsiasi colore) è una zona sua e
+  // fa da bordo, e anche le zone riempite di nero. Un'area chiusa a mano si riempie da sola; un tratto non viene coperto
+  // dal secchiello (toccando il tratto si ricolora solo lui).
+  const penMask = new Uint8Array(labs.length);
   let comp = null, zones = base;
   const zonesWithPen = () => {
-    if (blackIdx < 0) return base;
     const z = base.slice();
-    for (let i = 0; i < z.length; i++) if (labs[i] === blackIdx && z[i] !== NONE) z[i] = blackIdx;
+    for (let i = 0; i < z.length; i++) {
+      if (z[i] === NONE && !penMask[i]) continue;
+      if (labs[i] === blackIdx && blackIdx >= 0) z[i] = blackIdx;          // nero (contorni, penna o secchiello nero)
+      else if (penMask[i]) z[i] = 128 + labs[i];                            // tratto colorato: zona a parte
+    }
     return z;
   };
   for (const pt of paints) {
@@ -420,8 +426,8 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
     if (pt.clear) { for (let i = 0; i < labs.length; i++) if (labs[i] !== NONE && labs[i] !== blackIdx) labs[i] = pt.to; continue; }
     // penna: tratto a mano libera (punti in mm, spessore w in mm) disegnato direttamente nelle zone
     if (pt.pen) {
-      penStroke(labs, size, pt, sc, off, opts.ov);
-      if (pt.to === blackIdx) comp = null; // nuova linea nera: le zone vanno ricalcolate prima del prossimo secchiello
+      penStroke(labs, size, pt, sc, off, opts.ov, penMask);
+      comp = null; // nuovo tratto: le zone vanno ricalcolate prima del prossimo secchiello
       continue;
     }
     const x = toPx(pt.x), y = toPx(pt.y), R = Math.ceil(1.5 * ppmm);
@@ -437,6 +443,34 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
     for (let i = 0; i < labs.length; i++) if (comp[i] === c && labs[i] !== NONE) labs[i] = pt.to;
     if (pt.to === blackIdx) comp = null; // zona riempita di nero: anche lei fa da bordo
   }
+  // puntini di colore vecchio rimasti attaccati ai tratti di penna (tra il tratto e un altro colore, o tra un tratto e
+  // l'altro): le isolette più piccole dell'area minima del disegno che toccano un tratto prendono il colore del tratto
+  if (penMask.some((v) => v)) {
+    const minPx = Math.max(2, Math.round((opts.minAreaMm2 || 1) * ppmm * ppmm));
+    const { comp: cc, comps } = components(labs, size);
+    // pixel delle sole isolette piccole, raccolti in un passaggio
+    const px = new Map();
+    for (let i = 0; i < labs.length; i++) {
+      const k = cc[i];
+      if (k < 0 || comps[k].area >= minPx) continue;
+      if (!px.has(k)) px.set(k, []);
+      px.get(k).push(i);
+    }
+    for (const [k, list] of px) {
+      if (list.some((j) => penMask[j])) continue; // è (parte di) un tratto: resta
+      // tocca un tratto? colore del tratto più presente intorno all'isoletta
+      const votes = new Map();
+      for (const j of list) {
+        const x = j % size, y = (j / size) | 0;
+        for (const q of [x > 0 ? j - 1 : -1, x < size - 1 ? j + 1 : -1, y > 0 ? j - size : -1, y < size - 1 ? j + size : -1]) {
+          if (q >= 0 && penMask[q] && cc[q] !== k && labs[q] !== NONE) votes.set(labs[q], (votes.get(labs[q]) || 0) + 1);
+        }
+      }
+      if (!votes.size) continue;
+      const to = [...votes.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      for (const j of list) labs[j] = to;
+    }
+  }
   // le grafiche aggiuntive protette (🔒, il predefinito) stanno sopra tutto, anche sopra secchiello, penna e
   // "svuota i colori": dove c'è una di loro (sagoma + 1 px per il suo contorno) torna la conversione di partenza
   const mask = opts.ov && opts.ov.lock;
@@ -450,7 +484,7 @@ function applyPaints(labs, palette, size, ppmm, opts, paints, base = labs.slice(
 }
 // Con "sopra la fascia" (ov) la penna disegna anche fuori dal cerchio, fino all'anello nero esterno (asola esclusa),
 // pure dove la foto non arriva: quei pixel vanno in penOut e applyOverflow li tiene sempre.
-function penStroke(labs, size, pt, sc, off, ov) {
+function penStroke(labs, size, pt, sc, off, ov, mark) {
   const pxPerMm = 1 / sc;
   const cx = (size - 1) / 2, rA2 = ov ? ov.rArt * ov.rArt : 0, rK2 = ov ? ov.rKeep * ov.rKeep : 0;
   const ring = (xx, yy) => {
@@ -471,7 +505,8 @@ function penStroke(labs, size, pt, sc, off, ov) {
         labs[j] = pt.to;
         if (!penOut) penOut = new Uint8Array(size * size);
         penOut[j] = 1;
-      } else if (labs[j] !== NONE) labs[j] = pt.to;
+        if (mark) mark[j] = 1;
+      } else if (labs[j] !== NONE) { labs[j] = pt.to; if (mark) mark[j] = 1; }
     }
   };
   const P = (pt.pts || []).map(([x, y]) => [(x - off) / sc, (y - off) / sc]);

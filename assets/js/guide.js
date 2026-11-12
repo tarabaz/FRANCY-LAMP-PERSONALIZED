@@ -167,7 +167,7 @@ export const GUIDE = [
 <h4>🪣 Secchiello</h4>
 <figure class="w-fig" data-gimg="colora-a-mano"><figcaption>Gli strumenti di Colora a mano con le bobine tra cui scegliere.</figcaption></figure>
 <p>Scegli un colore tra le bobine o tra i colori del disco, poi tocca una zona: <strong>la zona intera</strong> prende quel colore, le linee nere restano. Due zone vicine senza linea nera in mezzo restano comunque separate.</p>
-<p>Anche le <strong>linee nere che disegni tu</strong> con la penna contano come bordo: se un'area è aperta, chiudila con la penna nera e poi riempila col secchiello, il colore non esce dal tuo tratto.</p>
+<p>Anche <strong>quello che disegni tu con la penna</strong>, di qualsiasi colore, conta come bordo: se un'area è aperta, chiudila con la penna e poi riempila col secchiello, il colore non esce dal tuo tratto. Il secchiello non copre i tuoi tratti; toccando un tratto col secchiello ricolori solo lui. I puntini di colore vecchio rimasti attaccati ai tratti spariscono da soli.</p>
 <h4 data-feat="feat_pen">✏️ Penna</h4>
 <p data-feat="feat_pen">Disegna a mano libera con la bobina scelta: pupille, riflessi, piccoli ritocchi. Lo slider <strong>Punta</strong> va da 0,5 a 6 mm.</p>
 <div data-feat="feat_pen"><figure class="w-fig" data-gimg="penna"><figcaption>La penna con lo slider della punta.</figcaption></figure></div>
