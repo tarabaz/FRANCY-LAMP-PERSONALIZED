@@ -2205,25 +2205,52 @@ function colorSummary(ps) {
 // "Colori scuri più sottili": i colori che lasciano passare poca luce (TD basso della bobina, o colore scuro se il
 // TD non c'è) si stampano con 1 o 2 layer invece di 3, sempre IN CIMA; sotto, al loro posto, il bianco della base.
 // Da accesa passano molta più luce, da spenta quasi uguali. Il nero (linee, cornice, anello) resta sempre pieno.
+// quanti layer di colore (1-3) per un colore del motivo, secondo il TD della bobina o quanto è scuro; null = non si tocca
+function darkLayers(p, info) {
+  const hex = (p.color || '').toLowerCase();
+  if (p.layer !== 'motivo' || p.black || !p.d || hex === WHITE.toLowerCase() || isNearBlack(hex)) return null;
+  if (!info.has(hex)) {
+    const b = CFG.bambu || {}, t1 = b.thin1 ?? 0.3, t2 = b.thin2 ?? 0.8, L = FRAME.artThickness / 3;
+    const f = state.filaments.length ? nearestFilament(hex) : null;
+    const td = f && f.td ? f.td : null;
+    // senza TD: stima dalla luminosità (L* del colore)
+    const n = td != null ? (td <= t1 ? 1 : td <= t2 ? 2 : 3) : (hexToLab(hex)[0] < 35 ? 1 : hexToLab(hex)[0] < 55 ? 2 : 3);
+    info.set(hex, { colore: hex, filamento: f ? f.name : '', td, layer: n, spessore_mm: +(n * L).toFixed(2), stima: td == null });
+  }
+  return info.get(hex).layer;
+}
 function thinDarkParts(ps) {
-  const b = CFG.bambu || {}, t1 = b.thin1 ?? 0.3, t2 = b.thin2 ?? 0.8;
   const H = FRAME.artThickness, L = H / 3; // 3 layer da 0,16 mm
   const out = [], info = new Map();
   for (const p of ps) {
-    const hex = (p.color || '').toLowerCase();
-    if (p.layer !== 'motivo' || p.black || !p.d || hex === WHITE.toLowerCase() || isNearBlack(hex)) { out.push(p); continue; }
-    if (!info.has(hex)) {
-      const f = state.filaments.length ? nearestFilament(hex) : null;
-      const td = f && f.td ? f.td : null;
-      // senza TD: stima dalla luminosità (L* del colore)
-      const n = td != null ? (td <= t1 ? 1 : td <= t2 ? 2 : 3) : (hexToLab(hex)[0] < 35 ? 1 : hexToLab(hex)[0] < 55 ? 2 : 3);
-      info.set(hex, { colore: hex, filamento: f ? f.name : '', td, layer: n, spessore_mm: +(n * L).toFixed(2), stima: td == null });
-    }
-    const n = info.get(hex).layer;
+    const n = darkLayers(p, info);
+    if (n == null) { out.push(p); continue; }
     if (n >= 3) { out.push(p); continue; }
     const depth = n * L;
     out.push({ ...p, z: p.z + (H - depth), depth });
     out.push({ ...p, id: p.id + '-sotto-bianco', color: WHITE, z: p.z, depth: H - depth, black: false });
+  }
+  return { parts: out, info: [...info.values()] };
+}
+// Scuri sottili + giunture sfalsate, insieme: si parte dalle parti sfalsate (layer in alto normale, "-sotto" = 2 layer
+// inferiori allargati sotto il nero). Un colore scuro da 1 layer tiene solo quello in alto e il "-sotto" diventa bianco;
+// da 2 layer tiene anche il layer di mezzo (forma allargata) e sotto c'è bianco. Il bianco va sul filamento della base.
+function thinStaggeredParts(ps) {
+  const H = FRAME.artThickness, L = H / 3, out = [], info = new Map();
+  for (const p of ps) {
+    const n = darkLayers(p, info);
+    if (n == null || n >= 3) { out.push(p); continue; }
+    // pezzi interi (fascia, scritte colorate): come in "scuri sottili", colore in cima e bianco sotto
+    if (p.depth >= H - 1e-6) {
+      out.push({ ...p, z: p.z + (H - n * L), depth: n * L });
+      out.push({ ...p, id: p.id + '-sotto-bianco', color: WHITE, z: p.z, depth: H - n * L, black: false });
+      continue;
+    }
+    if (!/-sotto$/.test(p.id)) { out.push(p); continue; } // layer in alto: sempre colorato
+    if (n === 2) {
+      out.push({ ...p, z: p.z + L, depth: L });
+      out.push({ ...p, id: p.id + '-bianco', color: WHITE, z: p.z, depth: L, black: false });
+    } else out.push({ ...p, id: p.id + '-bianco', color: WHITE, black: false });
   }
   return { parts: out, info: [...info.values()] };
 }
@@ -2306,9 +2333,17 @@ async function buildPackage(customer) {
   try {
     const b = CFG.bambu || {};
     const r = await askWorker({ stagger: { grow: b.stagGrow ?? 0.2, core: b.stagCore ?? 0.42 } });
-    const t = await make3mf(parts(r.low), previewOff, 'Disco lampada FrancyStore3D - giunture sfalsate');
+    const sp = parts(r.low);
+    const t = await make3mf(sp, previewOff, 'Disco lampada FrancyStore3D - giunture sfalsate');
     files.push({ name: '05_bambu/disco-lampada-sfalsato.3mf', data: await bytes(t.blob) });
     stag = { colore_sotto_il_nero_mm: b.stagGrow ?? 0.2, nero_minimo_mm: b.stagCore ?? 0.42 };
+    // quarta versione: scuri sottili + giunture sfalsate insieme
+    const both = thinStaggeredParts(sp);
+    if (both.info.some((x) => x.layer < 3)) {
+      const t4 = await make3mf(both.parts, previewOff, 'Disco lampada FrancyStore3D - scuri sottili + giunture sfalsate');
+      files.push({ name: '05_bambu/disco-lampada-scuri-sottili-sfalsato.3mf', data: await bytes(t4.blob) });
+      stag.anche_scuri_sottili = true;
+    }
   } catch (err) {
     console.error('3MF giunture sfalsate non creato', err);
   }
@@ -2348,7 +2383,9 @@ async function buildPackage(customer) {
     ...stl.list.map((l) => `  ${l.file}  ${l.color}${l.filament ? '  ' + l.filament : ''}`), '',
     ...(bambu ? ['PROGETTO BAMBU STUDIO (05_bambu/disco-lampada.3mf)', 'Apri il file con Bambu Studio: parti, colori degli slot e ugelli sono già assegnati.', ...bambu.list.map((l) => `  filamento ${l.filament}${l.filament === 1 ? ' (ugello 1, bobina fissa)' : ' (ugello 2, AMS)'}: ${l.part}`), ''] : []),
     ...(stag ? ['VERSIONE "GIUNTURE SFALSATE" (05_bambu/disco-lampada-sfalsato.3mf)',
-      `Stesso disco, ma nei 2 layer sotto ogni colore entra fino a ${stag.colore_sotto_il_nero_mm} mm sotto il nero (il nero non scende mai sotto ${stag.nero_minimo_mm} mm, una linea singola); il layer in alto resta normale. Le fessure tra colore e nero non sono più una sopra l'altra: da accesa niente puntini bianchi.`, ''] : []),
+      `Stesso disco, ma nei 2 layer sotto ogni colore entra fino a ${stag.colore_sotto_il_nero_mm} mm sotto il nero (il nero non scende mai sotto ${stag.nero_minimo_mm} mm, una linea singola); il layer in alto resta normale. Le fessure tra colore e nero non sono più una sopra l'altra: da accesa niente puntini bianchi.`, '',
+      ...(stag.anche_scuri_sottili ? ['VERSIONE "SCURI SOTTILI + GIUNTURE SFALSATE" (05_bambu/disco-lampada-scuri-sottili-sfalsato.3mf)',
+        'Le due cose insieme: confini sfalsati sotto il nero e colori scuri solo negli 1-2 layer più alti (sotto bianco, sempre sfalsato). È la versione consigliata se le due prove separate ti piacciono.', ''] : [])] : []),
     ...(thin && !thin.none ? ['VERSIONE "COLORI SCURI SOTTILI" (05_bambu/disco-lampada-scuri-sottili.3mf)',
       'Stesso disco, ma i colori che lasciano passare poca luce hanno meno layer (sempre in cima, sotto c\'è il bianco): da accesa si illuminano di più. Il nero resta pieno.',
       ...thin.info.filter((x) => x.layer < 3).map((x) => `  ${x.colore}${x.filamento ? ' ' + x.filamento : ''}: ${x.layer} layer (${x.spessore_mm} mm)${x.td != null ? ', TD ' + x.td : ', stimato dal colore'}`), ''] : []),

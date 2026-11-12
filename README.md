@@ -243,6 +243,10 @@ agganciato sotto e i colori del disco stanno dentro il passo "Colori e contorni"
      non coincide più con quella sotto, quindi la luce non trova un passaggio dritto fino al bianco (niente puntini da
      accesa). Il nero sotto non scende mai sotto 0,42 mm (linea singola con ugello 0,4): sulle linee più sottili il colore
      entra meno, sotto 0,42 non entra. Valori in Impostazioni → Stampa 3MF; in riepilogo.json `giunture_sfalsate`.
+   - `05_bambu/disco-lampada-scuri-sottili-sfalsato.3mf` (quarta versione): **le due tecniche insieme**. Layer in alto
+     con i confini normali; nei layer sotto i colori entrano sotto il nero; i colori scuri hanno il colore solo negli 1–2
+     layer più alti e sotto bianco (anche lui sfalsato). Fascia e scritte scure, che sono pezzi interi, si assottigliano come
+     in "scuri sottili". Viene creata solo se c'è almeno un colore da assottigliare.
    - `LEGGIMI-filamenti.txt` e `riepilogo.json`: bobine da montare, ruolo di ogni colore, area
 3. In **Francy Lamp Factory → Progetti** compare la voce con codice (es. `FL-2026-0001`), anteprima, cliente,
    filamenti, stato (Nuovo / In lavorazione / Stampato / Consegnato / Annullato) e il pulsante **Scarica zip**.
