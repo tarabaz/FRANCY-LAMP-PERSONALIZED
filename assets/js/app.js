@@ -2332,7 +2332,9 @@ async function buildPackage(customer) {
   let stag = null;
   try {
     const b = CFG.bambu || {};
-    const r = await askWorker({ stagger: { grow: b.stagGrow ?? 0.2, core: b.stagCore ?? 0.42 } });
+    // voci della palette da trattare come nero: la nera e ogni bobina praticamente nera (ritocchi con un altro nero)
+    const blacks = state.result.palette.map((p, i) => (p.black || isNearBlack(artColor(i)) ? i : -1)).filter((i) => i >= 0);
+    const r = await askWorker({ stagger: { grow: b.stagGrow ?? 0.2, core: b.stagCore ?? 0.42, blacks } });
     const sp = parts(r.low);
     const t = await make3mf(sp, previewOff, 'Disco lampada FrancyStore3D - giunture sfalsate');
     files.push({ name: '05_bambu/disco-lampada-sfalsato.3mf', data: await bytes(t.blob) });

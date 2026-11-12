@@ -18,7 +18,7 @@ self.onmessage = (e) => {
     try {
       if (!last) throw new Error('giunture sfalsate: manca la conversione');
       const mmPx = last.opts.scale ?? 1 / last.ppmm;
-      const low = staggerLabels(last.labels, last.size, last.palette, mmPx, stagger.grow, stagger.core);
+      const low = staggerLabels(last.labels, last.size, last.palette, mmPx, stagger.grow, stagger.core, stagger.blacks);
       self.postMessage({ id, low: trace(low, last.size, last.palette.length, last.opts) });
     } catch (err) {
       self.postMessage({ id, error: String(err && err.stack || err) });
@@ -338,35 +338,40 @@ function traceWithFrame(labels, frameLabels, size, ncolors, opts) {
 // confine colore/nero sotto non è sotto quello del layer in alto e la luce non trova un passaggio dritto fino al
 // bianco. Il nero non scende mai sotto `core` mm (linea singola stampabile): sulle linee sottili il colore entra meno,
 // sotto `core` non entra per niente. NONE (fuori dal disegno) non conta.
-function staggerLabels(labels, size, palette, mmPx, grow, core) {
-  const n = size * size, black = palette.findIndex((p) => p.black);
+function staggerLabels(labels, size, palette, mmPx, grow, core, blackList) {
+  const n = size * size;
+  // nero = la voce nera della palette e ogni altra voce che l'app indica come nera (bobina praticamente nera, es. ritocchi
+  // con un'altra bobina nera): blackList arriva dall'app, che conosce le bobine vere
+  const extra = new Set(blackList || []);
+  const isBlk = palette.map((p, i) => !!p.black || extra.has(i));
   const out = labels.slice();
-  if (black < 0 || !(grow > 0)) return out;
+  if (!isBlk.some(Boolean) || !(grow > 0)) return out;
+  const blk = (l) => l !== NONE && isBlk[l];
   const R = grow / mmPx, C = core / mmPx, INF = 1e9, S2 = Math.SQRT2;
   const D = new Float32Array(n), N = new Int16Array(n).fill(-1);
   for (let i = 0; i < n; i++) {
     const l = labels[i];
-    if (l === black) D[i] = INF;
+    if (blk(l)) D[i] = INF;
     else if (l !== NONE) { D[i] = 0; N[i] = l; }
     else D[i] = INF; // fuori dal disegno: non è una sorgente
   }
-  const relax = (i, j, w) => { if (labels[i] === black && D[j] + w < D[i]) { D[i] = D[j] + w; N[i] = N[j]; } };
+  const relax = (i, j, w) => { if (blk(labels[i]) && D[j] + w < D[i]) { D[i] = D[j] + w; N[i] = N[j]; } };
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const i = y * size + x;
-    if (labels[i] !== black) continue;
+    if (!blk(labels[i])) continue;
     if (x > 0) relax(i, i - 1, 1);
     if (y > 0) { relax(i, i - size, 1); if (x > 0) relax(i, i - size - 1, S2); if (x < size - 1) relax(i, i - size + 1, S2); }
   }
   for (let y = size - 1; y >= 0; y--) for (let x = size - 1; x >= 0; x--) {
     const i = y * size + x;
-    if (labels[i] !== black) continue;
+    if (!blk(labels[i])) continue;
     if (x < size - 1) relax(i, i + 1, 1);
     if (y < size - 1) { relax(i, i + size, 1); if (x < size - 1) relax(i, i + size + 1, S2); if (x > 0) relax(i, i + size - 1, S2); }
   }
   // mezza larghezza locale della linea = massimo della distanza nei dintorni (filtro massimo separabile)
   const r = Math.ceil(R + C / 2 + 1);
   const Dm = new Float32Array(n);
-  for (let i = 0; i < n; i++) Dm[i] = labels[i] === black && D[i] < INF ? D[i] : 0;
+  for (let i = 0; i < n; i++) Dm[i] = blk(labels[i]) && D[i] < INF ? D[i] : 0;
   const H1 = new Float32Array(n), H = new Float32Array(n);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     let m = 0;
@@ -379,7 +384,7 @@ function staggerLabels(labels, size, palette, mmPx, grow, core) {
     H[y * size + x] = m;
   }
   for (let i = 0; i < n; i++) {
-    if (labels[i] !== black || N[i] < 0) continue;
+    if (!blk(labels[i]) || N[i] < 0) continue;
     const d = D[i];
     if (d <= R + 1e-6 && d <= H[i] - C / 2 + 1e-6) out[i] = N[i];
   }
