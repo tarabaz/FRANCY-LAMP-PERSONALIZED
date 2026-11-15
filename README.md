@@ -266,8 +266,10 @@ Cancellando definitivamente un progetto si cancellano anche i suoi file.
 "⚙️ Elabora questo disegno". Il disegno diventa la sorgente di tutto il disco (Ø200, immagine presa pari pari): fascia,
 scritte e anello disegnati nell'immagine vengono convertiti come il resto, la cornice del plugin non viene aggiunta;
 resta solo la sagoma fisica del disco (contorno, fori laterali, asola). Colori, contorni, sostituzione colori,
-pennello, penna e lucchetti funzionano come sempre e si esportano STL/3MF/SVG. Scritte, colore fascia, "sopra la
-fascia" e grafiche sono nascosti; "✕ Esci dall'elaborazione" torna al normale.
+pennello, penna e lucchetti funzionano come sempre e si esportano STL/3MF/SVG. Le **scritte** restano disponibili
+(testi, colore, dimensione, posizione): partono vuote e vengono incise sulla fascia dell'immagine, cioè il disegno sotto
+viene tagliato con la forma esatta delle lettere (nei file nessuna sovrapposizione); uscendo tornano le scritte di prima.
+Colore fascia, "sopra la fascia" e grafiche sono nascosti; "✕ Esci dall'elaborazione" torna al normale.
 
 **💾 Salva nel disegno pronto** (barra in alto, durante l'elaborazione): manda al sito il PNG del disco così com'è
 adesso (1600 px, trasparente fuori dal disco), SVG, EPS, 3MF Bambu e il progetto `.francy`. Il PNG diventa la

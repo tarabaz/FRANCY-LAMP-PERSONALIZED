@@ -1375,6 +1375,29 @@ function minusSlot(d, slotD) {
 
 // low: layer inferiori delle giunture sfalsate (stessi indici della palette): il motivo si divide in 2 layer sotto con
 // i confini spostati e 1 layer in alto con i confini normali
+// Scritte sopra un disegno pronto elaborato: il disegno sotto viene tagliato con la forma esatta delle lettere
+// (nei file niente parti sovrapposte). Solo i colori che arrivano sulla fascia vengono calcolati.
+const textCutCache = new Map();
+function minusText(d, textD) {
+  if (!d || !textD) return d;
+  const key = textD.length + ':' + textD.slice(0, 60) + '|' + d;
+  if (textCutCache.has(key)) return textCutCache.get(key);
+  let out = d;
+  try {
+    const r0 = geometry().rBandIn - 1;
+    const nums = d.match(/-?\d+(?:\.\d+)?/g) || [];
+    let near = false;
+    for (let i = 0; i + 1 < nums.length; i += 2) if (Math.hypot(+nums[i], +nums[i + 1]) > r0) { near = true; break; }
+    if (near) {
+      if (!textCutCache.has('t:' + textD)) textCutCache.set('t:' + textD, svgToPolys(textD));
+      out = polysToPath(polygonClipping.difference(tracedToPolys(d), textCutCache.get('t:' + textD)));
+    }
+  } catch (err) { console.error('scritte sul disegno:', err); }
+  if (textCutCache.size > 80) textCutCache.clear();
+  textCutCache.set(key, out);
+  return out;
+}
+
 function parts(low = null) {
   let frame = buildFrame(state.font, texts());
   // due scritte che si accavallano (stessa metà)?
@@ -1398,7 +1421,9 @@ function parts(low = null) {
   if (state.result) {
     const pal = state.result.palette;
     // prima i colori, poi il nero del disegno (in caso di sovrapposizione al bordo vince il nero)
-    const cut = (d) => (fgPath && frame.slotBorder ? minusSlot(d, frame.slotBorder) : d);
+    // disegno pronto elaborato con scritte: il disegno viene "inciso" dalle lettere
+    const tCut = state.fullDisc && !state.template && frame.text ? (d) => minusText(d, frame.text) : (d) => d;
+    const cut = (d) => tCut(fgPath && frame.slotBorder ? minusSlot(d, frame.slotBorder) : d);
     const L = hArt / 3;
     const put = (o, i) => {
       if (!low) return art({ ...o, d: cut(state.result.layers[i]) });
@@ -1408,7 +1433,10 @@ function parts(low = null) {
     pal.forEach((p, i) => { if (!p.black && p.area > 0) put({ id: `disegno-colore-${i + 1}`, color: artColor(i), area: p.area }, i); });
     pal.forEach((p, i) => { if (p.black && p.area > 0) put({ id: 'disegno-nero', color: artColor(i), black: true, area: p.area }, i); });
   }
-  if (state.fullDisc && !state.template) return list; // disegno pronto elaborato: la cornice è già nel disegno
+  if (state.fullDisc && !state.template) { // disegno pronto elaborato: la cornice è già nel disegno, si aggiungono solo le scritte
+    if (frame.text) art({ id: 'cornice-scritte', d: frame.text, color: txt, black: isNearBlack(txt) });
+    return list;
+  }
   art({ id: 'cornice-linea-interna', d: frame.innerLine, color: BLACK, black: true });
   art({ id: 'cornice-fascia', d: frame.band, color: band });
   if (frame.slotBorder) art({ id: 'cornice-contorno-asola', d: frame.slotBorder, color: BLACK, black: true });
@@ -1782,7 +1810,10 @@ async function enterFullDisc() {
   let img;
   try { img = await loadLayerImg(t.dataUrl); } catch (e) { setStatus('Disegno non disponibile'); return; }
   $('#tplExit').click(); // esce dalla vetrina del disegno pronto
-  state.fullDisc = { name: t.name, id: t.id };
+  // le scritte partono vuote (il disegno ha già le sue); uscendo tornano quelle di prima
+  const savedTexts = ['#tTL', '#tTR', '#tBL', '#tBR'].map((id) => $(id).value);
+  ['#tTL', '#tTR', '#tBL', '#tBR'].forEach((id) => { $(id).value = ''; });
+  state.fullDisc = { name: t.name, id: t.id, savedTexts };
   root.classList.add('full-disc');
   state.layers = []; state.layerSel = null; renderLayers();
   state.overflow = false; $('#ovOn').checked = false; updateOvUi();
@@ -1794,6 +1825,8 @@ async function enterFullDisc() {
   setStatus('Disegno pronto in elaborazione: colori, contorni, pennello e penna funzionano come sempre');
 }
 function exitFullDisc() {
+  const saved = state.fullDisc && state.fullDisc.savedTexts;
+  if (saved) ['#tTL', '#tTR', '#tBL', '#tBR'].forEach((id, i) => { $(id).value = saved[i]; });
   state.fullDisc = null;
   root.classList.remove('full-disc');
   updateFullDiscBtn();
