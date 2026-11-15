@@ -269,6 +269,9 @@ resta solo la sagoma fisica del disco (contorno, fori laterali, asola). Colori, 
 pennello, penna e lucchetti funzionano come sempre e si esportano STL/3MF/SVG. Le **scritte** restano disponibili
 (testi, colore, dimensione, posizione): partono vuote e vengono incise sulla fascia dell'immagine, cioè il disegno sotto
 viene tagliato con la forma esatta delle lettere (nei file nessuna sovrapposizione); uscendo tornano le scritte di prima.
+In elaborazione c'è anche **Raggio scritte** (55–95 mm, normale 84,75): sposta il cerchio su cui stanno le scritte per
+centrarle sulla fascia disegnata nell'immagine, che può essere più larga o più stretta di quella del plugin. Viene
+salvato nel progetto.
 Colore fascia, "sopra la fascia" e grafiche sono nascosti; "✕ Esci dall'elaborazione" torna al normale.
 
 **💾 Salva nel disegno pronto** (barra in alto, durante l'elaborazione): manda al sito il PNG del disco così com'è

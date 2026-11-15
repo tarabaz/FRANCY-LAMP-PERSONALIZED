@@ -574,6 +574,10 @@ for (const id of ['tTL', 'tTR', 'tBL', 'tBR']) $('#' + id).addEventListener('inp
 // dimensione di tutte le scritte (in % della fascia; mostrata in mm)
 const showTextSize = () => { $('#textSizeOut').textContent = (FRAME.band * $('#textSize').value / 100).toFixed(1).replace('.', ',') + ' mm'; };
 $('#textSize').addEventListener('input', () => { showTextSize(); clearTimeout(textTimer); textTimer = setTimeout(render, 40); });
+// raggio delle scritte (solo disegni pronti elaborati: la fascia disegnata può essere più larga o più stretta)
+const showTextRadius = () => { $('#textRadiusOut').textContent = (+$('#textRadius').value).toFixed(1).replace('.', ',') + ' mm'; };
+$('#textRadius').addEventListener('input', () => { showTextRadius(); clearTimeout(textTimer); textTimer = setTimeout(render, 40); });
+showTextRadius();
 showTextSize();
 // slider di posizione: aggiornamento leggero mentre si trascina
 for (const id of ['pTL', 'pTR', 'pBL', 'pBR']) $('#' + id).addEventListener('input', () => { clearTimeout(textTimer); textTimer = setTimeout(render, 40); });
@@ -1271,7 +1275,8 @@ function texts() {
   // sotto lo slider va da sinistra a destra, l'angolo da 180 (sinistra) a 0 (destra)
   return { topLeft: $('#tTL').value, topRight: $('#tTR').value, bottomLeft: $('#tBL').value, bottomRight: $('#tBR').value,
     pos: { topLeft: +$('#pTL').value, topRight: +$('#pTR').value, bottomLeft: 180 - +$('#pBL').value, bottomRight: 180 - +$('#pBR').value },
-    height: +$('#textSize').value / 100 };
+    height: +$('#textSize').value / 100,
+    radius: state.fullDisc && !state.template ? +$('#textRadius').value : 0 };
 }
 
 // ---------------- sopra la fascia: forme ----------------
@@ -1384,7 +1389,7 @@ function minusText(d, textD) {
   if (textCutCache.has(key)) return textCutCache.get(key);
   let out = d;
   try {
-    const r0 = geometry().rBandIn - 1;
+    const t = texts(), r0 = (t.radius > 0 ? t.radius : (geometry().rBandOut + geometry().rBandIn) / 2) - FRAME.band * 0.6 - 1;
     const nums = d.match(/-?\d+(?:\.\d+)?/g) || [];
     let near = false;
     for (let i = 0; i + 1 < nums.length; i += 2) if (Math.hypot(+nums[i], +nums[i + 1]) > r0) { near = true; break; }
@@ -2943,7 +2948,7 @@ async function projectBlob() {
     P.layers = await Promise.all(state.layers.map(async (L) => ({ id: L.id, name: L.name, image: await srcToDataUrl(L.url), x: L.x, y: L.y, size: L.size, rot: L.rot, outline: L.outline || 0, editable: !!L.editable })));
   }
   P.band = state.bandColor; P.textColor = state.textColor;
-  P.texts = { tl: $('#tTL').value, tr: $('#tTR').value, bl: $('#tBL').value, br: $('#tBR').value, pTL: +$('#pTL').value, pTR: +$('#pTR').value, pBL: +$('#pBL').value, pBR: +$('#pBR').value, size: +$('#textSize').value };
+  P.texts = { tl: $('#tTL').value, tr: $('#tTR').value, bl: $('#tBL').value, br: $('#tBR').value, pTL: +$('#pTL').value, pTR: +$('#pTR').value, pBL: +$('#pBL').value, pBR: +$('#pBR').value, size: +$('#textSize').value, radius: +$('#textRadius').value };
   P.lampColors = state.lampColors || {};
   P.lit = state.lit;
   let blob = new Blob([JSON.stringify(P)], { type: 'application/json' });
@@ -2975,6 +2980,7 @@ async function openProject(file) {
       for (const [id, k] of [['tTL', 'tl'], ['tTR', 'tr'], ['tBL', 'bl'], ['tBR', 'br']]) if (typeof t[k] === 'string') $('#' + id).value = t[k];
       for (const id of ['pTL', 'pTR', 'pBL', 'pBR']) if (t[id] !== undefined) $('#' + id).value = t[id];
       if (t.size) { $('#textSize').value = t.size; showTextSize(); }
+      if (t.radius) { $('#textRadius').value = t.radius; showTextRadius(); }
       if (P.band) state.bandColor = P.band;
       if (P.textColor) state.textColor = P.textColor;
       state.lampColors = P.lampColors || {};

@@ -376,7 +376,8 @@ html.flc-page .flc { height: 100%; }
 .flc .tpl-save-btn { background: #2e9e5b; color: #fff; }
 .flc .tpl-save-btn:disabled { background: transparent; color: #2e9e5b; box-shadow: inset 0 0 0 1px #2e9e5b; cursor: default; }
 .flc.full-disc #ovBox, .flc.full-disc #stkBox, .flc.full-disc #bandPicker { display: none !important; }
-/* in elaborazione le scritte restano: si incidono sulla fascia dell'immagine */
+/* in elaborazione le scritte restano: si incidono sulla fascia dell'immagine (con il loro raggio regolabile) */
+.flc:not(.full-disc) #textRadiusRow { display: none; }
 
 /* zoom dell'anteprima 2D */
 .flc #view2d { position: relative; }

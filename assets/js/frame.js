@@ -192,7 +192,9 @@ function slotBorderShapes(F, g) {
 
 export function buildFrame(font, texts, F = FRAME) {
   const g = geometry(F);
-  const rMid = (g.rBandOut + g.rBandIn) / 2;
+  // raggio del centro delle scritte: quello della fascia, oppure scelto a mano (disegni pronti elaborati, la cui fascia
+  // disegnata può avere un raggio diverso)
+  const rMid = texts.radius > 0 ? texts.radius : (g.rBandOut + g.rBandIn) / 2;
   // altezza delle lettere: frazione della fascia (una per tutte le scritte), regolabile dal configuratore
   const size = F.band * Math.min(0.85, Math.max(0.35, texts.height || F.textHeight));
   const capOffset = size * 0.36; // baseline spostata per centrare verticalmente il testo nella fascia
