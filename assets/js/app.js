@@ -2245,18 +2245,20 @@ function colorSummary(ps) {
 }
 
 // "Colori scuri più sottili": i colori che lasciano passare poca luce (TD basso della bobina, o colore scuro se il
-// TD non c'è) si stampano con 1 o 2 layer invece di 3, sempre IN CIMA; sotto, al loro posto, il bianco della base.
+// TD non c'è) si stampano con 2 layer invece di 3 (mai 1: con un layer solo il colore non è omogeneo e si vedono le
+// righe), sempre IN CIMA; sotto, al loro posto, il bianco della base.
 // Da accesa passano molta più luce, da spenta quasi uguali. Il nero (linee, cornice, anello) resta sempre pieno.
 // quanti layer di colore (1-3) per un colore del motivo, secondo il TD della bobina o quanto è scuro; null = non si tocca
 function darkLayers(p, info) {
   const hex = (p.color || '').toLowerCase();
   if (p.layer !== 'motivo' || p.black || !p.d || hex === WHITE.toLowerCase() || isNearBlack(hex)) return null;
   if (!info.has(hex)) {
-    const b = CFG.bambu || {}, t1 = b.thin1 ?? 0.3, t2 = b.thin2 ?? 0.8, L = FRAME.artThickness / 3;
+    const b = CFG.bambu || {}, t2 = b.thin2 ?? 0.8, L = FRAME.artThickness / 3;
     const f = state.filaments.length ? nearestFilament(hex) : null;
     const td = f && f.td ? f.td : null;
     // senza TD: stima dalla luminosità (L* del colore)
-    const n = td != null ? (td <= t1 ? 1 : td <= t2 ? 2 : 3) : (hexToLab(hex)[0] < 35 ? 1 : hexToLab(hex)[0] < 55 ? 2 : 3);
+    // minimo 2 layer: 1 solo è troppo sottile (colore non omogeneo)
+    const n = td != null ? (td <= t2 ? 2 : 3) : (hexToLab(hex)[0] < 55 ? 2 : 3);
     info.set(hex, { colore: hex, filamento: f ? f.name : '', td, layer: n, spessore_mm: +(n * L).toFixed(2), stima: td == null });
   }
   return info.get(hex).layer;
@@ -2391,7 +2393,7 @@ async function buildPackage(customer) {
   } catch (err) {
     console.error('3MF giunture sfalsate non creato', err);
   }
-  // seconda versione: colori scuri più sottili (1-2 layer in cima, bianco sotto), per confrontarle da accese
+  // seconda versione: colori scuri più sottili (2 layer in cima, bianco sotto), per confrontarle da accese
   let thin = null;
   try {
     thin = thinDarkParts(ps);
@@ -2429,7 +2431,7 @@ async function buildPackage(customer) {
     ...(stag ? ['VERSIONE "GIUNTURE SFALSATE" (05_bambu/disco-lampada-sfalsato.3mf)',
       `Stesso disco, ma nei 2 layer sotto ogni colore entra fino a ${stag.colore_sotto_il_nero_mm} mm sotto il nero (il nero non scende mai sotto ${stag.nero_minimo_mm} mm, una linea singola); il layer in alto resta normale. Le fessure tra colore e nero non sono più una sopra l'altra: da accesa niente puntini bianchi.`, '',
       ...(stag.anche_scuri_sottili ? ['VERSIONE "SCURI SOTTILI + GIUNTURE SFALSATE" (05_bambu/disco-lampada-scuri-sottili-sfalsato.3mf)',
-        'Le due cose insieme: confini sfalsati sotto il nero e colori scuri solo negli 1-2 layer più alti (sotto bianco, sempre sfalsato). È la versione consigliata se le due prove separate ti piacciono.', ''] : [])] : []),
+        'Le due cose insieme: confini sfalsati sotto il nero e colori scuri solo nei 2 layer più alti (sotto bianco, sempre sfalsato). È la versione consigliata se le due prove separate ti piacciono.', ''] : [])] : []),
     ...(thin && !thin.none ? ['VERSIONE "COLORI SCURI SOTTILI" (05_bambu/disco-lampada-scuri-sottili.3mf)',
       'Stesso disco, ma i colori che lasciano passare poca luce hanno meno layer (sempre in cima, sotto c\'è il bianco): da accesa si illuminano di più. Il nero resta pieno.',
       ...thin.info.filter((x) => x.layer < 3).map((x) => `  ${x.colore}${x.filamento ? ' ' + x.filamento : ''}: ${x.layer} layer (${x.spessore_mm} mm)${x.td != null ? ', TD ' + x.td : ', stimato dal colore'}`), ''] : []),

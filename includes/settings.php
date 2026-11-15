@@ -315,7 +315,7 @@ function flc_defaults() {
 		'bb_gap_speed' => 60,        // Velocità → Riempimento gap (mm/s)
 		'bb_xy'        => 0,         // Qualità → Precisione → Compensazione contorni X-Y (mm)
 		'bb_flow'      => 0,         // correzione % del rapporto di flusso dei colori del disegno (bianco della base escluso)
-		'bb_thin1'     => 0.3,       // "colori scuri sottili": TD fino a questo valore → 1 layer di colore
+		'bb_thin1'     => 0.3,       // non più usato: i colori scuri hanno sempre almeno 2 layer
 		'bb_thin2'     => 0.8,       // TD fino a questo valore → 2 layer (oltre: 3, come sempre)
 		'bb_stag_grow' => 0.2,       // giunture sfalsate: quanto il colore entra sotto il nero nei 2 layer inferiori (mm)
 		'bb_stag_core' => 0.42,      // giunture sfalsate: nero minimo che resta sotto (mm, una linea singola con ugello 0,4)
@@ -1558,12 +1558,9 @@ function flc_settings_page() {
 				array('bb_flow', 'Rapporto di flusso dei colori (correzione)', 'Filamento → Rapporto di flusso', array('number', -5, 5, 0.5, '%'), '0',
 					'Corregge in percentuale il flusso di tutti i filamenti del disegno (il bianco della base resta com\'è). +1% = un filo di materiale in più ovunque.',
 					'Oltre +2%: sovraestrusione, superficie ruvida e bordi gonfi (è la causa più probabile della superficie fatta male di una volta). Sotto 0: buchini e superficie poco coprente.'),
-				array('bb_thin1', 'Colori scuri sottili: 1 layer fino a TD', 'Solo nel secondo progetto dello zip (…-scuri-sottili.3mf)', array('number', 0, 5, 0.05, 'mm'), '0,3',
-					'Nel progetto "scuri sottili" i colori con TD (trasparenza della bobina, Filamenti) fino a questo valore si stampano con 1 solo layer in cima, sotto c\'è il bianco: da accesa passa molta più luce. Senza TD conta quanto è scuro il colore.',
-					'Troppo alto: anche colori medi diventano da 1 layer e da spenta risultano slavati (si vede il bianco sotto). Troppo basso: i colori scuri restano spessi e da accesa restano spenti.'),
-				array('bb_thin2', 'Colori scuri sottili: 2 layer fino a TD', 'Solo nel secondo progetto dello zip', array('number', 0, 5, 0.05, 'mm'), '0,8',
-					'I colori con TD tra la soglia precedente e questa si stampano con 2 layer invece di 3. Oltre questa soglia restano a 3 layer (colori chiari e traslucidi). Il nero resta sempre pieno.',
-					'Troppo alto: anche i colori chiari si assottigliano e perdono saturazione. Troppo basso: niente colori a 2 layer, solo 1 o 3.'),
+				array('bb_thin2', 'Colori scuri sottili: 2 layer fino a TD', 'Solo nei progetti "scuri sottili" dello zip', array('number', 0, 5, 0.05, 'mm'), '0,8',
+					'Nei progetti "scuri sottili" i colori con TD (trasparenza della bobina, Filamenti) fino a questo valore si stampano con 2 layer in cima invece di 3, sotto c\'è il bianco: da accesa passa più luce. Mai 1 layer: troppo sottile, il colore non viene omogeneo. Senza TD conta quanto è scuro il colore. Il nero resta sempre pieno.',
+					'Troppo alto: anche i colori chiari si assottigliano e da spenta risultano un po\' slavati. Troppo basso: quasi nessun colore si assottiglia e da accesa gli scuri restano spenti.'),
 				array('bb_stag_grow', 'Giunture sfalsate: colore sotto il nero', 'Solo nel terzo progetto dello zip (…-sfalsato.3mf)', array('number', 0, 0.5, 0.05, 'mm'), '0,2',
 					'Nei 2 layer sotto, ogni colore entra di questa misura sotto le linee nere; il layer in alto resta normale. Così la fessura tra colore e nero sopra non coincide con quella sotto e la luce non trova un passaggio dritto fino al bianco: niente puntini da accesa.',
 					'Troppo alto: le linee nere sotto si svuotano (resta solo il minimo qui sotto) e da accese diventano più grigie. Troppo basso (sotto 0,1): l\'effetto sparisce.'),
